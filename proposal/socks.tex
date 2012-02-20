@@ -1,0 +1,110 @@
+\documentclass[a4paper]{article}
+
+\author{Merlijn Wajer}
+\title{Soxy: Transparent SOCKS proxy using \textit{ptrace(2)}}
+
+\usepackage{hyperref}
+\usepackage[utf8]{inputenc}
+
+\begin{document}
+\maketitle
+
+\section{Soxy: Transparent SOCKS proxy using \textit{ptrace(2)}}
+
+% Wat is een proxy, waar wordt een proxy voor gebruikt.
+% Wat is ptrace
+% Bestaande proxy implementaties met SOCKS (5)
+% Wat gaan wij maken?
+% Features:
+%   -   TCP, UDP en IPv6
+%   -   Attach, of fork+exec only?
+%   -   Quite fast
+%
+% Use cases:
+%   -   Foo
+% Implementatie goals:
+%   -   Weinig code, KISS
+%   -   1 socket open houden, of voor elke socket een nieuwe socket? (Again,
+%   KISS)
+
+\subsection{Proxies}
+In Computer Science, a \textbf{proxy} is …
+
+
+Software can use a proxy server in several ways.
+
+It can knowingly connect to the proxy server. For example, in the popular web
+browser Firefox it is possible to specify how Firefox connects to the internet,
+and one can directly tell Firefox how to do so. It can tell Firefox to connect
+to a specific type of proxy, use the system wide proxy settings or not use any
+proxy at all.
+
+In this case, the software explicitly has to implement functionality to use a
+proxy. It is also possible to have software use a proxy even if it hasn't
+implemented specific proxy functionality: by making the usage of a proxy
+completely \textit{transparent} to the software.
+
+By \textit{transparent} we mean that the software unknowingly
+\footnote{and perhaps even unwillingly} uses a proxy.
+
+\subsubsection{Intercepting calls}
+
+To transparently have a program use a proxy, one has to intercept and modify
+the \textit{socket} function calls.
+
+There are again several ways of intercepting and/or changing the socket function
+calls.
+
+A popular implementation of a transparent SOCKS 5 proxy \textbf{tsocks}
+\footnote{We believe \textbf{torsocks} does something similar}
+utilises the \textbf{LD\_PRELOAD} feature on POSIX-compatible systems to
+intercept the socket function calls and replace them with its own.
+
+We propose using the POSIX \textbf{ptrace} feature to transparently have
+software use a proxy.
+
+\subsection{ptrace}
+
+\textbf{ptrace(2)} is a system call which provides a means to observe and
+control the execution of another process by intercepting (all) the system calls
+of said process.
+
+This way it is possible to intercept \textbf{specific} system calls related to
+networking. In theory, one could turn the data being send by the software into
+proper SOCKS 5 packets and relay those packets to the proxy server. The same
+could be done for incoming data (namely: extract the data from the SOCKS 5
+packets and pass it to the software).
+
+An additional advantage of using \textbf{ptrace} is that ptrace also allows
+attaching to a running process in which case we could have a program
+transparently start using our proxy without having to restart said program. This
+does raise some serious complications, but theoretically it is possible.
+
+\subsection{Features, limitations and goals}
+
+We will strive to implement the following features:
+
+\begin{itemize}
+\item Support for TCP
+\item Support for UDP
+\item Support for IPv4 and IPv6.
+\end{itemize}
+
+In addition to these features, we will focus on maintainability and readability
+of the implementation, rather than efficiency and speed. Typically proxies are
+not doing much more than wrapping data in packets and relaying them to the proxy
+server, and the speed of a proxy depends mostly on the speed on the network the
+machine is using and not on the speed of the CPU. \\
+
+We will not focus on attaching to a running program and then have it use our
+proxy functions. % kut zin
+Instead, a proxing that will use said transparent proxy has to be started by our
+proxy implementation by passing it as an argument to said proxy. For example:
+
+\begin{verbatim}
+soxy -v -- firefox -private
+\end{verbatim}
+
+Will run firefox with the additional argument ''-private''.
+
+\end{document}
