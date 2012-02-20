@@ -1,6 +1,6 @@
 \documentclass[a4paper]{article}
 
-\author{Merlijn Wajer}
+\author{Merlijn Wajer \\ Jurriaan Bremer}
 \title{Soxy: Transparent SOCKS proxy using \textit{ptrace(2)}}
 
 \usepackage{hyperref}
@@ -28,16 +28,11 @@
 %   KISS)
 
 \subsection{Proxies}
-In Computer Science, a \textbf{proxy} is …
+In Computer Science, a \textbf{proxy} is an intermediate server that accepts packets from a host and forwards them to another host, therefore giving the sending host more privacy (that is, the receiving host gets the IP address from the intermediate server.) Software can use a proxy server in several ways.
 
-
-Software can use a proxy server in several ways.
-
-It can knowingly connect to the proxy server. For example, in the popular web
+An application can be configured to connect through a proxy. For example, in the popular web
 browser Firefox it is possible to specify how Firefox connects to the internet,
-and one can directly tell Firefox how to do so. It can tell Firefox to connect
-to a specific type of proxy, use the system wide proxy settings or not use any
-proxy at all.
+and one can directly tell Firefox how to do so. It is possible to tell Firefox which credentials to use for which type of proxy, if any at all.
 
 In this case, the software explicitly has to implement functionality to use a
 proxy. It is also possible to have software use a proxy even if it hasn't
