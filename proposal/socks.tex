@@ -11,24 +11,12 @@
 
 \section{Soxy: Transparent SOCKS proxy using \textit{ptrace(2)}}
 
-% Wat is een proxy, waar wordt een proxy voor gebruikt.
-% Wat is ptrace
-% Bestaande proxy implementaties met SOCKS (5)
-% Wat gaan wij maken?
-% Features:
-%   -   TCP, UDP en IPv6
-%   -   Attach, of fork+exec only?
-%   -   Quite fast
-%
-% Use cases:
-%   -   Foo
-% Implementatie goals:
-%   -   Weinig code, KISS
-%   -   1 socket open houden, of voor elke socket een nieuwe socket? (Again,
-%   KISS)
-
 \subsection{Proxies}
-In Computer Science, a \textbf{proxy} is an intermediate server that accepts packets from a host and forwards them to another host, therefore giving the sending host more privacy (that is, the receiving host gets the IP address from the intermediate server.) Software can use a proxy server in several ways.
+In Computer Science, a \textbf{proxy} is an intermediate server that
+accepts packets from a host and forwards them to another host,
+therefore giving the sending host more privacy (that is, the
+receiving host gets the IP address from the intermediate server).
+Software can use a proxy server in several ways.
 
 An application can be configured to connect through a proxy. For example, in the popular web
 browser Firefox it is possible to specify how Firefox connects to the internet,
@@ -52,7 +40,7 @@ calls.
 
 A popular implementation of a transparent SOCKS 5 proxy \textbf{tsocks}
 \footnote{We believe \textbf{torsocks} does something similar}
-utilises the \textbf{LD\_PRELOAD} feature on POSIX-compatible systems to
+utilises the \textit{LD\_PRELOAD} feature on POSIX-compatible systems to
 intercept the socket function calls and replace them with its own.
 
 We propose using the POSIX \textbf{ptrace} feature to transparently have
@@ -80,26 +68,33 @@ does raise some serious complications, but theoretically it is possible.
 We will strive to implement the following features:
 
 \begin{itemize}
-\item Support for TCP
-\item Support for UDP
+\item Support for TCP. (blocking and non-blocking)
 \item Support for IPv4 and IPv6.
+\end{itemize}
+
+If time permits us, we will also implement:
+
+\begin{itemize}
+\item Support for UDP
 \end{itemize}
 
 In addition to these features, we will focus on maintainability and readability
 of the implementation, rather than efficiency and speed. Typically proxies are
 not doing much more than wrapping data in packets and relaying them to the proxy
 server, and the speed of a proxy depends mostly on the speed on the network the
-machine is using and not on the speed of the CPU. \\
+machine is using and not on the speed of the CPU.
+
+We will also keep the code well documented and create a \textbf{man} page. \\
 
 We will not focus on attaching to a running program and then have it use our
 proxy functions. % kut zin
-Instead, a proxing that will use said transparent proxy has to be started by our
+Instead, a program that will use said transparent proxy has to be started by our
 proxy implementation by passing it as an argument to said proxy. For example:
 
 \begin{verbatim}
 soxy -v -- firefox -private
 \end{verbatim}
 
-Will run firefox with the additional argument ''-private''.
+Will run the program (Firefox) with the additional argument ''-private''.
 
 \end{document}
