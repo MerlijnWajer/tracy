@@ -12,28 +12,30 @@
 \section{Soxy: Transparent SOCKS proxy using \textit{ptrace(2)}}
 
 \subsection{Proxies}
-In Computer Science, a \textbf{proxy} is an intermediate server that
+In computer science, a \textbf{proxy} is an intermediate server that
 accepts packets from a host and forwards them to another host,
 therefore giving the sending host more privacy (that is, the
 receiving host gets the IP address from the intermediate server).
-Software can use a proxy server in several ways.
+Software can use a proxy server knowingly or unknowingly.
 
-An application can be configured to connect through a proxy. For example, in the popular web
-browser Firefox it is possible to specify how Firefox connects to the internet,
-and one can directly tell Firefox how to do so. It is possible to tell Firefox which credentials to use for which type of proxy, if any at all.
+An application can be configured to connect through a proxy. For example, in
+the popular web browser Firefox it is possible to specify how Firefox connects
+to the internet, and one can directly tell Firefox how to do so.
+It is possible to tell Firefox which credentials to use for which type of proxy,
+if any at all.
 
 In this case, the software explicitly has to implement functionality to use a
 proxy. It is also possible to have software use a proxy even if it hasn't
 implemented specific proxy functionality: by making the usage of a proxy
 completely \textit{transparent} to the software.
 
-By \textit{transparent} we mean that the software unknowingly
+By transparent we mean that the software unknowingly
 \footnote{And perhaps even unwillingly} uses a proxy.
 
 \subsubsection{Intercepting calls}
 
-To transparently have a program use a proxy, one has to intercept and modify
-the \textit{socket} function calls.
+To transparently have a program use a proxy, a proxy program like \textbf{soxy}
+has to intercept and modify the \textit{socket} function calls.
 
 There are again several ways of intercepting and/or changing the socket function
 calls.
@@ -50,8 +52,9 @@ software use a proxy.
 
 SOCKet Secure (SOCKS) is an Internet protocol that routes network packets
 between a client and server through a proxy server. SOCKS5 additionally provides
-authentication so only authorized users may access a server.\footnote{From
-https://en.wikipedia.org/wiki/SOCKS} \footnote{https://tools.ietf.org/html/rfc1928}
+authentication so only authorized users may access a server.
+\footnote{https://en.wikipedia.org/wiki/SOCKS}
+\footnote{https://tools.ietf.org/html/rfc1928}
 
 \subsection{ptrace}
 
@@ -76,13 +79,16 @@ We will strive to implement the following features:
 
 \begin{itemize}
 \item Support for TCP. (blocking and non-blocking)
-\item Support for IPv4 and IPv6.
+\item Support for IPv4.
+\item Support for rule-based proxies. For example, do not use a proxy for
+host \textbf{foo} with port \textbf{bar}.
 \end{itemize}
 
 If time permits us, we will also implement:
 
 \begin{itemize}
-\item Support for UDP
+\item Support for IPv6.
+\item Support for UDP.
 \end{itemize}
 
 In addition to these features, we will focus on maintainability and readability
