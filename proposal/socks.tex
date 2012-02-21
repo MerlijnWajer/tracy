@@ -1,6 +1,6 @@
 \documentclass[a4paper]{article}
 
-\author{Merlijn Wajer \\ Jurriaan Bremer}
+\author{Merlijn Wajer \and Jurriaan Bremer \and Bas Weelinck}
 \title{Soxy: Transparent SOCKS proxy using \textit{ptrace(2)}}
 
 \usepackage{hyperref}
@@ -28,7 +28,7 @@ implemented specific proxy functionality: by making the usage of a proxy
 completely \textit{transparent} to the software.
 
 By \textit{transparent} we mean that the software unknowingly
-\footnote{and perhaps even unwillingly} uses a proxy.
+\footnote{And perhaps even unwillingly} uses a proxy.
 
 \subsubsection{Intercepting calls}
 
@@ -45,6 +45,13 @@ intercept the socket function calls and replace them with its own.
 
 We propose using the POSIX \textbf{ptrace} feature to transparently have
 software use a proxy.
+
+\subsection{SOCKS 5}
+
+SOCKet Secure (SOCKS) is an Internet protocol that routes network packets
+between a client and server through a proxy server. SOCKS5 additionally provides
+authentication so only authorized users may access a server.\footnote{From
+https://en.wikipedia.org/wiki/SOCKS} \footnote{https://tools.ietf.org/html/rfc1928}
 
 \subsection{ptrace}
 
