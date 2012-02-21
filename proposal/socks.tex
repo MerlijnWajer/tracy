@@ -13,7 +13,7 @@
 
 \subsection{Proxies}
 In computer science, a \textbf{proxy} is an intermediate server that
-accepts packets from a host and forwards them to another host,
+accepts connections from a host and forwards them to another host,
 therefore giving the sending host more privacy (that is, the
 receiving host gets the IP address from the intermediate server).
 Software can use a proxy server knowingly or unknowingly.
@@ -50,9 +50,12 @@ software use a proxy.
 
 \subsection{SOCKS 5}
 
-SOCKet Secure (SOCKS) is an Internet protocol that routes network packets
-between a client and server through a proxy server. SOCKS5 additionally provides
-authentication so only authorized users may access a server.
+SOCKet Secure (SOCKS) is an Internet protocol that routes TCP-connections and
+UDP packets between a client and server through a proxy server. SOCKS5
+additionally provides authentication so only authorized users may access a
+server. It doesn't implement TCP on top of TCP but instead allows the computer using
+the proxy to issue TCP connections from the proxy server or open (UDP) ports on the
+proxy server.
 \footnote{https://en.wikipedia.org/wiki/SOCKS}
 \footnote{https://tools.ietf.org/html/rfc1928}
 
@@ -93,7 +96,7 @@ If time permits us, we will also implement:
 
 In addition to these features, we will focus on maintainability and readability
 of the implementation, rather than efficiency and speed. Typically proxies are
-not doing much more than wrapping data in packets and relaying them to the proxy
+not doing much more than wrapping data in frames and relaying them to the proxy
 server, and the speed of a proxy depends mostly on the speed on the network the
 machine is using and not on the speed of the CPU.
 
@@ -101,7 +104,7 @@ We will also keep the code well documented and create a \textbf{man} page. \\
 
 We will not focus on attaching to a running program and then have it use our
 proxy functions. % kut zin
-Instead, a program that will use said transparent proxy has to be started by our
+Instead, a program that will use the transparent proxy has to be started by our
 proxy implementation by passing it as an argument to said proxy. For example:
 
 \begin{verbatim}
