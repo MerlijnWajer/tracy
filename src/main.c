@@ -1,13 +1,12 @@
-#include <sys/ptrace.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <sys/reg.h>   /* For constants ORIG_EAX etc */
 #include <stdio.h>
 
-int main(int argc, char** argv) {
+#include "ptracert.h"
+
+int main() {
+    fork_and_trace();
+    /*
     pid_t child;
-    long orig_eax;
+
     child = fork();
     if(child == 0) {
         ptrace(PTRACE_TRACEME, 0, NULL, NULL);
@@ -21,6 +20,14 @@ int main(int argc, char** argv) {
         printf("The child made a "
                "system call %ld\n", orig_eax);
         ptrace(PTRACE_CONT, child, NULL, NULL);
+    }
+    */
+    while (1) {
+        /* Get syscalls here */
+
+        /* Handle events */
+
+        /* If the child died (and not a child-child), break */
     }
     return 0;
 }
