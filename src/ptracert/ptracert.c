@@ -5,7 +5,8 @@
  */
 
 #include <sys/ptrace.h>
-#include <sys/reg.h>
+#include <sys/types.h>
+#include <sys/user.h>
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -14,6 +15,7 @@
 #include <signal.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 
 #include <string.h>
@@ -86,14 +88,17 @@ int fork_and_trace(void) {
 
 int wait_for_syscall(struct soxy_event* s) {
     /* This needs a lot of work ... */
-    int status, signal_id;
+    int status, signal_id, ptrace_r;
     pid_t pid;
+    struct user_regs_struct regs;
 
     /* ``s'' NEEDS TO BE ALLOCATED IN ADVANCE */
     memset(s, 0, sizeof(struct soxy_event));
 
     /* Wait for changes */
     pid = waitpid(0, &status, __WALL);
+
+
 
     /* Something went wrong. */
     if (pid == -1) {
@@ -131,7 +136,13 @@ int wait_for_syscall(struct soxy_event* s) {
     if (signal_id == (SIGTRAP | 0x80)) {
         s->type.type = EVENT_SYSCALL;
         /* Replace this ... */
-        s->syscall_num = ptrace(PTRACE_PEEKUSER, pid, 8 * ORIG_RAX, NULL);
+
+        ptrace_r = ptrace(PTRACE_GETREGS, pid, NULL, &regs);
+        if(ptrace_r) {
+            /* TODO FAILURE */
+        }
+        s->syscall_num = regs.orig_rax;
+
     } else if (signal_id == SIGTRAP) {
         /* TODO: We shouldn't send SIGTRAP signals */
     } else {
