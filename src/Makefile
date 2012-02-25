@@ -4,6 +4,7 @@
 CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror
 CFLAGS+=-I ptracert/
 CFLAGS+=-D_XOPEN_SOURCE
+CFLAGS+=-ggdb
 #CFLAGS+=-m32
 
 BINARY=soxy
@@ -14,7 +15,7 @@ ptracert:
 	$(MAKE) -C ptracert
 
 
-OBJECTS:=ptracert/ptracert.o
+OBJECTS:=ptracert/ptracert.o ptracert/ll.o
 
 soxy: main.c ptracert
 	$(CC) main.c $(CFLAGS) $(OBJECTS) $(LDFLAGS) -o soxy

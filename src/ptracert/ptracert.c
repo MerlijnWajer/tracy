@@ -122,7 +122,7 @@ int fork_trace_exec(int argc, char **argv) {
     return pid;
 }
 
-int wait_for_syscall(struct soxy_event* s) {
+int wait_for_syscall(struct soxy_ll *l, struct soxy_event* s) {
     /* This needs a lot of work ... */
     int status, signal_id, ptrace_r;
     pid_t pid;
@@ -135,7 +135,6 @@ int wait_for_syscall(struct soxy_event* s) {
     pid = waitpid(0, &status, __WALL);
 
 
-
     /* Something went wrong. */
     if (pid == -1) {
         if (errno == EINTR) {
@@ -144,7 +143,7 @@ int wait_for_syscall(struct soxy_event* s) {
         }
 
         /* If we were not interrupted, we no longer have any children. */
-        s->type.type = EVENT_NONE;
+        s->type = EVENT_NONE;
         return 0;
     }
 
@@ -170,8 +169,6 @@ int wait_for_syscall(struct soxy_event* s) {
     */
 
     if (signal_id == (SIGTRAP | 0x80)) {
-        s->type.type = EVENT_SYSCALL;
-
         /* Make functions to retrieve this */
          ptrace_r = ptrace(PTRACE_GETREGS, pid, NULL, &regs);
         if(ptrace_r) {
@@ -179,17 +176,36 @@ int wait_for_syscall(struct soxy_event* s) {
         }
         s->syscall_num = regs.orig_rax;
 
+        check_syscall(l, s);
+
     } else if (signal_id == SIGTRAP) {
         /* TODO: We shouldn't send SIGTRAP signals:
          * Continue the child but don't deliver the signal? */
     } else {
         /* TODO */
         s->signal_num= signal_id;
-        s->type.type = EVENT_SIGNAL;
+        s->type = EVENT_SIGNAL;
     }
 
     /* TODO TESTING. This probably needs to be somewhere else. */
-    ptrace(PTRACE_SYSCALL, s->pid, NULL, 0);
 
+    return 0;
+}
+
+int continue_syscall(struct soxy_event *s, int stop) {
+    ptrace(PTRACE_SYSCALL, s->pid, NULL, stop);
+
+    return 0;
+}
+
+int check_syscall(struct soxy_ll *l, struct soxy_event *s) {
+    struct soxy_ll_item *t;
+    if (t = ll_find(l, s->pid)) {
+        ll_del(l, s->pid);
+        s->type = EVENT_SYSCALL_POST;
+    } else {
+        ll_add(l, s->pid, NULL);
+        s->type = EVENT_SYSCALL_PRE;
+    }
     return 0;
 }

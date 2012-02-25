@@ -2,9 +2,10 @@
 
 CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror
 CFLAGS+=-D_POSIX_SOURCE
+CFLAGS=-ggdb
 #CFLAGS+=-m32
 
-OBJECTS=ptracert.o
+OBJECTS=ptracert.o ll.o
 
 default: $(OBJECTS)
 
