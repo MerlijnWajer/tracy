@@ -118,7 +118,7 @@ int wait_for_syscall(struct soxy_ll *l, struct soxy_event* s) {
     /* This needs a lot of work ... */
     int status, signal_id, ptrace_r;
     pid_t pid;
-    struct user_regs_struct regs;
+    struct REGS_NAME regs;
 
     /* ``s'' NEEDS TO BE ALLOCATED IN ADVANCE */
     memset(s, 0, sizeof(struct soxy_event));

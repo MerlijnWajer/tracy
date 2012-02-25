@@ -24,12 +24,15 @@ char* get_syscall_name(int syscall);
 
 #ifdef __arm__
     #define SYSCALL_REGISTER ARM_r7
+    #define REGS_NAME pt_regs
 #endif
 #ifdef __i386__
     #define SYSCALL_REGISTER orig_eax
+    #define REGS_NAME user_regs_struct
 #endif
 #ifdef __x86_64__
     #define SYSCALL_REGISTER orig_rax
+    #define REGS_NAME user_regs_struct
 #endif
 
 #endif
