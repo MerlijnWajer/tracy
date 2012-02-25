@@ -22,4 +22,14 @@ int continue_syscall(struct soxy_event *s, int stop);
 int check_syscall(struct soxy_ll *l, struct soxy_event *s);
 char* get_syscall_name(int syscall);
 
+#ifdef __arm__
+    #define SYSCALL_REGISTER ARM_r7
+#endif
+#ifdef __i386__
+    #define SYSCALL_REGISTER orig_eax
+#endif
+#ifdef __x86_64__
+    #define SYSCALL_REGISTER orig_rax
+#endif
+
 #endif

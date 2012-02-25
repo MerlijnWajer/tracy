@@ -166,7 +166,7 @@ int wait_for_syscall(struct soxy_ll *l, struct soxy_event* s) {
         if(ptrace_r) {
             /* TODO FAILRE */
         }
-        s->syscall_num = regs.orig_rax;
+        s->syscall_num = regs.SYSCALL_REGISTER;
 
         check_syscall(l, s);
 
