@@ -126,7 +126,7 @@ int wait_for_syscall(struct soxy_event* s) {
     /* This needs a lot of work ... */
     int status, signal_id, ptrace_r;
     pid_t pid;
-    struct pt_regs regs;
+    struct user_regs_struct regs;
 
     /* ``s'' NEEDS TO BE ALLOCATED IN ADVANCE */
     memset(s, 0, sizeof(struct soxy_event));
@@ -173,9 +173,9 @@ int wait_for_syscall(struct soxy_event* s) {
         s->type.type = EVENT_SYSCALL;
 
         /* Make functions to retrieve this */
-        ptrace_r = ptrace(PTRACE_GETREGS, pid, NULL, &regs);
+         ptrace_r = ptrace(PTRACE_GETREGS, pid, NULL, &regs);
         if(ptrace_r) {
-            /* TODO FAILURE */
+            /* TODO FAILRE */
         }
         s->syscall_num = regs.orig_rax;
 
