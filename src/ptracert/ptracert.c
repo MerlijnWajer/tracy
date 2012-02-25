@@ -5,6 +5,7 @@
  */
 
 #include <sys/ptrace.h>
+#include <sys/reg.h>
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -14,6 +15,8 @@
 
 #include <stdio.h>
 #include <errno.h>
+
+#include <string.h>
 
 #include "ptracert.h"
 
@@ -80,3 +83,68 @@ int fork_and_trace(void) {
 
     return pid;
 }
+
+int wait_for_syscall(struct soxy_event* s) {
+    /* This needs a lot of work ... */
+    int status, signal_id;
+    pid_t pid;
+
+    /* ``s'' NEEDS TO BE ALLOCATED IN ADVANCE */
+    memset(s, 0, sizeof(struct soxy_event));
+
+    /* Wait for changes */
+    pid = waitpid(0, &status, __WALL);
+
+    /* Something went wrong. */
+    if (pid == -1) {
+        if (errno == EINTR) {
+
+            return -1;
+        }
+
+        /* If we were not interrupted, we no longer have any children. */
+        s->type.type = EVENT_NONE;
+        return 0;
+    }
+
+    s->pid = pid;
+
+    if (!WIFSTOPPED(status)) {
+        /* TODO */
+        return -1;
+    }
+
+    signal_id = WSTOPSIG(status);
+
+/*
+    Because we set PTRACE_O_TRACESYSGOOD, bit 8 in the signal number is set
+    when syscall traps are delivered:
+
+           PTRACE_O_TRACESYSGOOD (since Linux 2.4.6)
+             When delivering syscall traps, set bit 7 in the signal number
+             (i.e., deliver  (SIGTRAP |  0x80) This makes it easy for the
+             tracer to tell the difference between normal traps and those
+             caused by a syscall.
+             (PTRACE_O_TRACESYSGOOD may not work on all architectures.)
+    */
+
+    if (signal_id == (SIGTRAP | 0x80)) {
+        s->type.type = EVENT_SYSCALL;
+        /* Replace this ... */
+        s->syscall_num = ptrace(PTRACE_PEEKUSER, pid, 8 * ORIG_RAX, NULL);
+    } else if (signal_id == SIGTRAP) {
+        /* TODO: We shouldn't send SIGTRAP signals */
+    } else {
+        /* TODO */
+        s->signal_num= signal_id;
+        s->type.type = EVENT_SIGNAL;
+    }
+
+    /* TODO TESTING. This probably needs to be somewhere else. */
+    ptrace(PTRACE_SYSCALL, s->pid, NULL, (void*)0);
+
+    return 0;
+}
+
+
+
