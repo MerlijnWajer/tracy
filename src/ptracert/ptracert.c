@@ -67,10 +67,10 @@ int fork_trace_exec(int argc, char **argv) {
         /* Exec here? (move somewhere else?) */
         if (argc == 1) {
             printf("Executing %s without arguments.\n", argv[0]);
-            execve(argv[0], argv, NULL);
+            execv(argv[0], argv);
         } else {
             printf("Executing %s with argument: %s\n", argv[0], argv[1]);
-            execve(argv[0], argv, NULL);
+            execv(argv[0], argv);
         }
 
         if(errno == -1) {
@@ -142,8 +142,16 @@ int wait_for_syscall(struct soxy_ll *l, struct soxy_event* s) {
     s->pid = pid;
 
     if (!WIFSTOPPED(status)) {
-        /* TODO */
-        return -1;
+        s->type = EVENT_QUIT;
+        if (WIFEXITED(status)) {
+            s->signal_num = WEXITSTATUS(status);
+        } else if (WIFSIGNALED(status)) {
+            s->signal_num = WTERMSIG(status); /* + 128 */
+        } else {
+            puts("Recursing due to WIFSTOPPED");
+            return wait_for_syscall(l, s);
+        }
+        return 0;
     }
 
     signal_id = WSTOPSIG(status);
@@ -164,18 +172,24 @@ int wait_for_syscall(struct soxy_ll *l, struct soxy_event* s) {
         /* Make functions to retrieve this */
          ptrace_r = ptrace(PTRACE_GETREGS, pid, NULL, &regs);
         if(ptrace_r) {
-            /* TODO FAILRE */
+            /* TODO FAILURE */
         }
         s->syscall_num = regs.SYSCALL_REGISTER;
 
         check_syscall(l, s);
 
     } else if (signal_id == SIGTRAP) {
+        puts("Recursing due to SIGTRAP");
+
+        continue_syscall(s);
+
+        return wait_for_syscall(l, s);
         /* TODO: We shouldn't send SIGTRAP signals:
          * Continue the child but don't deliver the signal? */
     } else {
-        /* TODO */
-        s->signal_num= signal_id;
+        puts("Signal for the child");
+        /* Signal for the child, pass it along. */
+        s->signal_num = signal_id;
         s->type = EVENT_SIGNAL;
     }
 
@@ -184,8 +198,17 @@ int wait_for_syscall(struct soxy_ll *l, struct soxy_event* s) {
     return 0;
 }
 
-int continue_syscall(struct soxy_event *s, int stop) {
-    ptrace(PTRACE_SYSCALL, s->pid, NULL, stop);
+int continue_syscall(struct soxy_event *s) {
+    int sig = 0;
+
+    /*  If data is nonzero and not SIGSTOP, it is interpreted as signal to be
+     *  delivered to the child; otherwise, no signal is delivered. */
+    if (s->type == EVENT_SIGNAL) {
+        sig = s->signal_num;
+        printf("Passing along signal %d.\n", sig);
+    }
+
+    ptrace(PTRACE_SYSCALL, s->pid, NULL, sig);
 
     return 0;
 }

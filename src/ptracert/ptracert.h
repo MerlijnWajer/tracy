@@ -8,6 +8,7 @@
 #define EVENT_SYSCALL_PRE 1 << 1
 #define EVENT_SYSCALL_POST 1 << 2
 #define EVENT_SIGNAL 1 << 3
+#define EVENT_QUIT 1 << 4
 
 struct soxy_event {
     int type;
@@ -18,7 +19,7 @@ struct soxy_event {
 
 int fork_trace_exec(int argc, char **argv);
 int wait_for_syscall(struct soxy_ll *l, struct soxy_event *s);
-int continue_syscall(struct soxy_event *s, int stop);
+int continue_syscall(struct soxy_event *s);
 int check_syscall(struct soxy_ll *l, struct soxy_event *s);
 char* get_syscall_name(int syscall);
 

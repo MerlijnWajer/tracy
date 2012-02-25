@@ -6,6 +6,7 @@
 
 int main(int argc, char** argv) {
     struct soxy_event* e = malloc(sizeof(struct soxy_event));
+    int child_pid;
     int r = 0;
     struct soxy_ll *l = ll_init();
 
@@ -15,7 +16,7 @@ int main(int argc, char** argv) {
     }
 
     argv++; argc--;
-    fork_trace_exec(argc, argv);
+    child_pid = fork_trace_exec(argc, argv);
 
     while (1) {
         r = wait_for_syscall(l, e);
@@ -33,16 +34,27 @@ int main(int argc, char** argv) {
         }
 
         if (e->type == EVENT_SYSCALL_PRE) {
+            /*
             printf("PRE Syscall %s (%d) requested by child %d\n",
                 get_syscall_name(e->syscall_num), e->syscall_num, e->pid);
+            */
         }
 
         if (e->type == EVENT_SYSCALL_POST) {
+            /*
             printf("POST Syscall %s (%d) requested by child %d\n",
                 get_syscall_name(e->syscall_num), e->syscall_num, e->pid);
+            */
         }
 
-        continue_syscall(e, 0);
+        if (e->type == EVENT_QUIT) {
+            printf("EVENT_QUIT from %d with signal %ld\n", e->pid, e->signal_num);
+            if (e->pid == child_pid) {
+                printf("Our first child died.\n");
+            }
+        }
+
+        continue_syscall(e);
     }
 
     ll_free(l);
