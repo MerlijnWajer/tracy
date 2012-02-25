@@ -5,16 +5,6 @@
  */
 
 /* TODO
- * Processes are stopped before _AND_ after a system call. We only need to
- * handle one, generally. (Before)
- * We will, however, need to keep track of the pre-syscall events to match them
- * with post-syscall events. Since it is possible that two childs make a system
- * call at the same time, we will need some kind of datastructure. (We can't
- * just assume the next call will be a post if the previous one was a pre)
- *
- * This datastructure needs to contain at least: the system call and the pid.
- * (well, not even the system call, but to be on the safe side...)
- *
  * We also need to implement proper register getting and setting. preferrably
  * arch agnostic. (So we need to define a few register names/number per arch in
  * headers)
