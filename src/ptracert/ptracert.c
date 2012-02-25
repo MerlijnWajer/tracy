@@ -36,6 +36,8 @@
 
 #include <string.h>
 
+#include <sys/syscall.h>
+
 #include "ptracert.h"
 
 
@@ -199,3 +201,28 @@ int check_syscall(struct soxy_ll *l, struct soxy_event *s) {
     }
     return 0;
 }
+
+static const struct _syscall_to_str {
+    char *name;
+    int call_nr;
+} syscall_to_string[] = {
+#define DEF_SYSCALL(NAME) \
+    {#NAME, SYS_ ## NAME},
+    #include "def_syscalls.h"
+    {NULL, -1}
+};
+
+char* get_syscall_name(int syscall)
+{
+    int i = 0;
+
+    while (syscall_to_string[i].name) {
+        if (syscall_to_string[i].call_nr == syscall)
+            return syscall_to_string[i].name;
+
+        i++;
+    }
+
+    return NULL;
+}
+

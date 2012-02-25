@@ -33,11 +33,13 @@ int main(int argc, char** argv) {
         }
 
         if (e->type == EVENT_SYSCALL_PRE) {
-            printf("PRE Syscall %d requested by child %d\n", e->syscall_num, e->pid);
+            printf("PRE Syscall %s (%d) requested by child %d\n",
+                get_syscall_name(e->syscall_num), e->syscall_num, e->pid);
         }
 
         if (e->type == EVENT_SYSCALL_POST) {
-            printf("POST Syscall %d requested by child %d\n", e->syscall_num, e->pid);
+            printf("POST Syscall %s (%d) requested by child %d\n",
+                get_syscall_name(e->syscall_num), e->syscall_num, e->pid);
         }
 
         continue_syscall(e, 0);

@@ -20,5 +20,6 @@ int fork_trace_exec(int argc, char **argv);
 int wait_for_syscall(struct soxy_ll *l, struct soxy_event *s);
 int continue_syscall(struct soxy_event *s, int stop);
 int check_syscall(struct soxy_ll *l, struct soxy_event *s);
+char* get_syscall_name(int syscall);
 
 #endif
