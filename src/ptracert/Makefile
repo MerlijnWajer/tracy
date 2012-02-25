@@ -2,6 +2,7 @@
 
 CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror
 CFLAGS+=-D_POSIX_SOURCE
+#CFLAGS+=-m32
 
 OBJECTS=ptracert.o
 

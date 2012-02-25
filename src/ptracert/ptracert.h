@@ -16,10 +16,10 @@ struct soxy_event {
     struct soxy_event_type type;
     pid_t pid;
     int syscall_num;
-    int signal_num;
+    long signal_num;
 };
 
-int fork_and_trace(void);
+int fork_trace_exec(int argc, char **argv);
 int wait_for_syscall(struct soxy_event* s);
 
 #endif

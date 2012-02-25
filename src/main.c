@@ -3,11 +3,17 @@
 
 #include "ptracert.h"
 
-int main() {
+int main(int argc, char** argv) {
     struct soxy_event* e = malloc(sizeof(struct soxy_event));
     int r = 0;
 
-    fork_and_trace();
+    if (argc < 2) {
+        printf("Usage: soxy <program name> <program arguments>\n");
+        return 1;
+    }
+
+    argv++; argc--;
+    fork_trace_exec(argc, argv);
 
     while (1) {
         r = wait_for_syscall(e);
@@ -16,7 +22,7 @@ int main() {
 
         /* If the (last) child died, break */
         if (e->type.type == EVENT_NONE) {
-            puts("We're done");
+            /* puts("We're done"); */
             break;
         }
 

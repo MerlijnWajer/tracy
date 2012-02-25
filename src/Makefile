@@ -4,6 +4,7 @@
 CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror
 CFLAGS+=-I ptracert/
 CFLAGS+=-D_XOPEN_SOURCE
+#CFLAGS+=-m32
 
 BINARY=soxy
 
