@@ -1,7 +1,7 @@
 \documentclass[a4paper]{article}
 
 \author{Jurriaan Bremer \and Merlijn Wajer \and Bas Weelinck}
-\title{Soxy \& Tracy: Transparent SOCKS proxy using Tracy}
+\title{Soxy: Transparent SOCKS proxy using Tracy}
 
 \usepackage{hyperref}
 \usepackage[utf8]{inputenc}
@@ -9,7 +9,7 @@
 \begin{document}
 \maketitle
 
-\section{Soxy \& Tracy: Transparent SOCKS proxy using Tracy}
+\section{Soxy: Transparent SOCKS proxy using Tracy}
 
 \subsection{Proxies}
 In computer science, a \textbf{proxy} is an intermediate server that
@@ -83,7 +83,7 @@ does raise some serious complications, but theoretically it is possible.
 \subsection{Features, limitations and goals}
 
 \subsubsection{Tracy}
-To create soxy we will first write a ptrace helper library called
+To create \textbf{Soxy} we will first write a ptrace helper library called
 \textbf{Tracy}, which will ease the usage of ptrace in soxy itself.
 We hope to create a feature-rich helper library that can be re-used in
 other projects as well. The main features of this helper library will be:
@@ -111,7 +111,7 @@ either deny or completely change system calls.
 \end{itemize}
 
 \subsubsection{Soxy}
-Once \textbf{tracy}, we will strive to implement the following
+Once \textbf{tracy} is functional, we will strive to implement the following
 features in \textbf{soxy}:
 
 \begin{itemize}
