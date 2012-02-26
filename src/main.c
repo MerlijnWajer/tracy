@@ -52,8 +52,10 @@ int main(int argc, char** argv) {
         }
 
         if (e->type == EVENT_SYSCALL_PRE) {
+            /*
             printf("PRE Syscall %s (%d) requested by child %d\n",
                 get_syscall_name(e->syscall_num), e->syscall_num, e->pid);
+            */
             execute_hook(lh, get_syscall_name(e->syscall_num), e);
         }
 
