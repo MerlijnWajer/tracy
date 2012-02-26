@@ -4,16 +4,8 @@
  *
  */
 
-/* TODO
- * We also need to implement proper register getting and setting. preferrably
- * arch agnostic. (So we need to define a few register names/number per arch in
- * headers)
- * Or just implement each arch in a different file, whatever works.
- *
- * With these registers we can get arguments, so that should be solved too.
- *
- * We probably also need PEEK and POKE to change the argument data. (Remember
- * that we need to change the data being exchanged? Right.)
+/*
+ * TODO: Clean this mess up
  *
  * Heh: http://osdir.com/ml/utrace-devel/2009-10/msg00200.html, http://osdir.com/ml/utrace-devel/2009-10/msg00229.html
  * */
@@ -40,9 +32,6 @@
 
 #include "ptracert.h"
 
-
-#define OUR_PTRACE_OPTIONS PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | \
-    PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE
 
 int fork_trace_exec(int argc, char **argv) {
     pid_t pid;
@@ -178,6 +167,14 @@ int wait_for_syscall(struct soxy_ll *l, struct soxy_event* s) {
         }
         s->syscall_num = regs.SYSCALL_REGISTER;
 
+        s->args.return_code = regs.SOXY_RETURN_CODE;
+        s->args.a0 = regs.SOXY_ARG_0;
+        s->args.a1 = regs.SOXY_ARG_1;
+        s->args.a2 = regs.SOXY_ARG_2;
+        s->args.a3 = regs.SOXY_ARG_3;
+        s->args.a4 = regs.SOXY_ARG_4;
+        s->args.a5 = regs.SOXY_ARG_5;
+
         check_syscall(l, s);
 
     } else if (signal_id == SIGTRAP) {
@@ -258,6 +255,7 @@ char* get_syscall_name(int syscall)
     return NULL;
 }
 
+/* Python hashing algorithm for strings */
 static int hash_syscall(char * syscall) {
     int l, v, i;
 
@@ -266,8 +264,10 @@ static int hash_syscall(char * syscall) {
         return -1;
 
     v = (int)syscall[0];
+
     for(i = 0; i < l; i++)
         v = (1000003 * v) ^ (int)syscall[i];
+
     v = v ^ l;
     return v;
 }
@@ -326,4 +326,39 @@ int execute_hook(struct soxy_ll *ll, char *syscall, struct soxy_event *e) {
     }
 
     return 0;
+}
+
+
+/* Read a single ``word'' from child e->pid */
+int read_word(struct soxy_event *e, long from, long *word) {
+    errno = 0;
+
+    *word = ptrace(PTRACE_PEEKDATA, e->pid, from, NULL);
+
+    if (errno)
+        return -1;
+
+    return 0;
+}
+
+/* Returns bytes read */
+int read_data(struct soxy_event *e, long from, void *to, long size) {
+    long offset, leftover, last, rsize;
+
+    /* Round down. */
+    rsize = (size / sizeof(long)) * sizeof(long);
+
+    /* Copy, ``word for word'' (that's a joke) */
+    for(offset = 0; offset < rsize; offset += sizeof(long)) {
+        if (read_word(e, from + offset, to + offset))
+            return 1;
+    }
+
+    leftover = size - offset;
+    last = 0;
+    if (read_word(e, from + offset, &last))
+        return offset;
+
+    memcpy(to + offset, &last, leftover);
+    return size;
 }

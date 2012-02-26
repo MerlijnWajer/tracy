@@ -5,10 +5,23 @@
 #include "ll.h"
 
 int foo(struct soxy_event *e) {
-    if (e->type != EVENT_SYSCALL_PRE)
+    long len;
+    char *str = NULL;
+
+    if (e->type == EVENT_SYSCALL_POST) {
         return 0;
 
+    }
+
     printf("In hook for function call \"write\"(%d)\n", e->syscall_num);
+    printf("Argument 0 (fd) for write: %ld\n", e->args.a0);
+    printf("Argument 1 (str) for write: %ld\n", e->args.a1);
+    printf("Argument 2 (len) for write: %ld\n", e->args.a2);
+
+    len = e->args.a2;
+    str = malloc(sizeof(char) * len);
+    read_data(e, e->args.a1, str, sizeof(char) * len);
+    printf("Data: %s\n", str);
 
     /* Don't let flushing bully us */
     fflush(NULL);
