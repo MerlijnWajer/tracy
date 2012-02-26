@@ -17,11 +17,16 @@ struct soxy_event {
     long signal_num;
 };
 
+typedef int (*syscall_hook_func) (struct soxy_event *s);
+
 int fork_trace_exec(int argc, char **argv);
 int wait_for_syscall(struct soxy_ll *l, struct soxy_event *s);
 int continue_syscall(struct soxy_event *s);
 int check_syscall(struct soxy_ll *l, struct soxy_event *s);
 char* get_syscall_name(int syscall);
+
+int hook_into_syscall(struct soxy_ll *l, char *syscall, int pre, syscall_hook_func func);
+int execute_hook(struct soxy_ll *ll, char *syscall, struct soxy_event *e);
 
 #ifdef __arm__
     #define SYSCALL_REGISTER ARM_r7

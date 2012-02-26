@@ -4,14 +4,32 @@
 #include "ptracert.h"
 #include "ll.h"
 
+int foo(struct soxy_event *e) {
+    if (e->type != EVENT_SYSCALL_PRE)
+        return 0;
+
+    printf("In hook for function call \"write\"(%d)\n", e->syscall_num);
+
+    /* Don't let flushing bully us */
+    fflush(NULL);
+
+    return 0;
+}
+
 int main(int argc, char** argv) {
     struct soxy_event* e = malloc(sizeof(struct soxy_event));
     int child_pid;
     int r = 0;
     struct soxy_ll *l = ll_init();
+    struct soxy_ll *lh = ll_init();
 
     if (argc < 2) {
         printf("Usage: soxy <program name> <program arguments>\n");
+        return 1;
+    }
+
+    if (hook_into_syscall(lh, "write", 1, foo)) {
+        printf("Failed to hook write syscall.\n");
         return 1;
     }
 
@@ -34,10 +52,9 @@ int main(int argc, char** argv) {
         }
 
         if (e->type == EVENT_SYSCALL_PRE) {
-            /*
             printf("PRE Syscall %s (%d) requested by child %d\n",
                 get_syscall_name(e->syscall_num), e->syscall_num, e->pid);
-            */
+            execute_hook(lh, get_syscall_name(e->syscall_num), e);
         }
 
         if (e->type == EVENT_SYSCALL_POST) {
@@ -45,6 +62,7 @@ int main(int argc, char** argv) {
             printf("POST Syscall %s (%d) requested by child %d\n",
                 get_syscall_name(e->syscall_num), e->syscall_num, e->pid);
             */
+            execute_hook(lh, get_syscall_name(e->syscall_num), e);
         }
 
         if (e->type == EVENT_QUIT) {
@@ -58,6 +76,7 @@ int main(int argc, char** argv) {
     }
 
     ll_free(l);
+    ll_free(lh);
 
     return 0;
 }

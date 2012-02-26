@@ -114,8 +114,10 @@ int fork_trace_exec(int argc, char **argv) {
     return pid;
 }
 
+/*
+ *
+ */
 int wait_for_syscall(struct soxy_ll *l, struct soxy_event* s) {
-    /* This needs a lot of work ... */
     int status, signal_id, ptrace_r;
     pid_t pid;
     struct REGS_NAME regs;
@@ -198,6 +200,9 @@ int wait_for_syscall(struct soxy_ll *l, struct soxy_event* s) {
     return 0;
 }
 
+/*
+ * This function continues the execution of a process with pid s->pid.
+ */
 int continue_syscall(struct soxy_event *s) {
     int sig = 0;
 
@@ -213,6 +218,10 @@ int continue_syscall(struct soxy_event *s) {
     return 0;
 }
 
+/*
+ * Call this function to be able to tell the difference between pre and post
+ * system calls. Uses a very simple linked-list. (ll.c)
+ */
 int check_syscall(struct soxy_ll *l, struct soxy_event *s) {
     struct soxy_ll_item *t;
     if (t = ll_find(l, s->pid)) {
@@ -249,3 +258,72 @@ char* get_syscall_name(int syscall)
     return NULL;
 }
 
+static int hash_syscall(char * syscall) {
+    int l, v, i;
+
+    l = strlen(syscall);
+    if (l < 1)
+        return -1;
+
+    v = (int)syscall[0];
+    for(i = 0; i < l; i++)
+        v = (1000003 * v) ^ (int)syscall[i];
+    v = v ^ l;
+    return v;
+}
+
+/*
+ *
+ * Simple hooking into system calls. Calls are passed by name to keep them
+ * platform indepentent.
+ *
+ * TODO:
+ *  - We need to figure out what exact arguments to pass to the hooks
+ *  - We need to disinct between pre and post hooks. The argument is there, it
+ *  is just not yet used. (We could store this pre|post int plus the function
+ *  pointer in a struct, and put that as void* data instead of just the function
+ *  pointer)
+ *  - We need to define the return values of the hooks. It should be possible to
+ *  block / deny system calls based on the result of the hook. (Right?)
+ *
+ */
+int hook_into_syscall(struct soxy_ll *ll, char *syscall, int pre,
+        syscall_hook_func func) {
+
+    struct soxy_ll_item *t;
+    int hash;
+
+    hash = hash_syscall(syscall);
+
+    t = ll_find(ll, hash);
+
+    if (!t) {
+        if (ll_add(ll, hash, func)) {
+            return -1;
+            /* Whoops */
+        }
+    } else {
+        return -1;
+    }
+
+    return 0;
+}
+
+/* Find and execute hook. */
+int execute_hook(struct soxy_ll *ll, char *syscall, struct soxy_event *e) {
+    struct soxy_ll_item *t;
+    int hash;
+
+    syscall_hook_func f = NULL;
+
+    hash = hash_syscall(syscall);
+
+    t = ll_find(ll, hash);
+
+    if (t) {
+        f = (syscall_hook_func)(t->data);
+        return f(e);
+    }
+
+    return 0;
+}
