@@ -51,18 +51,19 @@ int write_data(struct soxy_event *e, long to, void *from, long size);
     /* ARM EABI puts System call number in r7 */
     #define SYSCALL_REGISTER ARM_r7
 
+    #define SOXY_RETURN_CODE ARM_r6
     /* Missing SOXY_RETURN_CODE */
 
     /*
      * ARM does nasty stuff
      * http://www.arm.linux.org.uk/developer/patches/viewpatch.php?id=3105/4
      */
-    #define SOXY_ARG_0 r0
-    #define SOXY_ARG_1 r1
-    #define SOXY_ARG_2 r2
-    #define SOXY_ARG_3 r3
-    #define SOXY_ARG_4 r4
-    #define SOXY_ARG_5 r5
+    #define SOXY_ARG_0 ARM_r0
+    #define SOXY_ARG_1 ARM_r1
+    #define SOXY_ARG_2 ARM_r2
+    #define SOXY_ARG_3 ARM_r3
+    #define SOXY_ARG_4 ARM_r4
+    #define SOXY_ARG_5 ARM_r5
 
     /* Not yet used */
     #define SOXY_ARG_6 r6
