@@ -78,7 +78,31 @@ does raise some serious complications, but theoretically it is possible.
 
 \subsection{Features, limitations and goals}
 
-We will strive to implement the following features:
+To create soxy we will first write a ptrace helper library, which will ease the
+usage of ptrace in soxy itself. We hope to create a feature-rich helper library
+that can be re-used in other projects as well. The main features of this helper
+library will be:
+
+\begin{itemize}
+\item Support for several platforms. We will start with ARM, x86 and amd64, but
+do not exclude the possibility that we will add support for more architectures
+later.
+
+\item Allowing processes to easily hook into system calls. This includes:
+    \begin{itemize}
+    \item Reading and modifying registers, including the system call number
+    register, registers that contain system call arguments and the instruction
+    pointer register.
+    \item Reading and modifying the memory of the child.
+    \item Support for system call injection. This is required to efficiently
+    access the memory of the child.
+    \item A mechanism to modify system calls. This will allow the client to
+    either deny or completely change system calls.
+    \end{itemize}
+\end{itemize}
+
+Once this library is created, we will strive to implement the following
+features in \textbf{soxy}:
 
 \begin{itemize}
 \item Support for TCP. (blocking and non-blocking)
