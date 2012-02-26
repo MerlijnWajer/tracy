@@ -1,5 +1,5 @@
-#ifndef PTRACERT_H
-#define PTRACERT_H
+#ifndef TRACY_H
+#define TRACY_H
 
 #include <sys/wait.h>
 #include "ll.h"

@@ -1,8 +1,8 @@
 
-.PHONY: clean ptracert default
+.PHONY: clean tracy default
 
 CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror
-CFLAGS+=-I ptracert/
+CFLAGS+=-I tracy/
 CFLAGS+=-D_XOPEN_SOURCE
 CFLAGS+=-ggdb
 #CFLAGS+=-m32
@@ -11,15 +11,15 @@ BINARY=soxy
 
 default: soxy
 
-ptracert:
-	$(MAKE) -C ptracert
+tracy:
+	$(MAKE) -C tracy
 
 
-OBJECTS:=ptracert/ptracert.o ptracert/ll.o
+OBJECTS:=tracy/tracy.o tracy/ll.o
 
-soxy: main.c ptracert
+soxy: main.c tracy
 	$(CC) main.c $(CFLAGS) $(OBJECTS) $(LDFLAGS) -o soxy
 
 clean:
-	$(MAKE) -C ptracert clean
+	$(MAKE) -C tracy clean
 	rm *.o soxy -f

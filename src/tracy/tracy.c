@@ -1,6 +1,6 @@
 /*
  *
- * ptracert.c: ptrace convenience library
+ * tracy.c: ptrace convenience library
  *
  */
 
@@ -30,7 +30,7 @@
 
 #include <sys/syscall.h>
 
-#include "ptracert.h"
+#include "tracy.h"
 
 
 int fork_trace_exec(int argc, char **argv) {
