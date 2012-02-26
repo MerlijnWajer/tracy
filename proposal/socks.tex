@@ -1,7 +1,7 @@
 \documentclass[a4paper]{article}
 
 \author{Jurriaan Bremer \and Merlijn Wajer \and Bas Weelinck}
-\title{Soxy: Transparent SOCKS proxy using \textit{ptrace(2)}}
+\title{Soxy \& Tracy: Transparent SOCKS proxy using Tracy}
 
 \usepackage{hyperref}
 \usepackage[utf8]{inputenc}
@@ -9,7 +9,7 @@
 \begin{document}
 \maketitle
 
-\section{Soxy: Transparent SOCKS proxy using \textit{ptrace(2)}}
+\section{Soxy \& Tracy: Transparent SOCKS proxy using Tracy}
 
 \subsection{Proxies}
 In computer science, a \textbf{proxy} is an intermediate server that
@@ -30,11 +30,14 @@ implemented specific proxy functionality: by making the usage of a proxy
 completely \textit{transparent} to the software.
 
 By transparent we mean that the software unknowingly
-\footnote{And perhaps even unwillingly} uses a proxy.
+\footnote{And perhaps even unwillingly} uses a proxy. Tools that achieve this
+are called \textit{proxifiers}.
+\footnote{https://en.wikipedia.org/wiki/Comparison\_of\_proxifiers}
+Soxy is a proxyfier.
 
 \subsubsection{Intercepting calls}
 
-To transparently have a program use a proxy, a proxy program like \textbf{soxy}
+To transparently have a program use a proxy, a proxy program like \textbf{Soxy}
 has to intercept and modify the \textit{socket} function calls.
 
 There are again several ways of intercepting and/or changing the socket function
@@ -46,7 +49,8 @@ utilises the \textit{LD\_PRELOAD} feature on POSIX-compatible systems to
 intercept the socket function calls and replace them with its own.
 
 We propose using the POSIX \textbf{ptrace} feature to transparently have
-software use a proxy.
+software use a proxy. \textit{Tracy}, will make use of this POSIX feature and
+provide an easy to use API to intercept and modify system calls to Soxy.
 
 \subsection{SOCKS 5}
 
@@ -78,10 +82,11 @@ does raise some serious complications, but theoretically it is possible.
 
 \subsection{Features, limitations and goals}
 
-To create soxy we will first write a ptrace helper library, which will ease the
-usage of ptrace in soxy itself. We hope to create a feature-rich helper library
-that can be re-used in other projects as well. The main features of this helper
-library will be:
+\subsubsection{Tracy}
+To create soxy we will first write a ptrace helper library called
+\textbf{Tracy}, which will ease the usage of ptrace in soxy itself.
+We hope to create a feature-rich helper library that can be re-used in
+other projects as well. The main features of this helper library will be:
 
 \begin{itemize}
 \item Support for several platforms. We will start with ARM, x86 and amd64, but
@@ -93,15 +98,20 @@ later.
     \item Reading and modifying registers, including the system call number
     register, registers that contain system call arguments and the instruction
     pointer register.
-    \item Reading and modifying the memory of the child.
-    \item Support for system call injection. This is required to efficiently
-    access the memory of the child.
-    \item A mechanism to modify system calls. This will allow the client to
-    either deny or completely change system calls.
+    \item 
     \end{itemize}
+
+\item Reading and modifying the memory of the child.
+
+\item Support for system call injection. This is required to efficiently
+access the memory of the child.
+
+\item A mechanism to modify system calls. This will allow the client to
+either deny or completely change system calls.
 \end{itemize}
 
-Once this library is created, we will strive to implement the following
+\subsubsection{Soxy}
+Once \textbf{tracy}, we will strive to implement the following
 features in \textbf{soxy}:
 
 \begin{itemize}
