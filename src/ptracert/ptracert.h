@@ -38,6 +38,9 @@ int execute_hook(struct soxy_ll *ll, char *syscall, struct soxy_event *e);
 int read_word(struct soxy_event *e, long from, long* word);
 int read_data(struct soxy_event *e, long from, void *to, long size);
 
+int write_word(struct soxy_event *e, long to, long word);
+int write_data(struct soxy_event *e, long to, void *from, long size);
+
 #define OUR_PTRACE_OPTIONS PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | \
     PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE
 

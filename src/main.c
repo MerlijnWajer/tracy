@@ -1,12 +1,18 @@
+#define _GNU_SOURCE
+#include <string.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "ptracert.h"
 #include "ll.h"
 
+
 int foo(struct soxy_event *e) {
     long len;
-    char *str = NULL;
+    char *str, *stephen;
+
+    str = NULL;
 
     if (e->type == EVENT_SYSCALL_POST) {
         return 0;
@@ -22,6 +28,10 @@ int foo(struct soxy_event *e) {
     str = malloc(sizeof(char) * len);
     read_data(e, e->args.a1, str, sizeof(char) * len);
     printf("Data: %s\n", str);
+
+    stephen = strfry(str);
+
+    write_data(e, e->args.a1, stephen, sizeof(char) * len);
 
     /* Don't let flushing bully us */
     fflush(NULL);

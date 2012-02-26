@@ -349,10 +349,9 @@ int read_data(struct soxy_event *e, long from, void *to, long size) {
     rsize = (size / sizeof(long)) * sizeof(long);
 
     /* Copy, ``word for word'' (that's a joke) */
-    for(offset = 0; offset < rsize; offset += sizeof(long)) {
+    for(offset = 0; offset < rsize; offset += sizeof(long))
         if (read_word(e, from + offset, to + offset))
             return 1;
-    }
 
     leftover = size - offset;
     last = 0;
@@ -361,4 +360,39 @@ int read_data(struct soxy_event *e, long from, void *to, long size) {
 
     memcpy(to + offset, &last, leftover);
     return size;
+}
+
+int write_word(struct soxy_event *e, long to, long word) {
+    if (ptrace(PTRACE_POKEDATA, e->pid, to, word)) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int write_data(struct soxy_event *e, long to, void *from, long size) {
+    long offset, leftover, last, rsize;
+
+    /* Round down. */
+    rsize = (size / sizeof(long)) * sizeof(long);
+
+    /* Copy, ``word for word'' (that's a joke) */
+    for(offset = 0; offset < rsize; offset += sizeof(long))
+        if (write_word(e, to + offset, *(long*)(from + offset)))
+            return 1;
+
+    leftover = size - offset;
+
+    last = 0;
+    /* Retrieve value from ``to''. */
+    read_word(e, to + offset, &last);
+    /* Only change the part we want to change */
+    memcpy(&last, from + offset, leftover);
+
+    if (write_word(e, to + offset, last))
+        return offset;
+
+    return size;
+
+
 }
