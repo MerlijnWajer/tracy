@@ -161,7 +161,7 @@ int wait_for_syscall(struct soxy_ll *l, struct soxy_event* s) {
 
     if (signal_id == (SIGTRAP | 0x80)) {
         /* Make functions to retrieve this */
-         ptrace_r = ptrace(PTRACE_GETREGS, pid, NULL, &regs);
+        ptrace_r = ptrace(PTRACE_GETREGS, pid, NULL, &regs);
         if(ptrace_r) {
             /* TODO FAILURE */
         }
@@ -393,6 +393,29 @@ int write_data(struct soxy_event *e, long to, void *from, long size) {
         return offset;
 
     return size;
+}
 
+int modify_registers(struct soxy_event *e) {
+    int r;
+    struct REGS_NAME regs;
 
+    r = ptrace(PTRACE_GETREGS, e->pid, NULL, &regs);
+    if (r)
+        return 1;
+
+    regs.SOXY_ARG_0 = e->args.a0;
+    regs.SOXY_ARG_1 = e->args.a1;
+    regs.SOXY_ARG_2 = e->args.a2;
+    regs.SOXY_ARG_3 = e->args.a3;
+    regs.SOXY_ARG_4 = e->args.a4;
+    regs.SOXY_ARG_5 = e->args.a5;
+
+    r = ptrace(PTRACE_SETREGS, e->pid, NULL, &regs);
+
+    if (r) {
+        printf("SETREGS FAILED\n");
+        return 1;
+    }
+
+    return 0;
 }

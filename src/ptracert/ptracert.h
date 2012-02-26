@@ -41,6 +41,8 @@ int read_data(struct soxy_event *e, long from, void *to, long size);
 int write_word(struct soxy_event *e, long to, long word);
 int write_data(struct soxy_event *e, long to, void *from, long size);
 
+int modify_registers(struct soxy_event *e);
+
 #define OUR_PTRACE_OPTIONS PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | \
     PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE
 

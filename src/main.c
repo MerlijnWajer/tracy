@@ -31,7 +31,20 @@ int foo(struct soxy_event *e) {
 
     stephen = strfry(str);
 
+    /*
     write_data(e, e->args.a1, stephen, sizeof(char) * len);
+    */
+
+    /*
+     * This will not work, because the child cannot access our memory.
+     * SHM?
+     */
+/*    e->args.a1 = (long)stephen; */
+
+    /* This is allowed, of course */
+    e->args.a2 = strlen(stephen);
+
+    printf("Modify_registers: %d.\n", modify_registers(e));
 
     /* Don't let flushing bully us */
     fflush(NULL);
