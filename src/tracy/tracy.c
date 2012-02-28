@@ -490,7 +490,7 @@ int inject_syscall(struct soxy_event *e)
     puts("Registers in place");
 
     /* Okay, we're good to go, resume process. */
-    ptrace(PTRACE_SYSCALL, e->pid, NULL, NULL);
+    ptrace(PTRACE_SYSCALL, e->pid, NULL, 0);
     puts("Syscall running");
 
     /* Syscall should be executing by now, let's wait for the child to trap upon
@@ -503,7 +503,7 @@ int inject_syscall(struct soxy_event *e)
         perror("ptrace");
         fprintf(stderr, "tracy: FATAL: Wait failure on child with injected "
             "syscall.\n");
-        ptrace(PTRACE_KILL, e->pid, NULL, NULL);
+        ptrace(PTRACE_KILL, e->pid, NULL, 0);
         abort();
     }
     puts("Syscall complete");

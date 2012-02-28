@@ -102,6 +102,7 @@ int inject_syscall(struct soxy_event *e);
 
     #define SYSCALL_REGISTER orig_rax
     #define SOXY_RETURN_CODE rax
+    #define SOXY_IP_REG rip
 
     #define SOXY_ARG_0 rdi
     #define SOXY_ARG_1 rsi
@@ -109,6 +110,9 @@ int inject_syscall(struct soxy_event *e);
     #define SOXY_ARG_3 rcx
     #define SOXY_ARG_4 r8
     #define SOXY_ARG_5 r9
+
+    #define TRACY_SC_MAGIC_WORD 0x80;
+    typedef uint64_t tracy_opcode_t;
 #endif
 
 #endif
