@@ -16,6 +16,7 @@
 
 #include <asm/ptrace.h>
 
+#include <stdint.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -32,6 +33,8 @@
 
 #include "tracy.h"
 
+/* Constants */
+static const tracy_opcode_t tracy_syscall_magic = TRACY_SC_MAGIC_WORD;
 
 int fork_trace_exec(int argc, char **argv) {
     pid_t pid;
@@ -51,7 +54,7 @@ int fork_trace_exec(int argc, char **argv) {
 
         /* Give the parent to chance to set some extra tracing options before we
          * restart the child and let it call exec() */
-        kill(getpid(), SIGABRT);
+        raise(SIGTRAP);
 
         /* Exec here? (move somewhere else?) */
         if (argc == 1) {
@@ -62,7 +65,7 @@ int fork_trace_exec(int argc, char **argv) {
             execv(argv[0], argv);
         }
 
-        if(errno == -1) {
+        if (errno == -1) {
             /* TODO: Failure */
         }
     }
@@ -75,11 +78,11 @@ int fork_trace_exec(int argc, char **argv) {
 
     /* Parent */
 
-    /* Wait for SIGABRT from the child */
+    /* Wait for SIGTRAP from the child */
     waitpid(pid, &status, 0);
 
     signal_id = WSTOPSIG(status);
-    if (signal_id != SIGABRT) {
+    if (signal_id != SIGTRAP) {
         /* w-a-t */
         ptrace(PTRACE_KILL, pid, NULL, NULL);
     }
@@ -162,7 +165,7 @@ int wait_for_syscall(struct soxy_ll *l, struct soxy_event* s) {
     if (signal_id == (SIGTRAP | 0x80)) {
         /* Make functions to retrieve this */
         ptrace_r = ptrace(PTRACE_GETREGS, pid, NULL, &regs);
-        if(ptrace_r) {
+        if (ptrace_r) {
             /* TODO FAILURE */
         }
         s->syscall_num = regs.SYSCALL_REGISTER;
@@ -419,3 +422,146 @@ int modify_registers(struct soxy_event *e) {
 
     return 0;
 }
+
+/* XXX: What should the datatype of the 'word' returned by ptrace be? */
+
+/* Execute system call with current register settings and return upon 
+ * completion. This means the type of syscall performed must also
+ * have been set upon calling this function.
+ *
+ * The process must be traced and stopped for this to work.
+ *
+ * Returns:
+ *  -1 on failure, errno will be set to any value ptrace returned.
+ *  0 on success.
+ *  or, waitpid's status value if the syscall terminated the child.
+ */
+int inject_syscall(struct soxy_event *e)
+{
+    int r, status;
+    struct REGS_NAME regs;
+    tracy_opcode_t original_asm;
+    register_t original_ip;
+
+    /* Fetch registers for IP */
+    r = ptrace(PTRACE_GETREGS, e->pid, NULL, &regs);
+    if (r)
+        return -1;
+
+    puts("Got regs");
+
+    original_ip = regs.SOXY_IP_REG;
+
+    /* Push the IP back to word boundry so we can safely store our
+     * system call assembly without worrying about alignment.
+     */
+    regs.SOXY_IP_REG = original_ip & ~(sizeof(tracy_opcode_t) - 1);
+
+    /* Read current assembly at IP */
+    errno = 0;
+    original_asm = ptrace(PTRACE_PEEKTEXT, e->pid, regs.SOXY_IP_REG, NULL);
+    if (errno)
+        return -1;
+    puts("Got text");
+
+    /* Let's write some shell code */
+    r = ptrace(PTRACE_POKETEXT, e->pid, regs.SOXY_IP_REG, &tracy_syscall_magic);
+    if (r)
+        return -1;
+    puts("Written text");
+
+    /* Now setup IP to point to start of syscall magic */
+    r = ptrace(PTRACE_SETREGS, e->pid, NULL, &regs);
+
+    /* If this fails that means we've got some serious trouble
+     * the assembly is damaged and we cannot modify the IP,
+     * kill program and abort..
+     *
+     * btw, from here on to the point the child is restored to normal
+     * operation, any error will be fatal. ;-)
+     */
+    if (r) {
+        perror("ptrace");
+        fprintf(stderr, "tracy: FATAL: Cannot modify instruction pointer "
+            "in corrupted child process during syscall injection.\n");
+        ptrace(PTRACE_KILL, e->pid, NULL, NULL);
+        abort();
+    }
+    puts("Registers in place");
+
+    /* Okay, we're good to go, resume process. */
+    ptrace(PTRACE_SYSCALL, e->pid, NULL, NULL);
+    puts("Syscall running");
+
+    /* Syscall should be executing by now, let's wait for the child to trap upon
+     * leaving the syscall.
+     */
+    do {
+        r = waitpid(e->pid, &status, 0);
+    } while (r == -1 && errno == EINTR);
+    if (r < 0) {
+        perror("ptrace");
+        fprintf(stderr, "tracy: FATAL: Wait failure on child with injected "
+            "syscall.\n");
+        ptrace(PTRACE_KILL, e->pid, NULL, NULL);
+        abort();
+    }
+    puts("Syscall complete");
+
+    /* The syscall might terminate the child,
+     * return status in that case.
+     */
+    if (WIFEXITED(status))
+        return status;
+    puts("Child did not terminate");
+
+    /* FIXME: I'm now assuming the child is stopped,
+     * maybe there need to be some checks here.
+     */
+
+    /* Syscall has executed, let's cleanup
+     *
+     * First restore original assembly */
+    r = ptrace(PTRACE_POKETEXT, e->pid, regs.SOXY_IP_REG, &original_asm);
+    if (r) {
+        perror("ptrace");
+        fprintf(stderr, "tracy: FATAL: Cannot restore original assembly "
+            "in child.\n");
+        ptrace(PTRACE_KILL, e->pid, NULL, NULL);
+        abort();
+    }
+    puts("Assembly restored.");
+
+    /* Secondly restore instruction pointer. */
+
+    /* Fetch registers to keep syscall results */
+    r = ptrace(PTRACE_GETREGS, e->pid, NULL, &regs);
+    if (r) {
+        perror("ptrace");
+        fprintf(stderr, "tracy: FATAL: Fetching registers of child with "
+            "injected syscall.\n");
+        ptrace(PTRACE_KILL, e->pid, NULL, NULL);
+        abort();
+    }
+    puts("Registers read.");
+
+    regs.SOXY_IP_REG = original_ip;
+
+    /* Now write back original IP */
+    r = ptrace(PTRACE_SETREGS, e->pid, NULL, &regs);
+    if (r) {
+        perror("ptrace");
+        fprintf(stderr, "tracy: FATAL: Restoring instruction pointer of child "
+            "with injected syscall.\n");
+        ptrace(PTRACE_KILL, e->pid, NULL, NULL);
+        abort();
+    }
+    puts("Instruction pointer restored.");
+
+    /* That wasn't too hard. :-)
+     * Syscall injected and everything back to normal..
+     * Well, almost everything.
+     */
+    return 0;
+}
+

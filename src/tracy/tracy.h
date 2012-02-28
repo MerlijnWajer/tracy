@@ -43,8 +43,10 @@ int write_data(struct soxy_event *e, long to, void *from, long size);
 
 int modify_registers(struct soxy_event *e);
 
-#define OUR_PTRACE_OPTIONS PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | \
-    PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE
+int inject_syscall(struct soxy_event *e);
+
+#define OUR_PTRACE_OPTIONS (PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | \
+    PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE)
 
 
 #ifdef __arm__
@@ -76,13 +78,20 @@ int modify_registers(struct soxy_event *e);
 
     #define SYSCALL_REGISTER orig_eax
     #define SOXY_RETURN_CODE eax
+    #define SOXY_IP_REG eip
 
-    #define SOXY_ARG_0 rbx
-    #define SOXY_ARG_1 rcv
-    #define SOXY_ARG_2 rdx
-    #define SOXY_ARG_3 rsi
-    #define SOXY_ARG_4 rdi
-    #define SOXY_ARG_5 rbp
+    #define SOXY_ARG_0 ebx
+    #define SOXY_ARG_1 ecx
+    #define SOXY_ARG_2 edx
+    #define SOXY_ARG_3 esi
+    #define SOXY_ARG_4 edi
+    #define SOXY_ARG_5 ebp
+
+    /* XXX: I am Linux specific and not portable.. */
+    /* Linux Syscall instruction opcode (int $0x80) */
+    #define TRACY_SC_MAGIC_WORD 0x000080cd
+
+    typedef uint32_t tracy_opcode_t;
 #endif
 
 /* 'cs' determines the call type, we can use this to check if we are calling a
@@ -92,8 +101,8 @@ int modify_registers(struct soxy_event *e);
     #define REGS_NAME user_regs_struct /* pt_regs doesn't work */
 
     #define SYSCALL_REGISTER orig_rax
-
     #define SOXY_RETURN_CODE rax
+
     #define SOXY_ARG_0 rdi
     #define SOXY_ARG_1 rsi
     #define SOXY_ARG_2 rdx

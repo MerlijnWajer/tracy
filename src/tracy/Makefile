@@ -1,4 +1,4 @@
-.PHONY: default clean
+.PHONY: default clean check-inject
 
 CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror
 CFLAGS+=-D_POSIX_SOURCE
@@ -9,6 +9,11 @@ OBJECTS=tracy.o ll.o
 
 default: $(OBJECTS)
 
+check-inject: test-inject
+	./test-inject
+
+test-inject: test-inject.o tracy.o ll.o
+
 tracy.o: def_syscalls.h
 
 def_syscalls.h:
@@ -18,4 +23,4 @@ def_syscalls.h:
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm *.o def_syscalls.h -f
+	rm *.o def_syscalls.h test-inject -f
