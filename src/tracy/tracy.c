@@ -442,7 +442,7 @@ int inject_syscall(struct soxy_event *e) {
     waitpid(e->pid, &garbage, 0);
 
     /* POST */
-    args.SOXY_IP_REG = args.SOXY_IP_REG - 2;
+    args.SOXY_IP_REG = args.SOXY_IP_REG - SYSCALL_OPSIZE;
     args.SOXY_SYSCALL_N = args.SYSCALL_REGISTER;
     ptrace(PTRACE_SETREGS, e->pid, 0, &args);
 
