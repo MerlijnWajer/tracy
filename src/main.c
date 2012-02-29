@@ -19,7 +19,8 @@ int foo(struct soxy_event *e) {
     if (e->type == EVENT_SYSCALL_POST) {
         printf("foo: Post syscall\n");
         printf("Return value: %ld\n", e->args.return_code);
-        return 0;
+        injected = 0;
+        return 1;
     }
 
     printf("foo: Pre syscall\n");
@@ -30,8 +31,10 @@ int foo(struct soxy_event *e) {
     printf("foo: Argument 2 (len) for write: %ld\n", e->args.a2);
 
 
-    if (injected != 0)
-        return 0;
+    if (injected != 0) {
+        printf("Not calling injection: injected = %d\n", injected);
+        return 1;
+    }
 
     injected = 1;
 
@@ -109,18 +112,20 @@ int main(int argc, char** argv) {
 
         if (e->type == EVENT_SYSCALL_PRE) {
             /*
-            printf("PRE Syscall %s (%d) requested by child %d\n",
-                get_syscall_name(e->syscall_num), e->syscall_num, e->pid);
-            */
+            printf("PRE Syscall %s (%d) requested by child %d, IP: %ld\n",
+                get_syscall_name(e->syscall_num), e->syscall_num, e->pid, e->args.ip);
+                */
             if (get_syscall_name(e->syscall_num))
-                execute_hook(lh, get_syscall_name(e->syscall_num), e);
+                if(!execute_hook(lh, get_syscall_name(e->syscall_num), e)) {
+                    ll_del(l, e->pid); /* Remove PRE */
+                }
         }
 
         if (e->type == EVENT_SYSCALL_POST) {
             /*
-            printf("POST Syscall %s (%d) requested by child %d\n",
-                get_syscall_name(e->syscall_num), e->syscall_num, e->pid);
-            */
+            printf("POST Syscall %s (%d) requested by child %d, IP: %ld\n",
+                get_syscall_name(e->syscall_num), e->syscall_num, e->pid, e->args.ip);
+                */
             if (get_syscall_name(e->syscall_num))
                 execute_hook(lh, get_syscall_name(e->syscall_num), e);
         }
