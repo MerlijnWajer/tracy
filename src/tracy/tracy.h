@@ -61,6 +61,8 @@ int inject_syscall(struct soxy_event *e);
     #define SOXY_RETURN_CODE ARM_r6
     #define SOXY_SYSCALL_N ARM_r6
 
+    #define SOXY_IP_REG ARM_pc
+
     /*
      * ARM does nasty stuff
      * http://www.arm.linux.org.uk/developer/patches/viewpatch.php?id=3105/4
@@ -71,9 +73,6 @@ int inject_syscall(struct soxy_event *e);
     #define SOXY_ARG_3 ARM_r3
     #define SOXY_ARG_4 ARM_r4
     #define SOXY_ARG_5 ARM_r5
-
-    /* Not yet used */
-    #define SOXY_ARG_6 r6
 #endif
 
 #ifdef __i386__
