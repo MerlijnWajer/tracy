@@ -432,20 +432,60 @@ int modify_registers(struct soxy_event *e) {
  * Call this in a PRE-event only */
 int inject_syscall(struct soxy_event *e) {
     int garbage;
-    struct REGS_NAME r;
+    struct REGS_NAME args, reset_ip;
+    unsigned long asmcode;
 
-    ptrace(PTRACE_GETREGS, e->pid, 0, &r);
+    errno = 0;
+    ptrace(PTRACE_GETREGS, e->pid, 0, &args);
+    /*perror("getting args");*/
+
     continue_syscall(e);
+    /*perror("System call continued");*/
 
     /* Wait for POST */
     waitpid(e->pid, &garbage, 0);
+    /*perror("In POST");*/
 
     /* POST */
+    ptrace(PTRACE_GETREGS, e->pid, 0, &reset_ip);
+    /*perror("getting regs");*/
 
+    printf("return value of resumed syscall: %ld\n", reset_ip.SOXY_RETURN_CODE);
+
+    asmcode = ptrace(PTRACE_PEEKTEXT, e->pid, (reset_ip.SOXY_IP_REG - 2) & ~0x3, NULL);
+    asmcode >>= ((reset_ip.SOXY_IP_REG - 2) | 0x3) * 8;
+    perror("get_asm");
+    printf("Dumping assembly @ IP: %lx\n", asmcode);
     /* Restore E's registers */
-    r.SOXY_IP_REG -= 2;
-    ptrace(PTRACE_SETREGS, e->pid, 0, &r);
+    args.SOXY_IP_REG = reset_ip.SOXY_IP_REG - 2;
+    ptrace(PTRACE_SETREGS, e->pid, 0, &args);
+    /*perror("setting regs");*/
 
+    /* Push program back into PRE state. */
+    continue_syscall(e);
+    /*perror("startup original syscall");*/
+
+    /* And wait for it to stop */
+    waitpid(e->pid, &garbage, 0);
+    /*perror("back in PRE");*/
+
+
+    ptrace(PTRACE_GETREGS, e->pid, 0, &reset_ip);
+    /*perror("getting regs");*/
+    e->syscall_num = args.SYSCALL_REGISTER;
+
+    e->args.return_code = args.SOXY_RETURN_CODE;
+    e->args.a0 = args.SOXY_ARG_0;
+    e->args.a1 = args.SOXY_ARG_1;
+    e->args.a2 = args.SOXY_ARG_2;
+    e->args.a3 = args.SOXY_ARG_3;
+    e->args.a4 = args.SOXY_ARG_4;
+    e->args.a5 = args.SOXY_ARG_5;
+
+    e->args.syscall = args.SYSCALL_REGISTER;
+    e->args.ip = args.SOXY_IP_REG;
+
+    /* Okay, back where we started. */
     return 0;
 }
 
