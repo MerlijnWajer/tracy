@@ -178,6 +178,9 @@ int wait_for_syscall(struct soxy_ll *l, struct soxy_event* s) {
         s->args.a4 = regs.SOXY_ARG_4;
         s->args.a5 = regs.SOXY_ARG_5;
 
+        s->args.syscall = regs.SYSCALL_REGISTER;
+        s->args.ip = regs.SOXY_IP_REG;
+
         check_syscall(l, s);
 
     } else if (signal_id == SIGTRAP) {
@@ -412,6 +415,10 @@ int modify_registers(struct soxy_event *e) {
     regs.SOXY_ARG_3 = e->args.a3;
     regs.SOXY_ARG_4 = e->args.a4;
     regs.SOXY_ARG_5 = e->args.a5;
+
+    regs.SYSCALL_REGISTER = e->args.syscall;
+    regs.SOXY_IP_REG = e->args.ip;
+    regs.SOXY_RETURN_CODE = e->args.return_code;
 
     r = ptrace(PTRACE_SETREGS, e->pid, NULL, &regs);
 

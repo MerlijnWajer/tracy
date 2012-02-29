@@ -13,6 +13,7 @@
 struct soxy_sc_args {
     long return_code;
     long a0, a1, a2, a3, a4, a5;
+    long syscall, ip;
 };
 
 struct soxy_event {
