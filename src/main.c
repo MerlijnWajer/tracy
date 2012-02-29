@@ -8,6 +8,7 @@
 #include "tracy.h"
 #include "ll.h"
 
+int injected = 0;
 
 int foo(struct soxy_event *e) {
     long len;
@@ -17,8 +18,12 @@ int foo(struct soxy_event *e) {
 
     if (e->type == EVENT_SYSCALL_POST) {
         return 0;
-
     }
+
+    if (injected != 0)
+        return 0;
+
+    injected = 1;
 
     inject_syscall(e);
 

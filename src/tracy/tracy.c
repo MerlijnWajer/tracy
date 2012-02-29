@@ -33,9 +33,6 @@
 
 #include "tracy.h"
 
-/* Constants */
-static const tracy_opcode_t tracy_syscall_magic = TRACY_SC_MAGIC_WORD;
-
 int fork_trace_exec(int argc, char **argv) {
     pid_t pid;
     long r;
