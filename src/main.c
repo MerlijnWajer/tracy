@@ -20,6 +20,10 @@ int foo(struct soxy_event *e) {
 
     }
 
+    inject_syscall(e);
+
+    return 0;
+
     printf("In hook for function call \"write\"(%d)\n", e->syscall_num);
     printf("Argument 0 (fd) for write: %ld\n", e->args.a0);
     printf("Argument 1 (str) for write: %ld\n", e->args.a1);

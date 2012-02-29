@@ -88,10 +88,6 @@ int inject_syscall(struct soxy_event *e);
     #define SOXY_ARG_4 edi
     #define SOXY_ARG_5 ebp
 
-    /* XXX: I am Linux specific and not portable.. */
-    /* Linux Syscall instruction opcode (int $0x80) */
-    #define TRACY_SC_MAGIC_WORD 0x000080cd
-
     typedef uint32_t tracy_opcode_t;
 #endif
 
@@ -112,7 +108,6 @@ int inject_syscall(struct soxy_event *e);
     #define SOXY_ARG_4 r8
     #define SOXY_ARG_5 r9
 
-    #define TRACY_SC_MAGIC_WORD 0x80;
     typedef uint64_t tracy_opcode_t;
 #endif
 
