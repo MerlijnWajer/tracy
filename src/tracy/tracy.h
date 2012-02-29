@@ -53,11 +53,13 @@ int inject_syscall(struct soxy_event *e);
 #ifdef __arm__
     #define REGS_NAME pt_regs
 
+    /* Unsure about some of the registers */
+
     /* ARM EABI puts System call number in r7 */
     #define SYSCALL_REGISTER ARM_r7
 
     #define SOXY_RETURN_CODE ARM_r6
-    /* Missing SOXY_RETURN_CODE */
+    #define SOXY_SYSCALL_N ARM_r6
 
     /*
      * ARM does nasty stuff
@@ -79,6 +81,7 @@ int inject_syscall(struct soxy_event *e);
 
     #define SYSCALL_REGISTER orig_eax
     #define SOXY_RETURN_CODE eax
+    #define SOXY_SYSCALL_N eax
     #define SOXY_IP_REG eip
 
     #define SOXY_ARG_0 ebx
@@ -99,6 +102,7 @@ int inject_syscall(struct soxy_event *e);
 
     #define SYSCALL_REGISTER orig_rax
     #define SOXY_RETURN_CODE rax
+    #define SOXY_SYSCALL_N rax
     #define SOXY_IP_REG rip
 
     #define SOXY_ARG_0 rdi

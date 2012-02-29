@@ -432,7 +432,7 @@ int modify_registers(struct soxy_event *e) {
  * Call this in a PRE-event only */
 int inject_syscall(struct soxy_event *e) {
     int garbage;
-    struct REGS_NAME args, reset_ip;
+    struct REGS_NAME args;
 
     ptrace(PTRACE_GETREGS, e->pid, 0, &args);
 
@@ -442,15 +442,8 @@ int inject_syscall(struct soxy_event *e) {
     waitpid(e->pid, &garbage, 0);
 
     /* POST */
-    ptrace(PTRACE_GETREGS, e->pid, 0, &reset_ip);
-    printf("return value of resumed syscall: %ld\n", reset_ip.SOXY_RETURN_CODE);
-
     args.SOXY_IP_REG = args.SOXY_IP_REG - 2;
-    #ifdef __x86_64__
-    args.rax = args.SYSCALL_REGISTER;
-    #else
-    args.eax = args.SYSCALL_REGISTER;
-    #endif
+    args.SOXY_SYSCALL_N = args.SYSCALL_REGISTER;
     ptrace(PTRACE_SETREGS, e->pid, 0, &args);
 
     return 0;
