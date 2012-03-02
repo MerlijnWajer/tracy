@@ -5,6 +5,7 @@ CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror
 CFLAGS+=-I tracy/
 CFLAGS+=-D_XOPEN_SOURCE
 CFLAGS+=-ggdb
+#CFLAGS+=-O2
 #CFLAGS+=-m32
 
 BINARY=soxy
@@ -13,7 +14,6 @@ default: soxy
 
 tracy:
 	$(MAKE) -C tracy
-
 
 OBJECTS:=tracy/tracy.o tracy/ll.o
 

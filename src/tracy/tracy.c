@@ -1,14 +1,6 @@
 /*
- *
  * tracy.c: ptrace convenience library
- *
  */
-
-/*
- * TODO: Clean this mess up
- *
- * Heh: http://osdir.com/ml/utrace-devel/2009-10/msg00200.html, http://osdir.com/ml/utrace-devel/2009-10/msg00229.html
- * */
 
 #include <sys/ptrace.h>
 #include <sys/types.h>
@@ -33,14 +25,50 @@
 
 #include "tracy.h"
 
-int fork_trace_exec(int argc, char **argv) {
+struct tracy *tracy_init(void) {
+    struct tracy *t;
+
+    t = malloc(sizeof(struct tracy));
+
+    if (!t) {
+        return NULL;
+    }
+
+    t->fpid = 0;
+
+    t->childs = ll_init();
+    t->hooks = ll_init();
+
+    if (!t->childs || !t->hooks) {
+        free(t->childs);
+        free(t->hooks);
+        free(t);
+        return NULL;
+    }
+
+    return t;
+}
+
+void tracy_free(struct tracy* t) {
+    /* TODO: free childs? */
+
+    ll_free(t->hooks);
+    ll_free(t->childs);
+    free(t);
+}
+
+struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     pid_t pid;
     long r;
     int status;
     long ptrace_options = OUR_PTRACE_OPTIONS;
     long signal_id;
+    struct tracy_child *tc;
 
     pid = fork();
+
+    if (t->fpid != 0)
+        t->fpid = pid;
 
     /* Child */
     if (pid == 0) {
@@ -55,10 +83,10 @@ int fork_trace_exec(int argc, char **argv) {
 
         /* Exec here? (move somewhere else?) */
         if (argc == 1) {
-            printf("Executing %s without arguments.\n", argv[0]);
+            /* printf("Executing %s without arguments.\n", argv[0]); */
             execv(argv[0], argv);
         } else {
-            printf("Executing %s with argument: %s\n", argv[0], argv[1]);
+            /* printf("Executing %s with argument: %s\n", argv[0], argv[1]); */
             execv(argv[0], argv);
         }
 
@@ -67,11 +95,14 @@ int fork_trace_exec(int argc, char **argv) {
         }
     }
 
-    if (pid == -1) {
-        /* TODO: Failure */
-        return -1;
-    }
+    if (pid == -1)
+        return NULL;
 
+    tc = malloc(sizeof(struct tracy_child));
+    if (!tc) {
+        kill(pid, SIGKILL);
+        return NULL;
+    }
 
     /* Parent */
 
@@ -100,49 +131,79 @@ int fork_trace_exec(int argc, char **argv) {
         ptrace(PTRACE_KILL, pid, NULL, NULL);
     }
 
-    return pid;
+    tc->pid = pid;
+    tc->pre_syscall = 0; /* Next is pre... */
+
+    ll_add(t->childs, tc->pid, tc);
+    return tc;
 }
 
+static struct tracy_event none_event = {
+        .type = TRACY_EVENT_NONE,
+        .child = NULL
+    };
 /*
  *
  */
-int wait_for_syscall(struct soxy_ll *l, struct soxy_event* s) {
+struct tracy_event *tracy_wait_event(struct tracy *t) {
     int status, signal_id, ptrace_r;
     pid_t pid;
-    struct REGS_NAME regs;
+    struct TRACY_REGS_NAME regs;
+    struct tracy_child *tc;
+    struct tracy_event *s;
+    struct soxy_ll_item *item;
 
-    /* ``s'' NEEDS TO BE ALLOCATED IN ADVANCE */
-    memset(s, 0, sizeof(struct soxy_event));
+    s = NULL;
 
     /* Wait for changes */
     pid = waitpid(0, &status, __WALL);
 
-
     /* Something went wrong. */
     if (pid == -1) {
         if (errno == EINTR) {
-
-            return -1;
+            return NULL;
         }
 
         /* If we were not interrupted, we no longer have any children. */
-        s->type = EVENT_NONE;
-        return 0;
+        return &none_event;
     }
 
-    s->pid = pid;
+    if (pid != -1) {
+        item = ll_find(t->childs, pid);
+        if (!item) {
+            tc = malloc(sizeof(struct tracy_child));
+            if (!tc) {
+                perror("Cannot allocate structure for new child");
+                return NULL; /* TODO Kill the child ? */
+            }
+
+            tc->pid = pid;
+            tc->pre_syscall = 0; /* Next is pre... */
+
+            ll_add(t->childs, tc->pid, tc);
+            s = &tc->event;
+            s->child = tc;
+        } else {
+            s = &(((struct tracy_child*)(item->data))->event);
+            s->child = item->data;
+        }
+    }
+
+    s->type = 0;
+    s->syscall_num = 0;
+    s->signal_num = 0;
 
     if (!WIFSTOPPED(status)) {
-        s->type = EVENT_QUIT;
+        s->type = TRACY_EVENT_QUIT;
         if (WIFEXITED(status)) {
             s->signal_num = WEXITSTATUS(status);
         } else if (WIFSIGNALED(status)) {
             s->signal_num = WTERMSIG(status); /* + 128 */
         } else {
             puts("Recursing due to WIFSTOPPED");
-            return wait_for_syscall(l, s);
+            return tracy_wait_event(t);
         }
-        return 0;
+        return s;
     }
 
     signal_id = WSTOPSIG(status);
@@ -165,73 +226,65 @@ int wait_for_syscall(struct soxy_ll *l, struct soxy_event* s) {
         if (ptrace_r) {
             /* TODO FAILURE */
         }
-        s->syscall_num = regs.SYSCALL_REGISTER;
+        s->syscall_num = regs.TRACY_SYSCALL_REGISTER;
 
-        s->args.return_code = regs.SOXY_RETURN_CODE;
-        s->args.a0 = regs.SOXY_ARG_0;
-        s->args.a1 = regs.SOXY_ARG_1;
-        s->args.a2 = regs.SOXY_ARG_2;
-        s->args.a3 = regs.SOXY_ARG_3;
-        s->args.a4 = regs.SOXY_ARG_4;
-        s->args.a5 = regs.SOXY_ARG_5;
+        s->args.return_code = regs.TRACY_RETURN_CODE;
+        s->args.a0 = regs.TRACY_ARG_0;
+        s->args.a1 = regs.TRACY_ARG_1;
+        s->args.a2 = regs.TRACY_ARG_2;
+        s->args.a3 = regs.TRACY_ARG_3;
+        s->args.a4 = regs.TRACY_ARG_4;
+        s->args.a5 = regs.TRACY_ARG_5;
 
-        s->args.syscall = regs.SYSCALL_REGISTER;
-        s->args.ip = regs.SOXY_IP_REG;
+        s->args.syscall = regs.TRACY_SYSCALL_REGISTER;
+        s->args.ip = regs.TRACY_IP_REG;
 
-        check_syscall(l, s);
+        s->type = TRACY_EVENT_SYSCALL;
+
+        check_syscall(s);
 
     } else if (signal_id == SIGTRAP) {
         puts("Recursing due to SIGTRAP");
 
-        continue_syscall(s);
+        tracy_continue(s);
 
-        return wait_for_syscall(l, s);
+        return tracy_wait_event(t);
         /* TODO: We shouldn't send SIGTRAP signals:
          * Continue the child but don't deliver the signal? */
     } else {
         puts("Signal for the child");
         /* Signal for the child, pass it along. */
         s->signal_num = signal_id;
-        s->type = EVENT_SIGNAL;
+        s->type = TRACY_EVENT_SIGNAL;
     }
-
     /* TODO TESTING. This probably needs to be somewhere else. */
 
-    return 0;
+    return s;
 }
 
 /*
  * This function continues the execution of a process with pid s->pid.
  */
-int continue_syscall(struct soxy_event *s) {
+int tracy_continue(struct tracy_event *s) {
     int sig = 0;
 
     /*  If data is nonzero and not SIGSTOP, it is interpreted as signal to be
      *  delivered to the child; otherwise, no signal is delivered. */
-    if (s->type == EVENT_SIGNAL) {
+    if (s->type == TRACY_EVENT_SIGNAL) {
         sig = s->signal_num;
         printf("Passing along signal %d.\n", sig);
     }
 
-    ptrace(PTRACE_SYSCALL, s->pid, NULL, sig);
+    ptrace(PTRACE_SYSCALL, s->child->pid, NULL, sig);
 
     return 0;
 }
 
 /*
- * Call this function to be able to tell the difference between pre and post
- * system calls. Uses a very simple linked-list. (ll.c)
+ * Changes pre/post.
  */
-int check_syscall(struct soxy_ll *l, struct soxy_event *s) {
-    struct soxy_ll_item *t;
-    if (t = ll_find(l, s->pid)) {
-        ll_del(l, s->pid);
-        s->type = EVENT_SYSCALL_POST;
-    } else {
-        ll_add(l, s->pid, NULL);
-        s->type = EVENT_SYSCALL_PRE;
-    }
-    return 0;
+int check_syscall(struct tracy_event *s) {
+    s->child->pre_syscall = s->child->pre_syscall ? 0 : 1;
 }
 
 static const struct _syscall_to_str {
@@ -290,18 +343,17 @@ static int hash_syscall(char * syscall) {
  *  block / deny system calls based on the result of the hook. (Right?)
  *
  */
-int hook_into_syscall(struct soxy_ll *ll, char *syscall, int pre,
-        syscall_hook_func func) {
+int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func) {
 
-    struct soxy_ll_item *t;
+    struct soxy_ll_item *item;
     int hash;
 
     hash = hash_syscall(syscall);
 
-    t = ll_find(ll, hash);
+    item = ll_find(t->hooks, hash);
 
-    if (!t) {
-        if (ll_add(ll, hash, func)) {
+    if (!item) {
+        if (ll_add(t->hooks, hash, func)) {
             return -1;
             /* Whoops */
         }
@@ -313,19 +365,17 @@ int hook_into_syscall(struct soxy_ll *ll, char *syscall, int pre,
 }
 
 /* Find and execute hook. */
-int execute_hook(struct soxy_ll *ll, char *syscall, struct soxy_event *e) {
-    struct soxy_ll_item *t;
+int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
+    struct soxy_ll_item *item;
     int hash;
-
-    syscall_hook_func f = NULL;
 
     hash = hash_syscall(syscall);
 
-    t = ll_find(ll, hash);
+    item = ll_find(t->hooks, hash);
 
-    if (t) {
-        f = (syscall_hook_func)(t->data);
-        return f(e);
+    if (item) {
+        printf("Executing hook %s\n", syscall);
+        return ((tracy_hook_func)(item->data))(e);
     }
 
     return 1;
@@ -333,10 +383,10 @@ int execute_hook(struct soxy_ll *ll, char *syscall, struct soxy_event *e) {
 
 
 /* Read a single ``word'' from child e->pid */
-int read_word(struct soxy_event *e, long from, long *word) {
+int read_word(struct tracy_event *e, long from, long *word) {
     errno = 0;
 
-    *word = ptrace(PTRACE_PEEKDATA, e->pid, from, NULL);
+    *word = ptrace(PTRACE_PEEKDATA, e->child->pid, from, NULL);
 
     if (errno)
         return -1;
@@ -345,7 +395,7 @@ int read_word(struct soxy_event *e, long from, long *word) {
 }
 
 /* Returns bytes read */
-int read_data(struct soxy_event *e, long from, void *to, long size) {
+int read_data(struct tracy_event *e, long from, void *to, long size) {
     long offset, leftover, last, rsize;
 
     /* Round down. */
@@ -365,15 +415,15 @@ int read_data(struct soxy_event *e, long from, void *to, long size) {
     return size;
 }
 
-int write_word(struct soxy_event *e, long to, long word) {
-    if (ptrace(PTRACE_POKEDATA, e->pid, to, word)) {
+int write_word(struct tracy_event *e, long to, long word) {
+    if (ptrace(PTRACE_POKEDATA, e->child->pid, to, word)) {
         return -1;
     }
 
     return 0;
 }
 
-int write_data(struct soxy_event *e, long to, void *from, long size) {
+int write_data(struct tracy_event *e, long to, void *from, long size) {
     long offset, leftover, last, rsize;
 
     /* Round down. */
@@ -398,26 +448,26 @@ int write_data(struct soxy_event *e, long to, void *from, long size) {
     return size;
 }
 
-int modify_registers(struct soxy_event *e) {
+int modify_registers(struct tracy_event *e) {
     int r;
-    struct REGS_NAME regs;
+    struct TRACY_REGS_NAME regs;
 
-    r = ptrace(PTRACE_GETREGS, e->pid, NULL, &regs);
+    r = ptrace(PTRACE_GETREGS, e->child->pid, NULL, &regs);
     if (r)
         return 1;
 
-    regs.SOXY_ARG_0 = e->args.a0;
-    regs.SOXY_ARG_1 = e->args.a1;
-    regs.SOXY_ARG_2 = e->args.a2;
-    regs.SOXY_ARG_3 = e->args.a3;
-    regs.SOXY_ARG_4 = e->args.a4;
-    regs.SOXY_ARG_5 = e->args.a5;
+    regs.TRACY_ARG_0 = e->args.a0;
+    regs.TRACY_ARG_1 = e->args.a1;
+    regs.TRACY_ARG_2 = e->args.a2;
+    regs.TRACY_ARG_3 = e->args.a3;
+    regs.TRACY_ARG_4 = e->args.a4;
+    regs.TRACY_ARG_5 = e->args.a5;
 
-    regs.SYSCALL_REGISTER = e->args.syscall;
-    regs.SOXY_IP_REG = e->args.ip;
-    regs.SOXY_RETURN_CODE = e->args.return_code;
+    regs.TRACY_SYSCALL_REGISTER = e->args.syscall;
+    regs.TRACY_IP_REG = e->args.ip;
+    regs.TRACY_RETURN_CODE = e->args.return_code;
 
-    r = ptrace(PTRACE_SETREGS, e->pid, NULL, &regs);
+    r = ptrace(PTRACE_SETREGS, e->child->pid, NULL, &regs);
 
     if (r) {
         printf("SETREGS FAILED\n");
@@ -430,22 +480,30 @@ int modify_registers(struct soxy_event *e) {
 /*
  * Currently only doubles
  * Call this in a PRE-event only */
-int inject_syscall(struct soxy_event *e) {
+int tracy_inject_syscall(struct tracy_event *e) {
     int garbage;
-    struct REGS_NAME args;
+    struct TRACY_REGS_NAME args;
 
-    ptrace(PTRACE_GETREGS, e->pid, 0, &args);
+    ptrace(PTRACE_GETREGS, e->child->pid, 0, &args);
 
-    continue_syscall(e);
+    tracy_continue(e);
 
     /* Wait for POST */
-    waitpid(e->pid, &garbage, 0);
+    waitpid(e->child->pid, &garbage, 0);
 
     /* POST */
-    args.SOXY_IP_REG = args.SOXY_IP_REG - SYSCALL_OPSIZE;
-    args.SOXY_SYSCALL_N = args.SYSCALL_REGISTER;
-    ptrace(PTRACE_SETREGS, e->pid, 0, &args);
+    args.TRACY_IP_REG -= TRACY_SYSCALL_OPSIZE;
+    args.TRACY_SYSCALL_N = args.TRACY_SYSCALL_REGISTER;
+    ptrace(PTRACE_SETREGS, e->child->pid, 0, &args);
 
     return 0;
 }
 
+int tracy_change_syscall() {
+
+}
+
+int tracy_deny_syscall() {
+    /* change_syscall */
+
+}
