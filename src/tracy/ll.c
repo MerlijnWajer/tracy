@@ -60,14 +60,15 @@ int ll_del(struct soxy_ll* ll, int id) {
         if (t->next)
             t->next->prev = t->prev;
 
-        if (ll->head == t)
-            if (t->next)
+        if (ll->head == t) {
+            if (t->next) {
                 ll->head = t->next;
-            else {
+            } else {
                 ll->head = NULL;
                 free(t);
                 return 0;
             }
+        }
 
         free(t);
         return 0;

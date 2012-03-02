@@ -70,11 +70,13 @@ char* get_syscall_name(int syscall);
 int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func);
 int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e);
 
+#if 0
 int read_word(struct tracy_event *e, long from, long* word);
 int read_data(struct tracy_event *e, long from, void *to, long size);
 
 int write_word(struct tracy_event *e, long to, long word);
 int write_data(struct tracy_event *e, long to, void *from, long size);
+#endif
 
 int modify_registers(struct tracy_event *e);
 
@@ -120,8 +122,8 @@ int tracy_deny_syscall();
     #define TRACY_SYSCALL_REGISTER orig_eax
     #define TRACY_SYSCALL_N eax
 
-    #define TRACE_RETURN_CODE eax
-    #define TRACE_IP_REG eip
+    #define TRACY_RETURN_CODE eax
+    #define TRACY_IP_REG eip
 
     #define TRACY_ARG_0 ebx
     #define TRACY_ARG_1 ecx

@@ -11,8 +11,7 @@
 int injected = 0;
 
 int foo(struct tracy_event *e) {
-    long len;
-    char *str, *stephen;
+    char *str;
 
     str = NULL;
 
@@ -29,33 +28,6 @@ int foo(struct tracy_event *e) {
     injected += 1;
 
     tracy_inject_syscall(e);
-
-    return 0;
-
-    len = e->args.a2;
-    str = malloc(sizeof(char) * len);
-    read_data(e, e->args.a1, str, sizeof(char) * len);
-    printf("Data: %s\n", str);
-
-    stephen = strfry(str);
-
-    /*
-    write_data(e, e->args.a1, stephen, sizeof(char) * len);
-    */
-
-    /*
-     * This will not work, because the child cannot access our memory.
-     * SHM?
-     */
-/*    e->args.a1 = (long)stephen; */
-
-    /* This is allowed, of course */
-    e->args.a2 = strlen(stephen);
-
-    printf("Modify_registers: %d.\n", modify_registers(e));
-
-    /* Don't let flushing bully us */
-    fflush(NULL);
 
     return 0;
 }

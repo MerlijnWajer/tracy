@@ -139,8 +139,8 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
 }
 
 static struct tracy_event none_event = {
-        .type = TRACY_EVENT_NONE,
-        .child = NULL
+        TRACY_EVENT_NONE, NULL, 0, 0,
+        {0, 0, 0, 0, 0, 0, 0, 0, 0}
     };
 /*
  *
@@ -285,6 +285,7 @@ int tracy_continue(struct tracy_event *s) {
  */
 int check_syscall(struct tracy_event *s) {
     s->child->pre_syscall = s->child->pre_syscall ? 0 : 1;
+    return 0;
 }
 
 static const struct _syscall_to_str {
@@ -347,13 +348,18 @@ int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func) {
 
     struct soxy_ll_item *item;
     int hash;
+    union {
+            void *pvoid;
+            tracy_hook_func pfunc;
+        } _hax;
 
     hash = hash_syscall(syscall);
 
     item = ll_find(t->hooks, hash);
+    _hax.pfunc = func;
 
     if (!item) {
-        if (ll_add(t->hooks, hash, func)) {
+        if (ll_add(t->hooks, hash, _hax.pvoid)) {
             return -1;
             /* Whoops */
         }
@@ -368,6 +374,10 @@ int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func) {
 int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
     struct soxy_ll_item *item;
     int hash;
+    union {
+            void *pvoid;
+            tracy_hook_func pfunc;
+        } _hax;
 
     hash = hash_syscall(syscall);
 
@@ -375,13 +385,14 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
 
     if (item) {
         printf("Executing hook %s\n", syscall);
-        return ((tracy_hook_func)(item->data))(e);
+        _hax.pvoid = item->data;
+        return _hax.pfunc(e);
     }
 
     return 1;
 }
 
-
+#if 0
 /* Read a single ``word'' from child e->pid */
 int read_word(struct tracy_event *e, long from, long *word) {
     errno = 0;
@@ -399,19 +410,19 @@ int read_data(struct tracy_event *e, long from, void *to, long size) {
     long offset, leftover, last, rsize;
 
     /* Round down. */
-    rsize = (size / sizeof(long)) * sizeof(long);
+    rsize = (size / sizeof(long));
 
     /* Copy, ``word for word'' (that's a joke) */
-    for(offset = 0; offset < rsize; offset += sizeof(long))
-        if (read_word(e, from + offset, to + offset))
-            return 1;
+    for(offset = 0; offset < rsize; offset++)
+        if (read_word(e, from + offset, (long*)to + offset)))
+            return -1;
 
     leftover = size - offset;
     last = 0;
     if (read_word(e, from + offset, &last))
         return offset;
 
-    memcpy(to + offset, &last, leftover);
+    memcpy((long*)to + offset, &last, leftover);
     return size;
 }
 
@@ -431,14 +442,14 @@ int write_data(struct tracy_event *e, long to, void *from, long size) {
 
     /* Copy, ``word for word'' (that's a joke) */
     for(offset = 0; offset < rsize; offset += sizeof(long))
-        if (write_word(e, to + offset, *(long*)(from + offset)))
+        if (write_word(e, (char*)to + offset, *(long*)(from + offset)))
             return 1;
 
     leftover = size - offset;
 
     last = 0;
     /* Retrieve value from ``to''. */
-    read_word(e, to + offset, &last);
+    read_word(e, (char*)to + offset, &last);
     /* Only change the part we want to change */
     memcpy(&last, from + offset, leftover);
 
@@ -447,6 +458,7 @@ int write_data(struct tracy_event *e, long to, void *from, long size) {
 
     return size;
 }
+#endif
 
 int modify_registers(struct tracy_event *e) {
     int r;
@@ -500,10 +512,11 @@ int tracy_inject_syscall(struct tracy_event *e) {
 }
 
 int tracy_change_syscall() {
-
+    return -1;
 }
 
 int tracy_deny_syscall() {
     /* change_syscall */
 
+    return -1;
 }
