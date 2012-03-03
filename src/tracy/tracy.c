@@ -492,6 +492,17 @@ int modify_registers(struct tracy_event *e) {
 
 /* TODO, needs error handling */
 int tracy_inject_syscall(struct tracy_event *e) {
+    if (e->child->pre_syscall) {
+        printf("Calling inject PRE.\n");
+        return tracy_inject_syscall_pre(e);
+    } else {
+        printf("Calling inject POST.\n");
+        return tracy_inject_syscall_post(e);
+    }
+
+}
+
+int tracy_inject_syscall_pre(struct tracy_event *e) {
     int garbage;
     struct TRACY_REGS_NAME args, newargs;
     struct tracy_event event;
@@ -536,6 +547,60 @@ int tracy_inject_syscall(struct tracy_event *e) {
 
     /* Wait for PRE */
     waitpid(e->child->pid, &garbage, 0);
+
+    return 0;
+}
+
+int tracy_inject_syscall_post(struct tracy_event *e) {
+    int garbage;
+    struct TRACY_REGS_NAME args, newargs;
+    struct tracy_event event;
+
+    if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &args))
+        printf("PTRACE_GETREGS failed\n");
+    if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &newargs))
+        printf("PTRACE_GETREGS failed\n");
+
+    /* POST, go back to PRE */
+    newargs.TRACY_IP_REG -= TRACY_SYSCALL_OPSIZE;
+
+    if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &newargs))
+        printf("PTRACE_SETREGS failed\n");
+
+    tracy_continue(e);
+
+    /* Wait for PRE */
+    waitpid(e->child->pid, &garbage, 0);
+
+    printf("Injecting getpid() now...\n");
+
+    if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &newargs))
+        printf("PTRACE_GETREGS failed\n");
+
+    event.type = e->type;
+    event.child = e->child;
+    event.syscall_num = __NR_getpid;
+    event.signal_num = 0;
+    event.args = e->args;
+
+    newargs.TRACY_SYSCALL_N = event.syscall_num;
+    newargs.TRACY_SYSCALL_REGISTER = event.syscall_num;
+
+    if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &newargs))
+        printf("ptrace SETREGS failed\n");
+
+    tracy_continue(e);
+
+    /* Wait for POST */
+    waitpid(e->child->pid, &garbage, 0);
+
+    if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &newargs))
+        printf("PTRACE_GETREGS failed\n");
+
+    printf("Return code of getpid(): %ld\n", newargs.TRACY_RETURN_CODE);
+
+    if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &args))
+        printf("PTRACE_SETREGS failed\n");
 
     return 0;
 }

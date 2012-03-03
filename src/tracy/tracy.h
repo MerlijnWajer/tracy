@@ -81,6 +81,8 @@ int write_data(struct tracy_event *e, long to, void *from, long size);
 int modify_registers(struct tracy_event *e);
 
 int tracy_inject_syscall(struct tracy_event *e);
+int tracy_inject_syscall_pre(struct tracy_event *e);
+int tracy_inject_syscall_post(struct tracy_event *e);
 int tracy_change_syscall();
 int tracy_deny_syscall();
 

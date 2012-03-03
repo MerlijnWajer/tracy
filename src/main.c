@@ -9,15 +9,6 @@
 #include "ll.h"
 
 int foo(struct tracy_event *e) {
-    char *str;
-
-    str = NULL;
-
-    if (!e->child->pre_syscall) {
-        return 1;
-    }
-
-    tracy_inject_syscall(e);
     tracy_inject_syscall(e);
 
     return 0;
