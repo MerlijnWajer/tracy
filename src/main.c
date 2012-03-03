@@ -8,8 +8,15 @@
 #include "tracy.h"
 #include "ll.h"
 
+/* For __NR_<SYSCALL> */
+#include <sys/syscall.h>
+
 int foo(struct tracy_event *e) {
-    tracy_inject_syscall(e);
+    struct tracy_sc_args args;
+    int ret;
+
+    memcpy(&args, &(e->args), sizeof(struct tracy_sc_args));
+    tracy_inject_syscall(e->child, __NR_getpid, &args, &ret);
 
     return 0;
 }
