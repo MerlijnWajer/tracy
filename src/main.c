@@ -8,25 +8,16 @@
 #include "tracy.h"
 #include "ll.h"
 
-int injected = 0;
-
 int foo(struct tracy_event *e) {
     char *str;
 
     str = NULL;
 
     if (!e->child->pre_syscall) {
-        injected = 0;
         return 1;
     }
 
-    if (injected > 0) {
-        /* printf("Not calling injection: injected = %d\n", injected); */
-        return 1;
-    }
-
-    injected += 1;
-
+    tracy_inject_syscall(e);
     tracy_inject_syscall(e);
 
     return 0;
@@ -79,7 +70,6 @@ int main(int argc, char** argv) {
                 if (get_syscall_name(e->syscall_num))
                     if(!tracy_execute_hook(tracy,
                                 get_syscall_name(e->syscall_num), e)) {
-                        check_syscall(e); /* PRE -> POST */
                     }
             } else {
                 /*

@@ -171,6 +171,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
     if (pid != -1) {
         item = ll_find(t->childs, pid);
         if (!item) {
+            printf("New child: %d. Adding to tracy...\n", pid);
             tc = malloc(sizeof(struct tracy_child));
             if (!tc) {
                 perror("Cannot allocate structure for new child");
@@ -384,7 +385,7 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
     item = ll_find(t->hooks, hash);
 
     if (item) {
-        printf("Executing hook %s\n", syscall);
+        printf("Executing hook for: %s\n", syscall);
         _hax.pvoid = item->data;
         return _hax.pfunc(e);
     }
@@ -489,34 +490,64 @@ int modify_registers(struct tracy_event *e) {
     return 0;
 }
 
-/*
- * Currently only doubles
- * Call this in a PRE-event only */
+/* TODO, needs error handling */
 int tracy_inject_syscall(struct tracy_event *e) {
     int garbage;
-    struct TRACY_REGS_NAME args;
+    struct TRACY_REGS_NAME args, newargs;
+    struct tracy_event event;
 
-    ptrace(PTRACE_GETREGS, e->child->pid, 0, &args);
+    printf("Injecting getpid() now...\n");
 
-    tracy_continue(e);
+    if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &args))
+        printf("PTRACE_GETREGS failed\n");
+    if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &newargs))
+        printf("PTRACE_GETREGS failed\n");
+
+    event.type = e->type;
+    event.child = e->child;
+    event.syscall_num = __NR_getpid;
+    event.signal_num = 0;
+    event.args = e->args;
+
+    newargs.TRACY_SYSCALL_N = event.syscall_num;
+    newargs.TRACY_SYSCALL_REGISTER = event.syscall_num;
+
+    if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &newargs))
+        printf("ptrace SETREGS failed\n");
+
+    tracy_continue(&event);
 
     /* Wait for POST */
     waitpid(e->child->pid, &garbage, 0);
 
+    if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &newargs))
+        printf("PTRACE_GETREGS failed\n");
+
+    printf("Return code of getpid(): %ld\n", newargs.TRACY_RETURN_CODE);
+
     /* POST */
     args.TRACY_IP_REG -= TRACY_SYSCALL_OPSIZE;
     args.TRACY_SYSCALL_N = args.TRACY_SYSCALL_REGISTER;
-    ptrace(PTRACE_SETREGS, e->child->pid, 0, &args);
+
+    if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &args))
+        printf("PTRACE_SETREGS failed\n");
+
+    tracy_continue(e);
+
+    /* Wait for PRE */
+    waitpid(e->child->pid, &garbage, 0);
 
     return 0;
 }
 
-int tracy_change_syscall() {
+int tracy_modify_syscall() {
     return -1;
 }
 
 int tracy_deny_syscall() {
     /* change_syscall */
+
+    tracy_modify_syscall(); /* With __NR_getpid, but make return code 0 or something */
 
     return -1;
 }
