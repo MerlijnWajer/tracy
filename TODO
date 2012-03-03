@@ -1,0 +1,23 @@
+Tracy:
+
+[ M ] Intercept system calls with ptrace(2)
+[ M ] Hook system calls
+[ M ] Read/Write system call arguments
+[ MB] Inject system calls
+[ M ] Modify (and deny) system calls
+[  B] Efficiently read(and write?) child memory. (Use mmap and shared memory)
+[  B] Efficiently share (allow read) memory with the child (Use mmap and shared
+m Memory)
+[   ] Means to conveniently store data per child/pid. (void* in tracy_child)
+[   ] (Optional) Attaching to running processes
+[   ] (Optional) Trace children as well. Default on Linux, needs hacks to work
+on *BSD, Solaris.
+
+Soxy:
+
+[J  ] Working implementation of SOCKS 5 protocol
+[   ] Hook some system calls, and perform required operations. We want to hook at
+least: read(2), write(2), connect(2), getsockname(2), socket(2).
+[   ] Keep track of FDs of sockets that we opened.
+[   ] Implement IPv4 (IPv6 optional)
+[   ] Implement TCP (UDP optional)
