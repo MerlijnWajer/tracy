@@ -10,11 +10,6 @@ OBJECTS=tracy.o ll.o
 
 default: $(OBJECTS)
 
-check-inject: test-inject
-	./test-inject
-
-test-inject: test-inject.o tracy.o ll.o
-
 tracy.o: def_syscalls.h
 
 def_syscalls.h:
