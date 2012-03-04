@@ -13,6 +13,9 @@ default: $(OBJECTS)
 tests: tests/hello tests/test-rwmem
 tests/test-rwmem: tests/test-rwmem.o tracy.o ll.o
 
+check-rwmem: tests/test-rwmem tests/hello
+	tests/test-rwmem tests/hello
+
 tracy.o: def_syscalls.h
 
 def_syscalls.h:

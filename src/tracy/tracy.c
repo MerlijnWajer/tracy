@@ -1,7 +1,6 @@
 /*
  * tracy.c: ptrace convenience library
  */
-#define _LARGEFILE64_SOURCE
 #include <inttypes.h>
 
 #include <sys/ptrace.h>
@@ -424,7 +423,6 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
 int tracy_peek_word(struct tracy_child *child, long from, long *word) {
     errno = 0;
 
-    printf("tracy_peek_word(%p, 0x%lx, %p)\n", (void*)child, from, (void*)word);
     *word = ptrace(PTRACE_PEEKDATA, child->pid, from, NULL);
 
     if (errno)
@@ -440,7 +438,7 @@ static int open_child_mem(struct tracy_child *c)
 
     /* Setup memory access via /proc/<pid>/mem */
     sprintf(proc_mem_path, "/proc/%d/mem", c->pid);
-    c->mem_fd = open(proc_mem_path, O_RDWR | O_LARGEFILE);
+    c->mem_fd = open(proc_mem_path, O_RDWR);
 
     /* If opening failed, we allow us to continue without
      * fast access. We can fall back to other methods instead.
@@ -452,51 +450,24 @@ static int open_child_mem(struct tracy_child *c)
         return -1;
     }
 
-    puts("tracy: Success, child mem open.");
     return 0;
 }
 
 /* Returns bytes read */
 ssize_t tracy_read_mem(struct tracy_child *c, void *dest, void *src, size_t n) {
-    off64_t r;
-    union {
-        off64_t a;
-        uint32_t b[2];
-    } hoi;
-
-    union {
-        void *a;
-        off64_t b;
-    } hai;
-
-    hai.b = 0;
-    hai.a = src;
-
+    /* Open memory if it's not open yet */
     if (c->mem_fd < 0) {
         if (open_child_mem(c) < 0)
             return -1;
     }
 
-#if 0
-    /* Do we have access ? */
-    if (c->mem_fd < 0) {
-        errno = -c->mem_fd;
+    /* Try seeking this memory postion */
+    if (lseek(c->mem_fd, (off_t)src, SEEK_SET) == (off_t)-1)
         return -1;
-    }
-#endif
+
     errno = 0;
 
-    /* Try seeking this memory postion */
-    printf("lseek64(%i, %p, %d)\n", c->mem_fd, src, SEEK_SET);
-    if ((r = lseek64(c->mem_fd, hai.b, SEEK_SET)) == ((off64_t)-1))
-        return -1;
-    hoi.a = r;
-    printf("lseek64: 0x%08x%08x\n", hoi.b[1], hoi.b[0]);
-    perror("tracy_read_mem: lseek64");
-    puts("tracy: lseek64 done.");
-
     /* And read. */
-    printf("read(%i, %p, %d)\n", c->mem_fd, dest, n);
     return read(c->mem_fd, dest, n);
 }
 
@@ -509,18 +480,20 @@ int tracy_poke_word(struct tracy_child *child, long to, long word) {
 }
 
 ssize_t tracy_write_mem(struct tracy_child *c, void *dest, void *src, size_t n) {
-    /* Do we have access ? */
+    /* Open memory if it's not open yet */
     if (c->mem_fd < 0) {
-        errno = -c->mem_fd;
-        return -1;
+        if (open_child_mem(c) < 0)
+            return -1;
     }
 
     /* Try seeking this memory postion */
-    if (lseek(c->mem_fd, (off_t)src, SEEK_CUR) < 0)
+    if (lseek(c->mem_fd, (off_t)dest, SEEK_SET) == (off_t)-1)
         return -1;
 
+    errno = 0;
+
     /* And write. */
-    return write(c->mem_fd, dest, n);
+    return write(c->mem_fd, src, n);
 }
 
 int modify_registers(struct tracy_event *e) {

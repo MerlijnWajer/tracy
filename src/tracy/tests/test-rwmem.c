@@ -18,7 +18,6 @@
 /* For __NR_<SYSCALL> */
 #include <sys/syscall.h>
 
-char *newmsg = "World, Hello!";
 void cat_file(char *file);
 
 /* write syscall hook args layout:
@@ -33,56 +32,66 @@ int foo(struct tracy_event *e) {
     char wstr[5];
     char child_maps_path[20];
 
+    static int dump_maps_once = 1;
+
     if (!e->child->pre_syscall)
         return 0;
 
-    sprintf(child_maps_path, "/proc/%i/maps", e->child->pid);
-    cat_file(child_maps_path);
-    perror(child_maps_path);
+    if (dump_maps_once) {
+        sprintf(child_maps_path, "/proc/%i/maps", e->child->pid);
+        cat_file(child_maps_path);
+        perror(child_maps_path);
+        dump_maps_once = 0;
+    }
 
+#if 0
     printf("In hook for function call \"write\"(%ld)\n", e->syscall_num);
     printf("Argument 0 (fd) for write: %ld\n", e->args.a0);
     printf("Argument 1 (str) for write: %p\n", (void*)e->args.a1);
     printf("Argument 2 (len) for write: %ld\n", e->args.a2);
+#endif
 
     len = e->args.a2;
-    /*
-    str = malloc(sizeof(char) * len);
-    */
     str = malloc(sizeof(char) * 4096);
 
-    /*if ((i = tracy_read_mem(e->child, str, (void*)e->args.a1, sizeof(char) * len)) < 0) {*/
-    if ((i = tracy_read_mem(e->child, str, (void*)e->args.a1, 4096)) < 0) {
+    /* Read memory */
+    if ((i = tracy_read_mem(e->child, str, (void*)e->args.a1, sizeof(char) * len)) < 0)
         perror("tracy_read_mem");
-    }
     printf("Read %d bytes.\n", i);
 
     /* Python style string dump */
     if (i > 0) {
         printf("Data: '");
-        for (i = 0; i < 4096; i++) {
+        for (i = 0; i < len; i++) {
             if (isprint(str[i]))
                 printf("%c", str[i]);
             else
                 printf("\\x%02x", str[i] & 0xff);
         }
         printf("'\n");
-        /*printf("'\nData: %s\n", str);*/
     }
 
+    /* Peek single word at same address */
     if(tracy_peek_word(e->child, e->args.a1, &word) < 0)
         perror("tracy_peek_word");
+
     for (i = 0; i < 4; i++)
         wstr[i] = (char)((word >> i * 8) & 0xff);
+
     wstr[i] = '\0';
     printf("Data by peek word: %p, '%s'\n", (void*)word, wstr);
 
+    strfry(str);
+    if (tracy_write_mem(e->child, (void*)e->args.a1, str, sizeof(char) * len) < 0)
+        perror("tracy_write_mem");
+
     free(str);
 
-#if 0
-    stephen = strfry(str);
+    word = 0x6f6c6f6c; /* "lolo" */
+    if (tracy_poke_word(e->child, e->args.a1, word) < 0)
+        perror("tracy_poke_word");
 
-    tracy_write_mem(e->child, (void*)e->args.a1, newmsg, sizeof(char) * len);
+#if 0
     e->args.a2 = strlen(newmsg);
 
     /*
@@ -181,7 +190,7 @@ int main(int argc, char** argv) {
         }
 
         if (e->type == TRACY_EVENT_QUIT) {
-            printf("EVENT_QUIT from %d with signal %ld\n", e->child->pid,
+            printf("\nEVENT_QUIT from %d with signal %ld\n", e->child->pid,
                     e->signal_num);
             if (e->child->pid == tracy->fpid) {
                 printf("Our first child died.\n");
