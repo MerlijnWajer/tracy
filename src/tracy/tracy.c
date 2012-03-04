@@ -1,6 +1,8 @@
 /*
  * tracy.c: ptrace convenience library
  */
+#define _LARGEFILE64_SOURCE
+#include <inttypes.h>
 
 #include <sys/ptrace.h>
 #include <sys/types.h>
@@ -8,8 +10,11 @@
 
 #include <asm/ptrace.h>
 
-#include <stdint.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#include <stdint.h>
 #include <unistd.h>
 
 #include <sys/wait.h>
@@ -23,6 +28,7 @@
 
 #include <sys/syscall.h>
 
+#include "ll.h"
 #include "tracy.h"
 
 struct tracy *tracy_init(void) {
@@ -64,6 +70,7 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     long ptrace_options = OUR_PTRACE_OPTIONS;
     long signal_id;
     struct tracy_child *tc;
+    /*char proc_mem_path[18];*/
 
     pid = fork();
 
@@ -121,6 +128,25 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
         /* TODO: Options may not be supported... Linux 2.4? */
     }
 
+#if 0
+    /* Setup memory access via /proc/<pid>/mem */
+    sprintf(proc_mem_path, "/proc/%d/mem", pid);
+    tc->mem_fd = open(proc_mem_path, O_RDWR | O_LARGEFILE);
+
+    /* If opening failed, we allow us to continue without
+     * fast access. We can fall back to other methods instead.
+     */
+    if (tc->mem_fd == -1) {
+        /* Store error for later reference */
+        tc->mem_fd = -errno;
+        perror("tracy: open_child_mem");
+        fprintf(stderr, "tracy: Warning: failed to open child memory @ '%s'\n",
+            proc_mem_path);
+    } else {
+        puts("tracy: Success, child mem open.");
+    }
+#endif
+
     /* printf("Resuming the process...\n"); */
 
     /* We have made sure we will trace each system call of the child, including
@@ -131,6 +157,7 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
         ptrace(PTRACE_KILL, pid, NULL, NULL);
     }
 
+    tc->mem_fd = -1;
     tc->pid = pid;
     tc->pre_syscall = 0; /* Next is pre... */
 
@@ -393,12 +420,12 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
     return 1;
 }
 
-#if 0
 /* Read a single ``word'' from child e->pid */
-int read_word(struct tracy_event *e, long from, long *word) {
+int tracy_peek_word(struct tracy_child *child, long from, long *word) {
     errno = 0;
 
-    *word = ptrace(PTRACE_PEEKDATA, e->child->pid, from, NULL);
+    printf("tracy_peek_word(%p, 0x%lx, %p)\n", (void*)child, from, (void*)word);
+    *word = ptrace(PTRACE_PEEKDATA, child->pid, from, NULL);
 
     if (errno)
         return -1;
@@ -406,60 +433,95 @@ int read_word(struct tracy_event *e, long from, long *word) {
     return 0;
 }
 
-/* Returns bytes read */
-int read_data(struct tracy_event *e, long from, void *to, long size) {
-    long offset, leftover, last, rsize;
+/* Open child's memory space */
+static int open_child_mem(struct tracy_child *c)
+{
+    char proc_mem_path[18];
 
-    /* Round down. */
-    rsize = (size / sizeof(long));
+    /* Setup memory access via /proc/<pid>/mem */
+    sprintf(proc_mem_path, "/proc/%d/mem", c->pid);
+    c->mem_fd = open(proc_mem_path, O_RDWR | O_LARGEFILE);
 
-    /* Copy, ``word for word'' (that's a joke) */
-    for(offset = 0; offset < rsize; offset++)
-        if (read_word(e, from + offset, (long*)to + offset)))
-            return -1;
+    /* If opening failed, we allow us to continue without
+     * fast access. We can fall back to other methods instead.
+     */
+    if (c->mem_fd == -1) {
+        perror("tracy: open_child_mem");
+        fprintf(stderr, "tracy: Warning: failed to open child memory @ '%s'\n",
+            proc_mem_path);
+        return -1;
+    }
 
-    leftover = size - offset;
-    last = 0;
-    if (read_word(e, from + offset, &last))
-        return offset;
-
-    memcpy((long*)to + offset, &last, leftover);
-    return size;
+    puts("tracy: Success, child mem open.");
+    return 0;
 }
 
-int write_word(struct tracy_event *e, long to, long word) {
-    if (ptrace(PTRACE_POKEDATA, e->child->pid, to, word)) {
+/* Returns bytes read */
+ssize_t tracy_read_mem(struct tracy_child *c, void *dest, void *src, size_t n) {
+    off64_t r;
+    union {
+        off64_t a;
+        uint32_t b[2];
+    } hoi;
+
+    union {
+        void *a;
+        off64_t b;
+    } hai;
+
+    hai.b = 0;
+    hai.a = src;
+
+    if (c->mem_fd < 0) {
+        if (open_child_mem(c) < 0)
+            return -1;
+    }
+
+#if 0
+    /* Do we have access ? */
+    if (c->mem_fd < 0) {
+        errno = -c->mem_fd;
+        return -1;
+    }
+#endif
+    errno = 0;
+
+    /* Try seeking this memory postion */
+    printf("lseek64(%i, %p, %d)\n", c->mem_fd, src, SEEK_SET);
+    if ((r = lseek64(c->mem_fd, hai.b, SEEK_SET)) == ((off64_t)-1))
+        return -1;
+    hoi.a = r;
+    printf("lseek64: 0x%08x%08x\n", hoi.b[1], hoi.b[0]);
+    perror("tracy_read_mem: lseek64");
+    puts("tracy: lseek64 done.");
+
+    /* And read. */
+    printf("read(%i, %p, %d)\n", c->mem_fd, dest, n);
+    return read(c->mem_fd, dest, n);
+}
+
+int tracy_poke_word(struct tracy_child *child, long to, long word) {
+    if (ptrace(PTRACE_POKEDATA, child->pid, to, word)) {
         return -1;
     }
 
     return 0;
 }
 
-int write_data(struct tracy_event *e, long to, void *from, long size) {
-    long offset, leftover, last, rsize;
+ssize_t tracy_write_mem(struct tracy_child *c, void *dest, void *src, size_t n) {
+    /* Do we have access ? */
+    if (c->mem_fd < 0) {
+        errno = -c->mem_fd;
+        return -1;
+    }
 
-    /* Round down. */
-    rsize = (size / sizeof(long)) * sizeof(long);
+    /* Try seeking this memory postion */
+    if (lseek(c->mem_fd, (off_t)src, SEEK_CUR) < 0)
+        return -1;
 
-    /* Copy, ``word for word'' (that's a joke) */
-    for(offset = 0; offset < rsize; offset += sizeof(long))
-        if (write_word(e, (char*)to + offset, *(long*)(from + offset)))
-            return 1;
-
-    leftover = size - offset;
-
-    last = 0;
-    /* Retrieve value from ``to''. */
-    read_word(e, (char*)to + offset, &last);
-    /* Only change the part we want to change */
-    memcpy(&last, from + offset, leftover);
-
-    if (write_word(e, to + offset, last))
-        return offset;
-
-    return size;
+    /* And write. */
+    return write(c->mem_fd, dest, n);
 }
-#endif
 
 int modify_registers(struct tracy_event *e) {
     int r;

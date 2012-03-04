@@ -1,4 +1,4 @@
-.PHONY: default clean check-inject
+.PHONY: default clean check-inject tests
 
 CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror
 CFLAGS+=-D_POSIX_SOURCE
@@ -9,6 +9,9 @@ CFLAGS+=-ggdb
 OBJECTS=tracy.o ll.o
 
 default: $(OBJECTS)
+
+tests: tests/hello tests/test-rwmem
+tests/test-rwmem: tests/test-rwmem.o tracy.o ll.o
 
 tracy.o: def_syscalls.h
 
