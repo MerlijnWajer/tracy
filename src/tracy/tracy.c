@@ -66,7 +66,7 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
 
     pid = fork();
 
-    if (t->fpid != 0)
+    if (t->fpid == 0)
         t->fpid = pid;
 
     /* Child */
