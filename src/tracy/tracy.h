@@ -4,6 +4,13 @@
 #include <sys/wait.h>
 #include "ll.h"
 
+#include <sys/ptrace.h>
+#include <sys/types.h>
+#include <sys/user.h>
+
+#include <asm/ptrace.h>
+#include "tracyarch.h"
+
 struct tracy {
     struct soxy_ll *childs;
     struct soxy_ll *hooks;
@@ -26,11 +33,22 @@ struct tracy_event {
     struct tracy_sc_args args;
 };
 
+typedef int (*tracy_hook_func) (struct tracy_event *s);
+
+struct tracy_inject_data {
+    int injecting, injected;
+    int pre;
+    struct TRACY_REGS_NAME reg;
+    tracy_hook_func cb;
+};
+
 struct tracy_child {
     pid_t pid;
     int pre_syscall;
     struct tracy_event event;
     int mem_fd;
+
+    struct tracy_inject_data inj;
 };
 
 
@@ -39,8 +57,6 @@ struct tracy_child {
 #define TRACY_EVENT_SIGNAL 1 << 2
 #define TRACY_EVENT_QUIT 1 << 3
 
-
-typedef int (*tracy_hook_func) (struct tracy_event *s);
 
 
 struct tracy *tracy_init(void);
@@ -84,87 +100,26 @@ ssize_t tracy_write_mem(struct tracy_child *c, void *dest, void *src, size_t n);
 int modify_registers(struct tracy_event *e);
 
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
-        struct tracy_sc_args *a, int *return_code);
+        struct tracy_sc_args *a, long *return_code);
+
+/*
 int tracy_inject_syscall_pre(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, int *return_code);
+*/
+
+int tracy_inject_syscall_pre_pre(struct tracy_child *child, long syscall_number,
+        struct tracy_sc_args *a, tracy_hook_func callback);
+int tracy_inject_syscall_pre_post(struct tracy_child *child, long *return_code);
+
+int tracy_inject_syscall_post_pre(struct tracy_child *child, long syscall_number,
+        struct tracy_sc_args *a, tracy_hook_func callback);
+int tracy_inject_syscall_post_post(struct tracy_child *child, long *return_code);
+
+/*
 int tracy_inject_syscall_post(struct tracy_child *child, long syscall_number,
-        struct tracy_sc_args *a, int *return_code);
+        struct tracy_sc_args *a, long *return_code);
+*/
 int tracy_change_syscall();
 int tracy_deny_syscall();
-
-#define OUR_PTRACE_OPTIONS (PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | \
-    PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE)
-
-
-#ifdef __arm__
-    #define TRACY_REGS_NAME pt_regs
-
-    /* Unsure about some of the registers */
-    #define TRACY_SYSCALL_OPSIZE 8
-
-    /* ARM EABI puts System call number in r7 */
-    #define TRACY_SYSCALL_REGISTER ARM_r7
-    #define TRACY_SYSCALL_N ARM_r8
-
-    #define TRACY_RETURN_CODE ARM_r6
-
-    #define TRACY_IP_REG ARM_pc
-
-    /*
-     * ARM does nasty stuff
-     * http://www.arm.linux.org.uk/developer/patches/viewpatch.php?id=3105/4
-     */
-    #define TRACY_ARG_0 ARM_r0
-    #define TRACY_ARG_1 ARM_r1
-    #define TRACY_ARG_2 ARM_r2
-    #define TRACY_ARG_3 ARM_r3
-    #define TRACY_ARG_4 ARM_r4
-    #define TRACY_ARG_5 ARM_r5
-#endif
-
-#ifdef __i386__
-    #define TRACY_REGS_NAME user_regs_struct /* pt_regs doesn't work */
-
-    #define TRACY_SYSCALL_OPSIZE 2
-
-    #define TRACY_SYSCALL_REGISTER orig_eax
-    #define TRACY_SYSCALL_N eax
-
-    #define TRACY_RETURN_CODE eax
-    #define TRACY_IP_REG eip
-
-    #define TRACY_ARG_0 ebx
-    #define TRACY_ARG_1 ecx
-    #define TRACY_ARG_2 edx
-    #define TRACY_ARG_3 esi
-    #define TRACY_ARG_4 edi
-    #define TRACY_ARG_5 ebp
-
-    typedef uint32_t tracy_opcode_t;
-#endif
-
-/* 'cs' determines the call type, we can use this to check if we are calling a
- * 32 bit function on 64 bit */
-
-#ifdef __x86_64__
-    #define TRACY_REGS_NAME user_regs_struct /* pt_regs doesn't work */
-
-    #define TRACY_SYSCALL_OPSIZE 2
-
-    #define TRACY_SYSCALL_REGISTER orig_rax
-    #define TRACY_SYSCALL_N rax
-
-    #define TRACY_RETURN_CODE rax
-    #define TRACY_IP_REG rip
-
-    #define TRACY_ARG_0 rdi
-    #define TRACY_ARG_1 rsi
-    #define TRACY_ARG_2 rdx
-    #define TRACY_ARG_3 rcx
-    #define TRACY_ARG_4 r8
-    #define TRACY_ARG_5 r9
-
-    typedef uint64_t tracy_opcode_t;
-#endif
 
 #endif
