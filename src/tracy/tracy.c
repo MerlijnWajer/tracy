@@ -3,13 +3,6 @@
  */
 #include <inttypes.h>
 
-#include <sys/ptrace.h>
-#include <sys/types.h>
-#include <sys/user.h>
-
-#include <asm/ptrace.h>
-
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
@@ -159,6 +152,9 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     tc->mem_fd = -1;
     tc->pid = pid;
     tc->pre_syscall = 0; /* Next is pre... */
+    tc->inj.injecting = 0;
+    tc->inj.cb = NULL;
+
 
     ll_add(t->childs, tc->pid, tc);
     return tc;
@@ -205,7 +201,8 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
             }
 
             tc->pid = pid;
-            tc->pre_syscall = 0; /* Next is pre... */
+            tc->inj.injecting = 0;
+            tc->inj.cb = NULL;
 
             ll_add(t->childs, tc->pid, tc);
             s = &tc->event;
@@ -214,6 +211,12 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
             s = &(((struct tracy_child*)(item->data))->event);
             s->child = item->data;
         }
+    }
+
+    /* Do we want this before the signal checks? Will do for now */
+    if(s->child->inj.injecting) {
+        /* We don't want to touch the event if we're injecting a system call */
+        return s;
     }
 
     s->type = 0;
@@ -527,26 +530,34 @@ int modify_registers(struct tracy_event *e) {
 
 /* TODO, needs error handling */
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
-        struct tracy_sc_args *a, int *return_code) {
+        struct tracy_sc_args *a, long *return_code) {
     if (child->pre_syscall) {
         /* printf("Calling inject PRE.\n"); */
-        return tracy_inject_syscall_pre(child, syscall_number, a, return_code);
+        /* return tracy_inject_syscall_pre(child, syscall_number, a, return_code); */
+        /* TODO */
+        printf("WHOOPS PRE, %ld, %ld\n", syscall_number, *return_code & a->return_code);
+        return 1;
     } else {
         /* printf("Calling inject POST.\n"); */
-        return tracy_inject_syscall_post(child, syscall_number, a, return_code);
+        /*return tracy_inject_syscall_post(child, syscall_number, a, return_code);*/
+        printf("WHOOPS POST\n");
+        return 1;
     }
-
 }
 
-int tracy_inject_syscall_pre(struct tracy_child *child, long syscall_number,
-        struct tracy_sc_args *a, int *return_code) {
-    int garbage;
-    struct TRACY_REGS_NAME args, newargs;
+int tracy_inject_syscall_pre_pre(struct tracy_child *child, long syscall_number,
+        struct tracy_sc_args *a, tracy_hook_func callback) {
+    struct TRACY_REGS_NAME newargs;
 
     /* printf("Injecting getpid() now...\n"); */
 
-    if (ptrace(PTRACE_GETREGS, child->pid, 0, &args))
+    if (ptrace(PTRACE_GETREGS, child->pid, 0, &child->inj.reg))
         printf("PTRACE_GETREGS failed\n");
+
+    child->inj.cb = callback;
+    child->inj.injecting = 1;
+    child->inj.pre = 1;
+
     if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
         printf("PTRACE_GETREGS failed\n");
 
@@ -564,11 +575,13 @@ int tracy_inject_syscall_pre(struct tracy_child *child, long syscall_number,
     if (ptrace(PTRACE_SETREGS, child->pid, 0, &newargs))
         printf("ptrace SETREGS failed\n");
 
-    if (ptrace(PTRACE_SYSCALL, child->pid, NULL, 0))
-        printf("PTRACE_SYSCALL failed\n");
+    return 0;
+}
 
-    /* Wait for POST */
-    waitpid(child->pid, &garbage, 0);
+
+int tracy_inject_syscall_pre_post(struct tracy_child *child, long *return_code) {
+    int garbage;
+    struct TRACY_REGS_NAME newargs;
 
     if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
         printf("PTRACE_GETREGS failed\n");
@@ -577,28 +590,35 @@ int tracy_inject_syscall_pre(struct tracy_child *child, long syscall_number,
     *return_code = newargs.TRACY_RETURN_CODE;
 
     /* POST */
-    args.TRACY_IP_REG -= TRACY_SYSCALL_OPSIZE;
-    args.TRACY_SYSCALL_N = args.TRACY_SYSCALL_REGISTER;
+    child->inj.reg.TRACY_IP_REG -= TRACY_SYSCALL_OPSIZE;
+    child->inj.reg.TRACY_SYSCALL_N = child->inj.reg.TRACY_SYSCALL_REGISTER;
 
-    if (ptrace(PTRACE_SETREGS, child->pid, 0, &args))
+    if (ptrace(PTRACE_SETREGS, child->pid, 0, &child->inj.reg))
         printf("PTRACE_SETREGS failed\n");
 
     if (ptrace(PTRACE_SYSCALL, child->pid, NULL, 0))
         printf("PTRACE_SYSCALL failed\n");
 
-    /* Wait for PRE */
+    /* Wait for PRE, this shouldn't take long as we literally only wait for
+     * the OS to notice that we set the PC back it should give us control back
+     * on PRE-syscall*/
     waitpid(child->pid, &garbage, 0);
 
     return 0;
 }
 
-int tracy_inject_syscall_post(struct tracy_child *child, long syscall_number,
-        struct tracy_sc_args *a, int *return_code) {
+int tracy_inject_syscall_post_pre(struct tracy_child *child, long syscall_number,
+        struct tracy_sc_args *a, tracy_hook_func callback) {
     int garbage;
-    struct TRACY_REGS_NAME args, newargs;
+    struct TRACY_REGS_NAME newargs;
 
-    if (ptrace(PTRACE_GETREGS, child->pid, 0, &args))
+    if (ptrace(PTRACE_GETREGS, child->pid, 0, &child->inj.reg))
         printf("PTRACE_GETREGS failed\n");
+
+    child->inj.cb = callback;
+    child->inj.injecting = 1;
+    child->inj.pre = 0;
+
     if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
         printf("PTRACE_GETREGS failed\n");
 
@@ -611,7 +631,9 @@ int tracy_inject_syscall_post(struct tracy_child *child, long syscall_number,
     if (ptrace(PTRACE_SYSCALL, child->pid, NULL, 0))
         printf("PTRACE_SYSCALL failed\n");
 
-    /* Wait for PRE */
+    /* Wait for PRE, this shouldn't take long as we literally only wait for
+     * the OS to notice that we set the PC back it should give us control back
+     * on PRE-syscall*/
     waitpid(child->pid, &garbage, 0);
 
     /* printf("Injecting getpid() now...\n"); */
@@ -633,19 +655,23 @@ int tracy_inject_syscall_post(struct tracy_child *child, long syscall_number,
     if (ptrace(PTRACE_SETREGS, child->pid, 0, &newargs))
         printf("ptrace SETREGS failed\n");
 
+    /*
     if (ptrace(PTRACE_SYSCALL, child->pid, NULL, 0))
         printf("PTRACE_SYSCALL failed\n");
+    */
+    return 0;
+}
 
-    /* Wait for POST */
-    waitpid(child->pid, &garbage, 0);
+int tracy_inject_syscall_post_post(struct tracy_child *child, long *return_code) {
+    struct TRACY_REGS_NAME newargs;
 
     if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
         printf("PTRACE_GETREGS failed\n");
 
-    /* printf("Return code of getpid(): %ld\n", newargs.TRACY_RETURN_CODE); */
+    /*printf("Return code of getpid(): %ld\n", newargs.TRACY_RETURN_CODE);*/
     *return_code = newargs.TRACY_RETURN_CODE;
 
-    if (ptrace(PTRACE_SETREGS, child->pid, 0, &args))
+    if (ptrace(PTRACE_SETREGS, child->pid, 0, &child->inj.reg))
         printf("PTRACE_SETREGS failed\n");
 
     return 0;
