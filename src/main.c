@@ -21,9 +21,11 @@ int foo(struct tracy_event *e) {
 
     if (e->child->inj.injected) {
         if (e->child->inj.pre) {
-            printf("PRE HEYYEYAAEYAAAEYAEYAA: %ld\n", e->args.return_code);
+            /* printf("PRE HEYYEYAAEYAAAEYAEYAA: %ld\n", e->args.return_code);
+             */
         } else {
-            printf("POST HEYYEYAAEYAAAEYAEYAA: %ld\n", e->args.return_code);
+            /* printf("POST HEYYEYAAEYAAAEYAEYAA: %ld\n", e->args.return_code);
+             */
         }
 
         if (count > 0) {
@@ -34,10 +36,10 @@ int foo(struct tracy_event *e) {
 
     if (e->child->pre_syscall) {
         memcpy(&args, &(e->args), sizeof(struct tracy_sc_args));
-        tracy_inject_syscall_pre_pre(e->child, __NR_write, &args, foo);
+        tracy_inject_syscall_pre_pre(e->child, __NR_getpid, &args, foo);
     } else {
         memcpy(&args, &(e->args), sizeof(struct tracy_sc_args));
-        tracy_inject_syscall_post_pre(e->child, __NR_write, &args, foo);
+        tracy_inject_syscall_post_pre(e->child, __NR_getpid, &args, foo);
     }
 
     return 0;

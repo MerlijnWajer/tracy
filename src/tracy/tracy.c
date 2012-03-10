@@ -499,35 +499,6 @@ ssize_t tracy_write_mem(struct tracy_child *c, void *dest, void *src, size_t n) 
     return write(c->mem_fd, src, n);
 }
 
-int modify_registers(struct tracy_event *e) {
-    int r;
-    struct TRACY_REGS_NAME regs;
-
-    r = ptrace(PTRACE_GETREGS, e->child->pid, NULL, &regs);
-    if (r)
-        return 1;
-
-    regs.TRACY_ARG_0 = e->args.a0;
-    regs.TRACY_ARG_1 = e->args.a1;
-    regs.TRACY_ARG_2 = e->args.a2;
-    regs.TRACY_ARG_3 = e->args.a3;
-    regs.TRACY_ARG_4 = e->args.a4;
-    regs.TRACY_ARG_5 = e->args.a5;
-
-    regs.TRACY_SYSCALL_REGISTER = e->args.syscall;
-    regs.TRACY_IP_REG = e->args.ip;
-    regs.TRACY_RETURN_CODE = e->args.return_code;
-
-    r = ptrace(PTRACE_SETREGS, e->child->pid, NULL, &regs);
-
-    if (r) {
-        printf("SETREGS FAILED\n");
-        return 1;
-    }
-
-    return 0;
-}
-
 /* TODO, rewrite this. */
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code) {
@@ -547,7 +518,6 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
 int tracy_inject_syscall_pre_pre(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback) {
-    struct TRACY_REGS_NAME newargs;
 
     if (ptrace(PTRACE_GETREGS, child->pid, 0, &child->inj.reg))
         printf("PTRACE_GETREGS failed\n");
@@ -556,22 +526,10 @@ int tracy_inject_syscall_pre_pre(struct tracy_child *child, long syscall_number,
     child->inj.injecting = 1;
     child->inj.pre = 1;
 
-    if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
-        printf("PTRACE_GETREGS failed\n");
-
-    newargs.TRACY_SYSCALL_N = syscall_number;
-    newargs.TRACY_SYSCALL_REGISTER = syscall_number;
-    /*
-    newargs.TRACY_ARG_0 = a->a0;
-    */
-    newargs.TRACY_ARG_1 = a->a1;
-    newargs.TRACY_ARG_2 = a->a2;
-    newargs.TRACY_ARG_3 = a->a3;
-    newargs.TRACY_ARG_4 = a->a4;
-    newargs.TRACY_ARG_5 = a->a5;
-
-    if (ptrace(PTRACE_SETREGS, child->pid, 0, &newargs))
-        printf("ptrace SETREGS failed\n");
+    if (tracy_modify_syscall(child, syscall_number, a)) {
+        printf("tracy_modify_syscall failed\n");
+        return 1;
+    }
 
     return 0;
 }
@@ -586,6 +544,7 @@ int tracy_inject_syscall_pre_post(struct tracy_child *child, long *return_code) 
 
     /* printf("Return code of getpid(): %ld\n", newargs.TRACY_RETURN_CODE); */
     *return_code = newargs.TRACY_RETURN_CODE;
+
 
     /* POST */
     child->inj.reg.TRACY_IP_REG -= TRACY_SYSCALL_OPSIZE;
@@ -634,20 +593,10 @@ int tracy_inject_syscall_post_pre(struct tracy_child *child, long syscall_number
      * on PRE-syscall*/
     waitpid(child->pid, &garbage, 0);
 
-    if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
-        printf("PTRACE_GETREGS failed\n");
-
-    newargs.TRACY_SYSCALL_N = syscall_number;
-    newargs.TRACY_SYSCALL_REGISTER = syscall_number;
-    /* newargs.TRACY_ARG_0 = a->a0; */
-    newargs.TRACY_ARG_1 = a->a1;
-    newargs.TRACY_ARG_2 = a->a2;
-    newargs.TRACY_ARG_3 = a->a3;
-    newargs.TRACY_ARG_4 = a->a4;
-    newargs.TRACY_ARG_5 = a->a5;
-
-    if (ptrace(PTRACE_SETREGS, child->pid, 0, &newargs))
-        printf("ptrace SETREGS failed\n");
+    if (tracy_modify_syscall(child, syscall_number, a)) {
+        printf("tracy_modify_syscall failed\n");
+        return 1;
+    }
 
     return 0;
 }

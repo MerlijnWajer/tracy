@@ -96,16 +96,8 @@ ssize_t tracy_read_mem(struct tracy_child *c, void *dest, void *src, size_t n);
 int tracy_poke_word(struct tracy_child *c, long to, long word);
 ssize_t tracy_write_mem(struct tracy_child *c, void *dest, void *src, size_t n);
 
-/* Syscall modification and injection */
-int modify_registers(struct tracy_event *e);
-
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code);
-
-/*
-int tracy_inject_syscall_pre(struct tracy_child *child, long syscall_number,
-        struct tracy_sc_args *a, int *return_code);
-*/
 
 int tracy_inject_syscall_pre_pre(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback);
@@ -115,11 +107,8 @@ int tracy_inject_syscall_post_pre(struct tracy_child *child, long syscall_number
         struct tracy_sc_args *a, tracy_hook_func callback);
 int tracy_inject_syscall_post_post(struct tracy_child *child, long *return_code);
 
-/*
-int tracy_inject_syscall_post(struct tracy_child *child, long syscall_number,
-        struct tracy_sc_args *a, long *return_code);
-*/
-int tracy_change_syscall();
-int tracy_deny_syscall();
+int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
+        struct tracy_sc_args *a);
+int tracy_deny_syscall(struct tracy_child* child);
 
 #endif
