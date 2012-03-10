@@ -38,6 +38,7 @@ typedef int (*tracy_hook_func) (struct tracy_event *s);
 struct tracy_inject_data {
     int injecting, injected;
     int pre;
+    int syscall_num;
     struct TRACY_REGS_NAME reg;
     tracy_hook_func cb;
 };
@@ -56,7 +57,8 @@ struct tracy_child {
 #define TRACY_EVENT_NONE 1 << 0
 #define TRACY_EVENT_SYSCALL 1 << 1
 #define TRACY_EVENT_SIGNAL 1 << 2
-#define TRACY_EVENT_QUIT 1 << 3
+#define TRACY_EVENT_INTERNAL 1 << 3
+#define TRACY_EVENT_QUIT 1 << 4
 
 
 

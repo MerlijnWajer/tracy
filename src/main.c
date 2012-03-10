@@ -45,7 +45,6 @@ int foo(struct tracy_event *e) {
 int main(int argc, char** argv) {
     struct tracy *tracy;
     struct tracy_event *e;
-    tracy_hook_func f;
 
     count = 0;
 
@@ -75,30 +74,10 @@ int main(int argc, char** argv) {
         /* If the (last) child died, break */
         if (e->type == TRACY_EVENT_NONE) {
             break;
+        } else if (e->type == TRACY_EVENT_INTERNAL) {
+            printf("Internal event for syscall: %s\n",
+                    get_syscall_name(e->syscall_num));
         }
-
-        /* Are we injecting? */
-        if (e->child->inj.injecting) {
-            if (e->child->inj.pre) {
-                /* TODO: This probably shouldn't be args.return_code as we're
-                 * messing with the arguments of the original system call */
-                tracy_inject_syscall_pre_post(e->child, &e->args.return_code);
-            } else {
-                /* TODO: This probably shouldn't be args.return_code as we're
-                 * messing with the arguments of the original system call */
-                tracy_inject_syscall_post_post(e->child, &e->args.return_code);
-            }
-
-            e->child->inj.injecting = 0;
-            e->child->inj.injected = 1;
-            f = e->child->inj.cb;
-            e->child->inj.cb = NULL;
-            if (f)
-                f(e);
-            e->child->inj.injected = 0;
-
-        } else
-
         if (e->type == TRACY_EVENT_SIGNAL) {
             printf("Signal %ld for child %d\n", e->signal_num, e->child->pid);
         } else

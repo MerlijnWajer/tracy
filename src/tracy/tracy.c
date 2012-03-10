@@ -142,6 +142,30 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     return tc;
 }
 
+static int _tracy_handle_injection(struct tracy_event *e) {
+    tracy_hook_func f;
+
+    if (e->child->inj.pre) {
+        /* TODO: This probably shouldn't be args.return_code as we're
+         * messing with the arguments of the original system call */
+        tracy_inject_syscall_pre_post(e->child, &e->args.return_code);
+    } else {
+        /* TODO: This probably shouldn't be args.return_code as we're
+         * messing with the arguments of the original system call */
+        tracy_inject_syscall_post_post(e->child, &e->args.return_code);
+    }
+
+    e->child->inj.injecting = 0;
+    e->child->inj.injected = 1;
+    f = e->child->inj.cb;
+    e->child->inj.cb = NULL;
+    if (f)
+        f(e);
+    e->child->inj.injected = 0;
+
+    return 0;
+}
+
 static struct tracy_event none_event = {
         TRACY_EVENT_NONE, NULL, 0, 0,
         {0, 0, 0, 0, 0, 0, 0, 0, 0}
@@ -202,7 +226,11 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
     /* Do we want this before the signal checks? Will do for now */
     if(s->child->inj.injecting) {
         /* We don't want to touch the event if we're injecting a system call */
-        return s;
+        if (!_tracy_handle_injection(s)) {
+            s->type = TRACY_EVENT_INTERNAL;
+            s->syscall_num = s->child->inj.syscall_num;
+            return s;
+        }
     }
 
     s->type = 0;
@@ -295,6 +323,8 @@ int tracy_continue(struct tracy_event *s) {
      *  delivered to the child; otherwise, no signal is delivered. */
     if (s->type == TRACY_EVENT_SIGNAL) {
         sig = s->signal_num;
+
+        s->signal_num = 0; /* Clear signal */
         printf("Passing along signal %d to child %d\n", sig, s->child->pid);
     }
 
@@ -512,6 +542,7 @@ int tracy_inject_syscall_pre_pre(struct tracy_child *child, long syscall_number,
     child->inj.cb = callback;
     child->inj.injecting = 1;
     child->inj.pre = 1;
+    child->inj.syscall_num = syscall_number;
 
     if (tracy_modify_syscall(child, syscall_number, a)) {
         printf("tracy_modify_syscall failed\n");
@@ -562,6 +593,7 @@ int tracy_inject_syscall_post_pre(struct tracy_child *child, long syscall_number
     child->inj.cb = callback;
     child->inj.injecting = 1;
     child->inj.pre = 0;
+    child->inj.syscall_num = syscall_number;
 
     if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
         printf("PTRACE_GETREGS failed\n");
