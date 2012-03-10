@@ -47,6 +47,7 @@ struct tracy_child {
     int pre_syscall;
     struct tracy_event event;
     int mem_fd;
+    int denied_nr;
 
     struct tracy_inject_data inj;
 };

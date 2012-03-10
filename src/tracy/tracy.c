@@ -1,5 +1,11 @@
 /*
  * tracy.c: ptrace convenience library
+ *
+ * TODO:
+ *  -   Implement proper failure of ptrace commands handling.
+ *  -   Define and harden async API.
+ *  -   Write test cases
+ *  -   Replace ll with a better datastructure.
  */
 #include <inttypes.h>
 
@@ -80,12 +86,9 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
          * restart the child and let it call exec() */
         raise(SIGTRAP);
 
-        /* Exec here? (move somewhere else?) */
         if (argc == 1) {
-            /* printf("Executing %s without arguments.\n", argv[0]); */
             execv(argv[0], argv);
         } else {
-            /* printf("Executing %s with argument: %s\n", argv[0], argv[1]); */
             execv(argv[0], argv);
         }
 
@@ -110,7 +113,7 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
 
     signal_id = WSTOPSIG(status);
     if (signal_id != SIGTRAP) {
-        /* w-a-t */
+        /* TODO: Failure */
         ptrace(PTRACE_KILL, pid, NULL, NULL);
     }
 
@@ -119,27 +122,6 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
         ptrace(PTRACE_KILL, pid, NULL, NULL);
         /* TODO: Options may not be supported... Linux 2.4? */
     }
-
-#if 0
-    /* Setup memory access via /proc/<pid>/mem */
-    sprintf(proc_mem_path, "/proc/%d/mem", pid);
-    tc->mem_fd = open(proc_mem_path, O_RDWR | O_LARGEFILE);
-
-    /* If opening failed, we allow us to continue without
-     * fast access. We can fall back to other methods instead.
-     */
-    if (tc->mem_fd == -1) {
-        /* Store error for later reference */
-        tc->mem_fd = -errno;
-        perror("tracy: open_child_mem");
-        fprintf(stderr, "tracy: Warning: failed to open child memory @ '%s'\n",
-            proc_mem_path);
-    } else {
-        puts("tracy: Success, child mem open.");
-    }
-#endif
-
-    /* printf("Resuming the process...\n"); */
 
     /* We have made sure we will trace each system call of the child, including
      * the system calls of the children of the child, so the child can now
@@ -151,10 +133,10 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
 
     tc->mem_fd = -1;
     tc->pid = pid;
-    tc->pre_syscall = 0; /* Next is pre... */
+    tc->pre_syscall = 0;
     tc->inj.injecting = 0;
     tc->inj.cb = NULL;
-
+    tc->denied_nr = 0;
 
     ll_add(t->childs, tc->pid, tc);
     return tc;
@@ -164,8 +146,11 @@ static struct tracy_event none_event = {
         TRACY_EVENT_NONE, NULL, 0, 0,
         {0, 0, 0, 0, 0, 0, 0, 0, 0}
     };
+
 /*
- *
+ * tracy_wait_event returns an event that is either an event belonging to a
+ * child (already allocated) or the none_event (which is also already
+ * allocated).
  */
 struct tracy_event *tracy_wait_event(struct tracy *t) {
     int status, signal_id, ptrace_r;
@@ -203,6 +188,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
             tc->pid = pid;
             tc->inj.injecting = 0;
             tc->inj.cb = NULL;
+            tc->denied_nr = 0;
 
             ll_add(t->childs, tc->pid, tc);
             s = &tc->event;
@@ -256,7 +242,6 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
         if (ptrace_r) {
             /* TODO FAILURE */
         }
-        s->syscall_num = regs.TRACY_SYSCALL_REGISTER;
 
         s->args.return_code = regs.TRACY_RETURN_CODE;
         s->args.a0 = regs.TRACY_ARG_0;
@@ -266,7 +251,17 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
         s->args.a4 = regs.TRACY_ARG_4;
         s->args.a5 = regs.TRACY_ARG_5;
 
-        s->args.syscall = regs.TRACY_SYSCALL_REGISTER;
+        if (s->child->denied_nr) {
+            printf("DENIED SYSTEM CALL: Changing from %s to %s\n",
+                    get_syscall_name(regs.TRACY_SYSCALL_REGISTER),
+                    get_syscall_name(s->child->denied_nr));
+            s->syscall_num = s->child->denied_nr;
+            s->args.syscall = s->child->denied_nr;
+            s->child->denied_nr = 0;
+        } else {
+            s->args.syscall = regs.TRACY_SYSCALL_REGISTER;
+            s->syscall_num = regs.TRACY_SYSCALL_REGISTER;
+        }
         s->args.ip = regs.TRACY_IP_REG;
 
         s->type = TRACY_EVENT_SYSCALL;
@@ -279,15 +274,13 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
         tracy_continue(s);
 
         return tracy_wait_event(t);
-        /* TODO: We shouldn't send SIGTRAP signals:
-         * Continue the child but don't deliver the signal? */
+        /* Continue the child but don't deliver the signal? */
     } else {
         puts("Signal for the child");
         /* Signal for the child, pass it along. */
         s->signal_num = signal_id;
         s->type = TRACY_EVENT_SIGNAL;
     }
-    /* TODO TESTING. This probably needs to be somewhere else. */
 
     return s;
 }
@@ -302,7 +295,7 @@ int tracy_continue(struct tracy_event *s) {
      *  delivered to the child; otherwise, no signal is delivered. */
     if (s->type == TRACY_EVENT_SIGNAL) {
         sig = s->signal_num;
-        printf("Passing along signal %d.\n", sig);
+        printf("Passing along signal %d to child %d\n", sig, s->child->pid);
     }
 
     ptrace(PTRACE_SYSCALL, s->child->pid, NULL, sig);
@@ -310,9 +303,7 @@ int tracy_continue(struct tracy_event *s) {
     return 0;
 }
 
-/*
- * Changes pre/post.
- */
+/* Used to keep track of what is PRE and what is POST. */
 int check_syscall(struct tracy_event *s) {
     s->child->pre_syscall = s->child->pre_syscall ? 0 : 1;
     return 0;
@@ -366,10 +357,6 @@ static int hash_syscall(char * syscall) {
  *
  * TODO:
  *  - We need to figure out what exact arguments to pass to the hooks
- *  - We need to disinct between pre and post hooks. The argument is there, it
- *  is just not yet used. (We could store this pre|post int plus the function
- *  pointer in a struct, and put that as void* data instead of just the function
- *  pointer)
  *  - We need to define the return values of the hooks. It should be possible to
  *  block / deny system calls based on the result of the hook. (Right?)
  *
@@ -649,5 +636,15 @@ int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
  * For example, write() returns the number of bytes written.
  */
 int tracy_deny_syscall(struct tracy_child* child) {
-    return tracy_modify_syscall(child, __NR_getpid, NULL);
+    int r, nr;
+
+    if (!child->pre_syscall) {
+        fprintf(stderr, "ERROR: Calling deny on a POST system call");
+        return 1;
+    }
+    nr = child->event.syscall_num;
+    r = tracy_modify_syscall(child, __NR_getpid, NULL);
+    if (!r)
+        child->denied_nr = nr;
+    return r;
 }

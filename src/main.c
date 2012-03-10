@@ -21,11 +21,9 @@ int foo(struct tracy_event *e) {
 
     if (e->child->inj.injected) {
         if (e->child->inj.pre) {
-            /* printf("PRE HEYYEYAAEYAAAEYAEYAA: %ld\n", e->args.return_code);
-             */
+            /*printf("PRE HEYYEYAAEYAAAEYAEYAA: %ld\n", e->args.return_code);*/
         } else {
-            /* printf("POST HEYYEYAAEYAAAEYAEYAA: %ld\n", e->args.return_code);
-             */
+            /*printf("POST HEYYEYAAEYAAAEYAEYAA: %ld\n", e->args.return_code);*/
         }
 
         if (count > 0) {
@@ -44,7 +42,6 @@ int foo(struct tracy_event *e) {
 
     return 0;
 }
-
 int main(int argc, char** argv) {
     struct tracy *tracy;
     struct tracy_event *e;
