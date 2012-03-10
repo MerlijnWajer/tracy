@@ -4,7 +4,8 @@ Tracy:
 [X M ] Hook system calls
 [X M ] Read/Write system call arguments
 [X MB] Inject system calls
-[X M ] Modify (and deny) system calls
+[X M ] Asynchronous system call injection.
+[/ M ] Modify (and deny) system calls
 [X  B] Efficiently read(and write?) child memory. (Use mmap and shared memory)
 [/  B] Efficiently share (allow read) memory with the child (Use mmap and shared
 Memory)

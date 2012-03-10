@@ -528,7 +528,7 @@ int modify_registers(struct tracy_event *e) {
     return 0;
 }
 
-/* TODO, needs error handling */
+/* TODO, rewrite this. */
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code) {
     if (child->pre_syscall) {
@@ -548,8 +548,6 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 int tracy_inject_syscall_pre_pre(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback) {
     struct TRACY_REGS_NAME newargs;
-
-    /* printf("Injecting getpid() now...\n"); */
 
     if (ptrace(PTRACE_GETREGS, child->pid, 0, &child->inj.reg))
         printf("PTRACE_GETREGS failed\n");
@@ -636,16 +634,12 @@ int tracy_inject_syscall_post_pre(struct tracy_child *child, long syscall_number
      * on PRE-syscall*/
     waitpid(child->pid, &garbage, 0);
 
-    /* printf("Injecting getpid() now...\n"); */
-
     if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
         printf("PTRACE_GETREGS failed\n");
 
     newargs.TRACY_SYSCALL_N = syscall_number;
     newargs.TRACY_SYSCALL_REGISTER = syscall_number;
-    /*
-    newargs.TRACY_ARG_0 = a->a0;
-    */
+    /* newargs.TRACY_ARG_0 = a->a0; */
     newargs.TRACY_ARG_1 = a->a1;
     newargs.TRACY_ARG_2 = a->a2;
     newargs.TRACY_ARG_3 = a->a3;
@@ -655,10 +649,6 @@ int tracy_inject_syscall_post_pre(struct tracy_child *child, long syscall_number
     if (ptrace(PTRACE_SETREGS, child->pid, 0, &newargs))
         printf("ptrace SETREGS failed\n");
 
-    /*
-    if (ptrace(PTRACE_SYSCALL, child->pid, NULL, 0))
-        printf("PTRACE_SYSCALL failed\n");
-    */
     return 0;
 }
 
@@ -677,14 +667,38 @@ int tracy_inject_syscall_post_post(struct tracy_child *child, long *return_code)
     return 0;
 }
 
-int tracy_modify_syscall() {
-    return -1;
+int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
+        struct tracy_sc_args *a) {
+
+    /* change_syscall */
+    struct TRACY_REGS_NAME newargs;
+
+    if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
+        printf("PTRACE_GETREGS failed\n");
+
+    newargs.TRACY_SYSCALL_N = syscall_number;
+    newargs.TRACY_SYSCALL_REGISTER = syscall_number;
+
+    if (a) {
+        newargs.TRACY_ARG_1 = a->a1;
+        newargs.TRACY_ARG_2 = a->a2;
+        newargs.TRACY_ARG_3 = a->a3;
+        newargs.TRACY_ARG_4 = a->a4;
+        newargs.TRACY_ARG_5 = a->a5;
+    }
+
+    if (ptrace(PTRACE_SETREGS, child->pid, 0, &newargs))
+        printf("PTRACE_SETREGS failed\n");
+
+    return 0;
 }
 
-int tracy_deny_syscall() {
-    /* change_syscall */
-
-    tracy_modify_syscall(); /* With __NR_getpid, but make return code 0 or something */
-
-    return -1;
+/*
+ * Inject getpid system call, effectivelly rendering the system call useless.
+ * TODO: We need to hook into the POST call of this system call, and return a
+ * useful value based on the previously called system call.
+ * For example, write() returns the number of bytes written.
+ */
+int tracy_deny_syscall(struct tracy_child* child) {
+    return tracy_modify_syscall(child, __NR_getpid, NULL);
 }
