@@ -680,3 +680,56 @@ int tracy_deny_syscall(struct tracy_child* child) {
         child->denied_nr = nr;
     return r;
 }
+
+int tracy_main(struct tracy *tracy) {
+    struct tracy_event *e;
+
+    while (1) {
+        e = tracy_wait_event(tracy);
+
+        if (e->type == TRACY_EVENT_NONE) {
+            break;
+        } else if (e->type == TRACY_EVENT_INTERNAL) {
+            printf("Internal event for syscall: %s\n",
+                    get_syscall_name(e->syscall_num));
+        }
+        if (e->type == TRACY_EVENT_SIGNAL) {
+            printf("Signal %ld for child %d\n", e->signal_num, e->child->pid);
+        } else
+
+        if (e->type == TRACY_EVENT_SYSCALL) {
+            if (e->child->pre_syscall) {
+                /*
+                printf("PRE Syscall %s (%ld) requested by child %d, IP: %ld\n",
+                    get_syscall_name(e->syscall_num), e->syscall_num,
+                    e->child->pid, e->args.ip);
+                */
+                if (get_syscall_name(e->syscall_num))
+                    if(!tracy_execute_hook(tracy,
+                                get_syscall_name(e->syscall_num), e)) {
+                    }
+            } else {
+                /*
+                printf("POST Syscall %s (%ld) requested by child %d, IP: %ld\n",
+                    get_syscall_name(e->syscall_num), e->syscall_num,
+                        e->child->pid, e->args.ip);
+                */
+                if (get_syscall_name(e->syscall_num))
+                    tracy_execute_hook(tracy, get_syscall_name(e->syscall_num),
+                            e);
+            }
+        } else
+
+        if (e->type == TRACY_EVENT_QUIT) {
+            printf("EVENT_QUIT from %d with signal %ld\n", e->child->pid,
+                    e->signal_num);
+            if (e->child->pid == tracy->fpid) {
+                printf("Our first child died.\n");
+            }
+        }
+
+        tracy_continue(e);
+    }
+
+    return 0;
+}

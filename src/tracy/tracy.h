@@ -65,6 +65,9 @@ struct tracy_child {
 struct tracy *tracy_init(void);
 void tracy_free(struct tracy *t);
 
+/* Helper */
+int tracy_main(struct tracy *tracy);
+
 /* fork_trace, returns pid */
 struct tracy_child *fork_trace_exec(struct tracy *t, int argc, char **argv);
 
