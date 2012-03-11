@@ -50,6 +50,8 @@ struct tracy_child {
     int mem_fd;
     int denied_nr;
 
+    struct tracy* tracy;
+
     struct tracy_inject_data inj;
 };
 
@@ -80,14 +82,14 @@ struct tracy_child *fork_trace_exec(struct tracy *t, int argc, char **argv);
 /*
  * tracy_wait_event
  */
-struct tracy_event *tracy_wait_event(struct tracy *t);
+struct tracy_event *tracy_wait_event(struct tracy *t, pid_t pid);
 
 /*
  * tracy_destroy
  */
 
 /* Basic functionality */
-int tracy_continue(struct tracy_event *s);
+int tracy_continue(struct tracy_event *s, int sigoverride);
 int check_syscall(struct tracy_event *s);
 char* get_syscall_name(int syscall);
 
@@ -105,13 +107,13 @@ ssize_t tracy_write_mem(struct tracy_child *c, void *dest, void *src, size_t n);
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code);
 
-int tracy_inject_syscall_pre_pre(struct tracy_child *child, long syscall_number,
+int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback);
-int tracy_inject_syscall_pre_post(struct tracy_child *child, long *return_code);
+int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code);
 
-int tracy_inject_syscall_post_pre(struct tracy_child *child, long syscall_number,
+int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback);
-int tracy_inject_syscall_post_post(struct tracy_child *child, long *return_code);
+int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code);
 
 int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a);
