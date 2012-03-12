@@ -71,8 +71,8 @@ void socks5_set_server(socks5_t *s5, const char *server, unsigned short port);
 int socks5_connect_proxy_server(socks5_t *s5);
 
 // initialize a connection to the internet
-int socks5_proxy_ipv4(socks5_t *s5, const sockaddr_in *addr);
-int socks5_proxy_ipv6(socks5_t *s5, const sockaddr_in6 *addr);
+int socks5_proxy_ipv4(socks5_t *s5, const struct sockaddr_in *addr);
+int socks5_proxy_ipv6(socks5_t *s5, const struct sockaddr_in6 *addr);
 int socks5_proxy_hostname(socks5_t *s5, const char *hostname,
 	unsigned short port);
 

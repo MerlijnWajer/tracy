@@ -41,7 +41,7 @@ static int handler_getaddrinfo(socks5_t *s5, const char *node,
 static void handler_freeaddrinfo(socks5_t *s5, struct addrinfo *res)
 {
 	(void)s5;
-	return freeaddrinfo(res);
+	freeaddrinfo(res);
 }
 
 static ssize_t handler_sendto(socks5_t *s5, int sockfd, const void *buf,
@@ -212,7 +212,7 @@ static int socks5_proxy_handle_reply(socks5_t *s5)
 	return -1;
 }
 
-int socks5_proxy_ipv4(socks5_t *s5, const sockaddr_in *addr)
+int socks5_proxy_ipv4(socks5_t *s5, const struct sockaddr_in *addr)
 {
 	socks5_request_ipv4_t request = {
 		// version, command (connect), reserved, atyp (ipv4)
@@ -225,7 +225,7 @@ int socks5_proxy_ipv4(socks5_t *s5, const sockaddr_in *addr)
 	return socks5_proxy_handle_reply(s5);
 }
 
-int socks5_proxy_ipv6(socks5_t *s5, const sockaddr_in6 *addr)
+int socks5_proxy_ipv6(socks5_t *s5, const struct sockaddr_in6 *addr)
 {
 	socks5_request_ipv6_t request = {
 		// version, command (connect), reserved, atyp (ipv6)
@@ -248,7 +248,10 @@ int socks5_proxy_hostname(socks5_t *s5, const char *hostname,
 		0, "", 0
 	};
 
-	int len = MIN(strlen(hostname), sizeof(request.hostname));
+	int len = strlen(hostname);
+	// hostname cannot be larger than our maximum defined length
+	if((unsigned) len > sizeof(request.hostname)) return -1;
+
 	request.len = (unsigned char) len;
 	memcpy(request.hostname, hostname, len);
 

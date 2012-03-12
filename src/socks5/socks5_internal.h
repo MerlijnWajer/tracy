@@ -65,9 +65,3 @@ typedef struct _socks5_reply_hostname_t {
 	unsigned short _port; // do not use directly (assuming len != 255)
 } socks5_reply_hostname_t;
 
-#ifndef MIN
-inline int MIN(int a, int b) {
-	return (a < b) ? a : b;
-}
-#endif
-
