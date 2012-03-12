@@ -16,6 +16,8 @@ PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE)
 
 #define TRACY_IP_REG ARM_pc
 
+#define TRACY_STACK_POINTER unknown
+
 /*
  * ARM does nasty stuff
  * http://www.arm.linux.org.uk/developer/patches/viewpatch.php?id=3105/4
@@ -39,6 +41,8 @@ PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE)
 #define TRACY_RETURN_CODE eax
 #define TRACY_IP_REG eip
 
+#define TRACY_STACK_POINTER esp
+
 #define TRACY_ARG_0 ebx
 #define TRACY_ARG_1 ecx
 #define TRACY_ARG_2 edx
@@ -61,10 +65,12 @@ PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE)
 #define TRACY_RETURN_CODE rax
 #define TRACY_IP_REG rip
 
+#define TRACY_STACK_POINTER rsp
+
 #define TRACY_ARG_0 rdi
 #define TRACY_ARG_1 rsi
 #define TRACY_ARG_2 rdx
-#define TRACY_ARG_3 rcx
+#define TRACY_ARG_3 r10
 #define TRACY_ARG_4 r8
 #define TRACY_ARG_5 r9
 #endif
