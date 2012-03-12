@@ -14,12 +14,6 @@ typedef struct _socks5_api_t {
 	int (*connect)(struct _socks5_t *s5, int sockfd,
 		const struct sockaddr *addr, socklen_t addrlen);
 	
-	int (*getaddrinfo)(struct _socks5_t *s5, const char *node,
-		const char *service, const struct addrinfo *hints,
-		struct addrinfo **res);
-
-	void (*freeaddrinfo)(struct _socks5_t *s5, struct addrinfo *res);
-
 	ssize_t (*send)(struct _socks5_t *s5, int sockfd, const void *buf,
 		size_t len, int flags);
 	

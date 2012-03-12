@@ -30,20 +30,6 @@ static ssize_t handler_send(socks5_t *s5, int sockfd, const void *buf,
 	return send(sockfd, buf, len, flags);
 }
 
-static int handler_getaddrinfo(socks5_t *s5, const char *node,
-	const char *service, const struct addrinfo *hints,
-	struct addrinfo **res)
-{
-	(void)s5;
-	return getaddrinfo(node, service, hints, res);
-}
-
-static void handler_freeaddrinfo(socks5_t *s5, struct addrinfo *res)
-{
-	(void)s5;
-	freeaddrinfo(res);
-}
-
 static ssize_t handler_sendto(socks5_t *s5, int sockfd, const void *buf,
 	size_t len, int flags, const struct sockaddr *dest_addr,
 	socklen_t addrlen)
@@ -75,8 +61,6 @@ static int handler_close(socks5_t *s5, int fd)
 static socks5_api_t default_handler = {
 	&handler_socket,
 	&handler_connect,
-	&handler_getaddrinfo,
-	&handler_freeaddrinfo,
 	&handler_send,
 	&handler_sendto,
 	&handler_recv,
@@ -116,7 +100,7 @@ int socks5_connect_proxy_server(socks5_t *s5)
 	// someone decided itoa() is not ANSI C... 
 	sprintf(port_number, "%d", s5->port);
 	// resolve the address of the proxy server
-	res = s5->api->getaddrinfo(s5, s5->server, port_number, &hint, &addr);
+	res = getaddrinfo(s5->server, port_number, &hint, &addr);
 	if(res < 0) goto cleanup;
 
 	// try to connect to the server
@@ -136,7 +120,7 @@ int socks5_connect_proxy_server(socks5_t *s5)
 	}
 
 	// free the addrinfo structures
-	s5->api->freeaddrinfo(s5, base);
+	freeaddrinfo(base);
 
 	// error getting a socket?
 	if(fd < 0) {
