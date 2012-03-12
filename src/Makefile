@@ -15,7 +15,7 @@ default: soxy
 tracy:
 	$(MAKE) -C tracy
 
-OBJECTS:=tracy/tracy.o tracy/ll.o
+OBJECTS:=tracy/tracy.o tracy/ll.o tracy/trampy.o
 
 soxy: main.c tracy
 	$(CC) main.c $(CFLAGS) $(OBJECTS) $(LDFLAGS) -o soxy

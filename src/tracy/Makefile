@@ -6,7 +6,7 @@ CFLAGS+=-ggdb
 #CFLAGS+=-O2
 #CFLAGS+=-m32
 
-OBJECTS=tracy.o ll.o
+OBJECTS=tracy.o ll.o trampy.o
 
 default: $(OBJECTS)
 
