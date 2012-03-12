@@ -10,39 +10,7 @@
 #include <asm/unistd.h>
 
 static int soxy_socket(struct _socks5_t *s5, int socket_family,
-		int socket_type, int protocol);
-
-static int soxy_connect(struct _socks5_t *s5, int sockfd,
-		const struct sockaddr *addr, socklen_t addrlen);
-
-static ssize_t soxy_send(struct _socks5_t *s5, int sockfd, const void *buf,
-		size_t len, int flags);
-
-static ssize_t soxy_sendto(struct _socks5_t *s5, int sockfd, const void *buf,
-		size_t len, int flags, const struct sockaddr *dest_addr,
-		socklen_t addrlen);
-
-static ssize_t soxy_recv(struct _socks5_t *s5, int sockfd, void *buf,
-		size_t len, int flags);
-	
-static ssize_t soxy_recvfrom(struct _socks5_t *s5, int sockfd, void *buf,
-		size_t len, int flags, struct sockaddr *src_addr,
-		socklen_t *addrlen);
-	
-static int soxy_close(struct _socks5_t *s5, int fd);
-
-static socks5_api_t soxy_api = {
-	&soxy_socket,
-	&soxy_connect,
-	&soxy_send,
-	&soxy_sendto,
-	&soxy_recv,
-	&soxy_recvfrom,
-	&soxy_close,
-};
-
-static int soxy_socket(struct _socks5_t *s5, int socket_family,
-		int socket_type, int protocol)
+	int socket_type, int protocol)
 {
 	long retcode; struct tracy_sc_args args = {
 		socket_family, socket_type, protocol,
@@ -52,8 +20,9 @@ static int soxy_socket(struct _socks5_t *s5, int socket_family,
 }
 
 static int soxy_connect(struct _socks5_t *s5, int sockfd,
-		const struct sockaddr *addr, socklen_t addrlen)
+	const struct sockaddr *addr, socklen_t addrlen)
 {
+	// TODO: copy `struct sockaddr' to child
 	long retcode; struct tracy_sc_args args = {
 		sockfd, addr, addrlen,
 	};
@@ -62,8 +31,9 @@ static int soxy_connect(struct _socks5_t *s5, int sockfd,
 }
 
 static ssize_t soxy_send(struct _socks5_t *s5, int sockfd, const void *buf,
-		size_t len, int flags)
+	size_t len, int flags)
 {
+	// TODO: copy `buf' to child
 	long retcode; struct tracy_sc_args args = {
 		sockfd, buf, len, flags,
 	};
@@ -72,14 +42,15 @@ static ssize_t soxy_send(struct _socks5_t *s5, int sockfd, const void *buf,
 }
 
 static ssize_t soxy_sendto(struct _socks5_t *s5, int sockfd, const void *buf,
-		size_t len, int flags, const struct sockaddr *dest_addr,
-		socklen_t addrlen)
+	size_t len, int flags, const struct sockaddr *dest_addr,
+	socklen_t addrlen)
 {
 }
 
 static ssize_t soxy_recv(struct _socks5_t *s5, int sockfd, void *buf,
-		size_t len, int flags)
+	size_t len, int flags)
 {
+	// TODO: copy `buf' from child
 	long retcode; struct tracy_sc_args args = {
 		sockfd, buf, len, flags,
 	};
@@ -88,8 +59,8 @@ static ssize_t soxy_recv(struct _socks5_t *s5, int sockfd, void *buf,
 }
 	
 static ssize_t soxy_recvfrom(struct _socks5_t *s5, int sockfd, void *buf,
-		size_t len, int flags, struct sockaddr *src_addr,
-		socklen_t *addrlen)
+	size_t len, int flags, struct sockaddr *src_addr,
+	socklen_t *addrlen)
 {
 
 }
@@ -113,6 +84,7 @@ static socks5_api_t soxy_api = {
 	&soxy_close,
 };
 
+// TODO: `tracy_child' needs an array of `fd' for mapping fd to `socks5_t'
 socks5_t *aup;
 
 //
@@ -145,7 +117,9 @@ static int soxy_hook_connect(struct tracy_event *e)
 		socks5_connect_proxy_server(aup);
 		// ipv4
 		if(e->args.a0 == AF_INET) {
+			// TODO: copy `struct sockaddr' to parent process
 			socks5_proxy_ipv4(aup, e->args.a1);
+			return 0;
 		}
 		return -1;
 	}
