@@ -22,4 +22,4 @@ def_syscalls.h:
 	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E -dM | grep "define SYS" | cut -f2 -d" " | sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' > def_syscalls.h
 
 clean:
-	rm *.o def_syscalls.h test-inject -f
+	rm *.o def_syscalls.h test-rwmem -f

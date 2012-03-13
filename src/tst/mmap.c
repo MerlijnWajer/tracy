@@ -23,7 +23,7 @@ int foo() {
 
     return 0;
 }
-int main(int argc, char** argv) {
+int main() {
     foo();
 
     return 0;

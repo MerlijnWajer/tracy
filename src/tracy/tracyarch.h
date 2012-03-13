@@ -24,6 +24,7 @@
 #define TRACY_ARG_3 ARM_r3
 #define TRACY_ARG_4 ARM_r4
 #define TRACY_ARG_5 ARM_r5
+
 #endif
 
 #ifdef __i386__
@@ -45,6 +46,9 @@
 #define TRACY_ARG_3 esi
 #define TRACY_ARG_4 edi
 #define TRACY_ARG_5 ebp
+
+#define TRACY_NR_MMAP __NR_mmap2
+
 #endif
 
 /* 'cs' determines the call type, we can use this to check if we are calling a
@@ -69,5 +73,8 @@
 #define TRACY_ARG_3 r10
 #define TRACY_ARG_4 r8
 #define TRACY_ARG_5 r9
+
+#define TRACY_NR_MMAP __NR_mmap
+
 #endif
 

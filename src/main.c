@@ -44,6 +44,26 @@ int restore_fork(struct tracy_event *e) {
     return 0;
 }
 
+int bar(struct tracy_event *e) {
+    struct TRACY_REGS_NAME args;
+    ptrace(PTRACE_GETREGS, e->child->pid, 0, &args);
+
+    if (e->child->pre_syscall) {
+        printf("Child called mmap\n");
+        printf("Args: %ld, %ld, %ld, %ld, %ld, %ld\n",
+            args.TRACY_ARG_0,
+            args.TRACY_ARG_1,
+            args.TRACY_ARG_2,
+            args.TRACY_ARG_3,
+            args.TRACY_ARG_4,
+            args.TRACY_ARG_5);
+    } else {
+        printf("mmap return value: %ld\n", args.TRACY_RETURN_CODE);
+    }
+
+    return 0;
+}
+
 int foo(struct tracy_event *e) {
     long mmap_ret;
     int status;
@@ -62,7 +82,12 @@ int foo(struct tracy_event *e) {
                 -1, 0
                 );
 
-       printf("mmap addr: %ld\n", mmap_ret);
+        /* I know this is FUBAR, but bear with me */
+        if (mmap_ret < 0 && mmap_ret > -4096) {
+            errno = -mmap_ret;
+            perror("tracy_mmap");
+        }
+        printf("mmap addr: %ld\n", mmap_ret);
     } else {
         printf("POST: Returning...\n");
         return 0;
@@ -71,7 +96,8 @@ int foo(struct tracy_event *e) {
     h4x.foo = I_AM_THE_END_OF_IT_ALL;
     m4x.foo = start_label;
 
-    tracy_write_mem(e->child, (void*) mmap_ret, m4x.bar, h4x.bar - m4x.bar);
+    if (tracy_write_mem(e->child, (void*) mmap_ret, m4x.bar, h4x.bar - m4x.bar) < 0)
+        perror("tracy_write_mem");
 
     if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &args))
         perror("GETREGS");
@@ -148,8 +174,10 @@ int foo(struct tracy_event *e) {
 int foo_write(struct tracy_event *e) {
     printf("write(2). pre(%d), from child: %d\n", e->child->pre_syscall,
             e->child->pid);
+    /*
     if(e->child->pre_syscall)
         tracy_deny_syscall(e->child);
+    */
 
     return 0;
 }
@@ -165,6 +193,11 @@ int main(int argc, char** argv) {
 
     if (tracy_set_hook(tracy, "fork", foo)) {
         printf("Failed to hook write syscall.\n");
+        return EXIT_FAILURE;
+    }
+
+    if (tracy_set_hook(tracy, "mmap2", bar)) {
+        printf("Failed to hook mmap2 syscall.\n");
         return EXIT_FAILURE;
     }
 

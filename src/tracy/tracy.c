@@ -763,6 +763,7 @@ int tracy_main(struct tracy *tracy) {
     return 0;
 }
 
+/* Execute mmap in the child process */
 int tracy_mmap(struct tracy_child *child, long *ret,
         void *addr, size_t length, int prot, int flags, int fd,
         off_t pgoffset) {
@@ -775,12 +776,17 @@ int tracy_mmap(struct tracy_child *child, long *ret,
     a.a4 = (long) fd;
     a.a5 = (long) pgoffset;
 
-    if (tracy_inject_syscall(child, __NR_mmap, &a, ret))
+    /* XXX: Currently we make no distinction between calling
+     * mmap and mmap2 here, however we should add an expression
+     * that normalises the offset parameter passed to both flavors of mmap.
+     */
+    if (tracy_inject_syscall(child, TRACY_NR_MMAP, &a, ret))
         return -1;
 
     return 0;
 }
 
+/* Execute munmap in the child process */
 int tracy_munmap(struct tracy_child *child, long *ret,
        void *addr, size_t length) {
     struct tracy_sc_args a;

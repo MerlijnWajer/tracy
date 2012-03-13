@@ -1,5 +1,8 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <sys/syscall.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -9,7 +12,9 @@ int main () {
     printf("f: Hello\n");
 
     /* pid = fork(); */
+    puts("Executing fork() in a safe environment now");
     pid = syscall(__NR_fork);
+    puts("Done with fork in a safe environment... we're free of the endless loop.");
 
     if (!pid) {
         printf("f: You should not yet see this\n");
@@ -21,5 +26,7 @@ int main () {
     }
 
     printf("f: Done\n");
+
+    return 0;
 }
 
