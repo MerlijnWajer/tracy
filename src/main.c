@@ -21,11 +21,33 @@
 
 #include <asm/ptrace.h>
 
+pid_t child_pid;
+
+int restore_fork(struct tracy_event *e) {
+    struct TRACY_REGS_NAME args;
+    puts("RESTORE FORK");
+    
+    if (e->child->pre_syscall)
+        e->child->pre_syscall = 0;
+    else
+        e->child->pre_syscall = 1;
+
+
+    printf("pid: %ld\n", e->args.return_code);
+
+    if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &args))
+        perror("post getregs");
+    args.TRACY_RETURN_CODE = child_pid;
+    if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &args))
+        perror("post setregs");
+    printf("Set return code to %d\n", child_pid);
+    return 0;
+}
+
 int foo(struct tracy_event *e) {
     long mmap_ret;
     int status;
     long ip;
-    pid_t child_pid;
     struct TRACY_REGS_NAME args, args_ret;
 
     union {
@@ -54,7 +76,10 @@ int foo(struct tracy_event *e) {
     if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &args))
         perror("GETREGS");
 
+    /* Deny so we can set the IP on the denied post and do our own fork in a
+     * controlled environment */
     tracy_deny_syscall(e->child);
+    e->child->denied_nr = 0;
     ptrace(PTRACE_SYSCALL, e->child->pid, 0, 0);
     puts("DENIED");
     waitpid(e->child->pid, &status, 0);
@@ -89,12 +114,12 @@ int foo(struct tracy_event *e) {
 
     /* Restore parent */
     args_ret.TRACY_IP_REG = ip;
-    args_ret.TRACY_RETURN_CODE = child_pid;
 
     if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &args_ret))
         perror("SETREGS");
 
-    puts("Done with fork");
+    tracy_inject_syscall_post_start(e->child, __NR_getpid, NULL, restore_fork);
+
 
     printf("Attaching to %d...\n", child_pid);
     ptrace(PTRACE_ATTACH, child_pid, 0, 0);
@@ -121,9 +146,10 @@ int foo(struct tracy_event *e) {
 }
 
 int foo_write(struct tracy_event *e) {
-
     printf("write(2). pre(%d), from child: %d\n", e->child->pre_syscall,
             e->child->pid);
+    if(e->child->pre_syscall)
+        tracy_deny_syscall(e->child);
 
     return 0;
 }

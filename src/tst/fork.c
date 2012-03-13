@@ -1,23 +1,25 @@
 #include <stdio.h>
 #include <sys/syscall.h>
+#include <time.h>
 #include <unistd.h>
 
 int main () {
     pid_t pid;
     int foo;
-    printf("Hello\n");
+    printf("f: Hello\n");
 
     /* pid = fork(); */
     pid = syscall(__NR_fork);
 
     if (!pid) {
-        printf("You should not yet see this\n");
+        printf("f: You should not yet see this\n");
     } else {
-        printf("See this first\n");
+        /* sleep(5); */
+        printf("f: See this first\n");
         wait(&foo);
-        printf("Child is dead\n");
+        printf("f: Child is dead\n");
     }
 
-    printf("Done\n");
+    printf("f: Done\n");
 }
 
