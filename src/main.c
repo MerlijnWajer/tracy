@@ -106,9 +106,12 @@ int foo(struct tracy_event *e) {
 
     /* Reset child */
     args.TRACY_IP_REG = ip;
+    args.TRACY_RETURN_CODE = 0;
 
     if (ptrace(PTRACE_SETREGS, child_pid, 0, &args))
         perror("SETREGS");
+
+    ptrace(PTRACE_SETOPTIONS, child_pid, 0, PTRACE_O_TRACESYSGOOD);
 
     /* Continue child */
     ptrace(PTRACE_SYSCALL, child_pid, 0, 0);
@@ -134,6 +137,11 @@ int main(int argc, char** argv) {
     }
 
     if (tracy_set_hook(tracy, "fork", foo)) {
+        printf("Failed to hook write syscall.\n");
+        return EXIT_FAILURE;
+    }
+
+    if (tracy_set_hook(tracy, "write", foo_write)) {
         printf("Failed to hook write syscall.\n");
         return EXIT_FAILURE;
     }
