@@ -88,9 +88,10 @@ int foo(struct tracy_event *e) {
     printf("Fork return value: %d\n", child_pid);
 
     /* Restore parent */
-    args.TRACY_IP_REG = ip;
+    args_ret.TRACY_IP_REG = ip;
+    args_ret.TRACY_RETURN_CODE = child_pid;
 
-    if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &args))
+    if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &args_ret))
         perror("SETREGS");
 
     puts("Done with fork");
