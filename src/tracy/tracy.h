@@ -21,7 +21,7 @@ struct tracy_child;
 
 struct tracy_sc_args {
     long a0, a1, a2, a3, a4, a5;
-    long return_code, syscall, ip;
+    long return_code, syscall, ip, sp;
 };
 
 struct tracy_event {
@@ -54,6 +54,13 @@ struct tracy_child {
 
     struct tracy_inject_data inj;
 };
+
+/* #define OUR_PTRACE_OPTIONS (PTRACE_O_TRACESYSGOOD) */
+#ifdef __linux__
+#define OUR_PTRACE_OPTIONS (PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | \
+PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE)
+#endif
+
 
 
 #define TRACY_EVENT_NONE 1 << 0
@@ -118,5 +125,11 @@ int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code);
 int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a);
 int tracy_deny_syscall(struct tracy_child* child);
+
+int tracy_mmap(struct tracy_child *child, long *ret,
+        void *addr, size_t length, int prot, int flags, int fd,
+        off_t pgoffset);
+int tracy_munmap(struct tracy_child *child, long *ret,
+       void *addr, size_t length);
 
 #endif

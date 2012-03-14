@@ -1,7 +1,3 @@
-#define OUR_PTRACE_OPTIONS (PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | \
-PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE)
-
-
 #ifdef __arm__
 #define TRACY_REGS_NAME pt_regs
 
@@ -28,6 +24,7 @@ PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE)
 #define TRACY_ARG_3 ARM_r3
 #define TRACY_ARG_4 ARM_r4
 #define TRACY_ARG_5 ARM_r5
+
 #endif
 
 #ifdef __i386__
@@ -49,6 +46,9 @@ PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE)
 #define TRACY_ARG_3 esi
 #define TRACY_ARG_4 edi
 #define TRACY_ARG_5 ebp
+
+#define TRACY_NR_MMAP __NR_mmap2
+
 #endif
 
 /* 'cs' determines the call type, we can use this to check if we are calling a
@@ -73,5 +73,8 @@ PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE)
 #define TRACY_ARG_3 r10
 #define TRACY_ARG_4 r8
 #define TRACY_ARG_5 r9
+
+#define TRACY_NR_MMAP __NR_mmap
+
 #endif
 
