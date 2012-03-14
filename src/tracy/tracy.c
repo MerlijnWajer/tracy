@@ -539,7 +539,6 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
         if (tracy_inject_syscall_pre_end(child, return_code))
             return 1;
-        printf("return_code_2: %ld\n", *return_code);
 
         return 0;
     } else {
