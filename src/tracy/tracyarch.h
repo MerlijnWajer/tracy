@@ -1,4 +1,9 @@
 #ifdef __arm__
+
+/*
+ * See this for more info on ARM:
+ * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0041c/ch09s02s02.html
+ */
 #define TRACY_REGS_NAME pt_regs
 
 /* Unsure about some of the registers */
@@ -12,7 +17,7 @@
 
 #define TRACY_IP_REG ARM_pc
 
-#define TRACY_STACK_POINTER unknown
+#define TRACY_STACK_POINTER ARM_sp
 
 /*
  * ARM does nasty stuff
@@ -25,6 +30,7 @@
 #define TRACY_ARG_4 ARM_r4
 #define TRACY_ARG_5 ARM_r5
 
+#define TRACY_NR_MMAP __NR_mmap2
 #endif
 
 #ifdef __i386__

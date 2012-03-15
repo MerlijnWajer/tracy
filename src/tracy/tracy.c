@@ -274,6 +274,8 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         }
 
 
+        s->args.sp = regs.TRACY_STACK_POINTER;
+
         if (s->child->denied_nr) {
             /* printf("DENIED SYSTEM CALL: Changing from %s to %s\n",
                     get_syscall_name(regs.TRACY_SYSCALL_REGISTER),
@@ -552,6 +554,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
         if (tracy_inject_syscall_pre_end(child, return_code))
             return 1;
+        printf("return_code_2: %ld\n", *return_code);
 
         return 0;
     } else {
