@@ -72,9 +72,6 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
 
     pid = fork();
 
-    if (t->fpid == 0)
-        t->fpid = pid;
-
     /* Child */
     if (pid == 0) {
         r = ptrace(PTRACE_TRACEME, 0, NULL, NULL);
@@ -108,6 +105,9 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
 
     /* Parent */
 
+    if (t->fpid == 0)
+        t->fpid = pid;
+
     /* Wait for SIGTRAP from the child */
     waitpid(pid, &status, 0);
 
@@ -137,6 +137,7 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     tc->inj.injecting = 0;
     tc->inj.cb = NULL;
     tc->denied_nr = 0;
+    tc->tracy = t;
 
     ll_add(t->childs, tc->pid, tc);
     return tc;
@@ -148,11 +149,11 @@ static int _tracy_handle_injection(struct tracy_event *e) {
     if (e->child->inj.pre) {
         /* TODO: This probably shouldn't be args.return_code as we're
          * messing with the arguments of the original system call */
-        tracy_inject_syscall_pre_post(e->child, &e->args.return_code);
+        tracy_inject_syscall_pre_end(e->child, &e->args.return_code);
     } else {
         /* TODO: This probably shouldn't be args.return_code as we're
          * messing with the arguments of the original system call */
-        tracy_inject_syscall_post_post(e->child, &e->args.return_code);
+        tracy_inject_syscall_post_end(e->child, &e->args.return_code);
     }
 
     e->child->inj.injecting = 0;
@@ -168,7 +169,7 @@ static int _tracy_handle_injection(struct tracy_event *e) {
 
 static struct tracy_event none_event = {
         TRACY_EVENT_NONE, NULL, 0, 0,
-        {0, 0, 0, 0, 0, 0, 0, 0, 0}
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
     };
 
 /*
@@ -176,7 +177,7 @@ static struct tracy_event none_event = {
  * child (already allocated) or the none_event (which is also already
  * allocated).
  */
-struct tracy_event *tracy_wait_event(struct tracy *t) {
+struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
     int status, signal_id, ptrace_r;
     pid_t pid;
     struct TRACY_REGS_NAME regs;
@@ -187,7 +188,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
     s = NULL;
 
     /* Wait for changes */
-    pid = waitpid(0, &status, __WALL);
+    pid = waitpid(c_pid, &status, __WALL);
 
     /* Something went wrong. */
     if (pid == -1) {
@@ -213,6 +214,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
             tc->inj.injecting = 0;
             tc->inj.cb = NULL;
             tc->denied_nr = 0;
+            tc->tracy = t;
 
             ll_add(t->childs, tc->pid, tc);
             s = &tc->event;
@@ -245,7 +247,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
             s->signal_num = WTERMSIG(status); /* + 128 */
         } else {
             puts("Recursing due to WIFSTOPPED");
-            return tracy_wait_event(t);
+            return tracy_wait_event(t, c_pid);
         }
         return s;
     }
@@ -271,10 +273,12 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
             /* TODO FAILURE */
         }
 
+
         if (s->child->denied_nr) {
-            printf("DENIED SYSTEM CALL: Changing from %s to %s\n",
+            /* printf("DENIED SYSTEM CALL: Changing from %s to %s\n",
                     get_syscall_name(regs.TRACY_SYSCALL_REGISTER),
                     get_syscall_name(s->child->denied_nr));
+            */
             s->syscall_num = s->child->denied_nr;
             s->args.syscall = s->child->denied_nr;
             s->child->denied_nr = 0;
@@ -283,6 +287,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
             s->args.ip = regs.TRACY_IP_REG;
             s->type = TRACY_EVENT_SYSCALL;
             s->args.return_code = regs.TRACY_RETURN_CODE;
+            s->args.sp = regs.TRACY_STACK_POINTER;
 
             /* TODO: Set ``return code'' for denied system call. Write expects
              * the bytes written for example */
@@ -300,6 +305,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
         s->args.a3 = regs.TRACY_ARG_3;
         s->args.a4 = regs.TRACY_ARG_4;
         s->args.a5 = regs.TRACY_ARG_5;
+        s->args.sp = regs.TRACY_STACK_POINTER;
 
         s->args.return_code = regs.TRACY_RETURN_CODE;
         s->args.ip = regs.TRACY_IP_REG;
@@ -311,9 +317,9 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
     } else if (signal_id == SIGTRAP) {
         puts("Recursing due to SIGTRAP");
 
-        tracy_continue(s);
+        tracy_continue(s, 0);
 
-        return tracy_wait_event(t);
+        return tracy_wait_event(t, c_pid);
         /* Continue the child but don't deliver the signal? */
     } else {
         puts("Signal for the child");
@@ -328,7 +334,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
 /*
  * This function continues the execution of a process with pid s->pid.
  */
-int tracy_continue(struct tracy_event *s) {
+int tracy_continue(struct tracy_event *s, int sigoverride) {
     int sig = 0;
 
     /*  If data is nonzero and not SIGSTOP, it is interpreted as signal to be
@@ -339,6 +345,9 @@ int tracy_continue(struct tracy_event *s) {
         s->signal_num = 0; /* Clear signal */
         printf("Passing along signal %d to child %d\n", sig, s->child->pid);
     }
+
+    if (sigoverride)
+        sig = 0;
 
     ptrace(PTRACE_SYSCALL, s->child->pid, NULL, sig);
 
@@ -528,24 +537,42 @@ ssize_t tracy_write_mem(struct tracy_child *c, void *dest, void *src, size_t n) 
     return write(c->mem_fd, src, n);
 }
 
-/* TODO, rewrite this. */
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code) {
+    int garbage;
+
     if (child->pre_syscall) {
-        /* printf("Calling inject PRE.\n"); */
-        /* return tracy_inject_syscall_pre(child, syscall_number, a, return_code); */
-        /* TODO */
-        printf("WHOOPS PRE, %ld, %ld\n", syscall_number, *return_code & a->return_code);
-        return 1;
+        if (tracy_inject_syscall_pre_start(child, syscall_number, a, NULL))
+            return 1;
+
+        child->inj.injecting = 0;
+        tracy_continue(&child->event, 1);
+
+        waitpid(child->pid, &garbage, 0);
+
+        if (tracy_inject_syscall_pre_end(child, return_code))
+            return 1;
+
+        return 0;
     } else {
-        /* printf("Calling inject POST.\n"); */
-        /*return tracy_inject_syscall_post(child, syscall_number, a, return_code);*/
-        printf("WHOOPS POST\n");
-        return 1;
+        if (tracy_inject_syscall_post_start(child, syscall_number, a, NULL))
+            return 1;
+        child->inj.injecting = 0;
+
+        tracy_continue(&child->event, 1);
+
+        waitpid(child->pid, &garbage, 0);
+
+        if (tracy_inject_syscall_post_end(child, return_code))
+            return 1;
+
+        tracy_continue(&child->event, 1);
+
+        return 0;
     }
 }
 
-int tracy_inject_syscall_pre_pre(struct tracy_child *child, long syscall_number,
+int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback) {
 
     if (ptrace(PTRACE_GETREGS, child->pid, 0, &child->inj.reg))
@@ -565,7 +592,7 @@ int tracy_inject_syscall_pre_pre(struct tracy_child *child, long syscall_number,
 }
 
 
-int tracy_inject_syscall_pre_post(struct tracy_child *child, long *return_code) {
+int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code) {
     int garbage;
     struct TRACY_REGS_NAME newargs;
 
@@ -575,9 +602,10 @@ int tracy_inject_syscall_pre_post(struct tracy_child *child, long *return_code) 
     /* printf("Return code of getpid(): %ld\n", newargs.TRACY_RETURN_CODE); */
     *return_code = newargs.TRACY_RETURN_CODE;
 
-
     /* POST */
     child->inj.reg.TRACY_IP_REG -= TRACY_SYSCALL_OPSIZE;
+
+    /* vvvv This is probably not required vvvv */
     child->inj.reg.TRACY_SYSCALL_N = child->inj.reg.TRACY_SYSCALL_REGISTER;
 
     if (ptrace(PTRACE_SETREGS, child->pid, 0, &child->inj.reg))
@@ -594,7 +622,7 @@ int tracy_inject_syscall_pre_post(struct tracy_child *child, long *return_code) 
     return 0;
 }
 
-int tracy_inject_syscall_post_pre(struct tracy_child *child, long syscall_number,
+int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback) {
     int garbage;
     struct TRACY_REGS_NAME newargs;
@@ -632,13 +660,13 @@ int tracy_inject_syscall_post_pre(struct tracy_child *child, long syscall_number
     return 0;
 }
 
-int tracy_inject_syscall_post_post(struct tracy_child *child, long *return_code) {
+int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code) {
     struct TRACY_REGS_NAME newargs;
 
     if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
         printf("PTRACE_GETREGS failed\n");
 
-    /*printf("Return code of getpid(): %ld\n", newargs.TRACY_RETURN_CODE);*/
+    /* printf("Return code of getpid(): %ld\n", newargs.TRACY_RETURN_CODE); */
     *return_code = newargs.TRACY_RETURN_CODE;
 
     if (ptrace(PTRACE_SETREGS, child->pid, 0, &child->inj.reg))
@@ -664,6 +692,7 @@ int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
     #endif
 
     if (a) {
+        newargs.TRACY_ARG_0 = a->a0;
         newargs.TRACY_ARG_1 = a->a1;
         newargs.TRACY_ARG_2 = a->a2;
         newargs.TRACY_ARG_3 = a->a3;
@@ -683,7 +712,7 @@ int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
  * useful value based on the previously called system call.
  * For example, write() returns the number of bytes written.
  */
-int tracy_deny_syscall(struct tracy_child* child) {
+int tracy_deny_syscall(struct tracy_child *child) {
     int r, nr;
 
     /* TODO: Set ``return code'' for denied system call. Write expects
@@ -698,4 +727,94 @@ int tracy_deny_syscall(struct tracy_child* child) {
     if (!r)
         child->denied_nr = nr;
     return r;
+}
+
+int tracy_main(struct tracy *tracy) {
+    struct tracy_event *e;
+
+    while (1) {
+        e = tracy_wait_event(tracy, 0);
+
+        if (e->type == TRACY_EVENT_NONE) {
+            break;
+        } else if (e->type == TRACY_EVENT_INTERNAL) {
+            printf("Internal event for syscall: %s\n",
+                    get_syscall_name(e->syscall_num));
+        }
+        if (e->type == TRACY_EVENT_SIGNAL) {
+            printf("Signal %ld for child %d\n", e->signal_num, e->child->pid);
+        } else
+
+        if (e->type == TRACY_EVENT_SYSCALL) {
+            if (e->child->pre_syscall) {
+                /*
+                printf("PRE Syscall %s (%ld) requested by child %d, IP: %ld\n",
+                    get_syscall_name(e->syscall_num), e->syscall_num,
+                    e->child->pid, e->args.ip);
+                */
+                if (get_syscall_name(e->syscall_num))
+                    if(!tracy_execute_hook(tracy,
+                                get_syscall_name(e->syscall_num), e)) {
+                    }
+            } else {
+                /*
+                printf("POST Syscall %s (%ld) requested by child %d, IP: %ld\n",
+                    get_syscall_name(e->syscall_num), e->syscall_num,
+                        e->child->pid, e->args.ip);
+                */
+                if (get_syscall_name(e->syscall_num))
+                    tracy_execute_hook(tracy, get_syscall_name(e->syscall_num),
+                            e);
+            }
+        } else
+
+        if (e->type == TRACY_EVENT_QUIT) {
+            printf("EVENT_QUIT from %d with signal %ld\n", e->child->pid,
+                    e->signal_num);
+            if (e->child->pid == tracy->fpid) {
+                printf("Our first child died.\n");
+            }
+        }
+
+        tracy_continue(e, 0);
+    }
+
+    return 0;
+}
+
+/* Execute mmap in the child process */
+int tracy_mmap(struct tracy_child *child, long *ret,
+        void *addr, size_t length, int prot, int flags, int fd,
+        off_t pgoffset) {
+    struct tracy_sc_args a;
+
+    a.a0 = (long) addr;
+    a.a1 = (long) length;
+    a.a2 = (long) prot;
+    a.a3 = (long) flags;
+    a.a4 = (long) fd;
+    a.a5 = (long) pgoffset;
+
+    /* XXX: Currently we make no distinction between calling
+     * mmap and mmap2 here, however we should add an expression
+     * that normalises the offset parameter passed to both flavors of mmap.
+     */
+    if (tracy_inject_syscall(child, TRACY_NR_MMAP, &a, ret))
+        return -1;
+
+    return 0;
+}
+
+/* Execute munmap in the child process */
+int tracy_munmap(struct tracy_child *child, long *ret,
+       void *addr, size_t length) {
+    struct tracy_sc_args a;
+
+    a.a0 = (long) addr;
+    a.a1 = (long) length;
+
+    if (tracy_inject_syscall(child, __NR_munmap, &a, ret))
+        return -1;
+
+    return 0;
 }
