@@ -271,14 +271,6 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
             /* TODO FAILURE */
         }
 
-        s->args.return_code = regs.TRACY_RETURN_CODE;
-        s->args.a0 = regs.TRACY_ARG_0;
-        s->args.a1 = regs.TRACY_ARG_1;
-        s->args.a2 = regs.TRACY_ARG_2;
-        s->args.a3 = regs.TRACY_ARG_3;
-        s->args.a4 = regs.TRACY_ARG_4;
-        s->args.a5 = regs.TRACY_ARG_5;
-
         if (s->child->denied_nr) {
             printf("DENIED SYSTEM CALL: Changing from %s to %s\n",
                     get_syscall_name(regs.TRACY_SYSCALL_REGISTER),
@@ -286,10 +278,30 @@ struct tracy_event *tracy_wait_event(struct tracy *t) {
             s->syscall_num = s->child->denied_nr;
             s->args.syscall = s->child->denied_nr;
             s->child->denied_nr = 0;
+
+            /* Args don't matter with denied syscalls */
+            s->args.ip = regs.TRACY_IP_REG;
+            s->type = TRACY_EVENT_SYSCALL;
+            s->args.return_code = regs.TRACY_RETURN_CODE;
+
+            /* TODO: Set ``return code'' for denied system call. Write expects
+             * the bytes written for example */
+
+            check_syscall(s);
+            return s;
         } else {
             s->args.syscall = regs.TRACY_SYSCALL_REGISTER;
             s->syscall_num = regs.TRACY_SYSCALL_REGISTER;
         }
+
+        s->args.a0 = regs.TRACY_ARG_0;
+        s->args.a1 = regs.TRACY_ARG_1;
+        s->args.a2 = regs.TRACY_ARG_2;
+        s->args.a3 = regs.TRACY_ARG_3;
+        s->args.a4 = regs.TRACY_ARG_4;
+        s->args.a5 = regs.TRACY_ARG_5;
+
+        s->args.return_code = regs.TRACY_RETURN_CODE;
         s->args.ip = regs.TRACY_IP_REG;
 
         s->type = TRACY_EVENT_SYSCALL;
@@ -644,8 +656,12 @@ int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
     if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
         printf("PTRACE_GETREGS failed\n");
 
-    newargs.TRACY_SYSCALL_N = syscall_number;
     newargs.TRACY_SYSCALL_REGISTER = syscall_number;
+    newargs.TRACY_SYSCALL_N = syscall_number;
+
+    #ifdef __arm__
+    ptrace(PTRACE_SET_SYSCALL, child->pid, 0, (void*)syscall_number);
+    #endif
 
     if (a) {
         newargs.TRACY_ARG_1 = a->a1;
@@ -669,6 +685,9 @@ int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
  */
 int tracy_deny_syscall(struct tracy_child* child) {
     int r, nr;
+
+    /* TODO: Set ``return code'' for denied system call. Write expects
+     * the bytes written for example. Hook? Sync? (Hook is better) */
 
     if (!child->pre_syscall) {
         fprintf(stderr, "ERROR: Calling deny on a POST system call");
