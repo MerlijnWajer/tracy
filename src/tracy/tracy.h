@@ -99,6 +99,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t pid);
 int tracy_continue(struct tracy_event *s, int sigoverride);
 int check_syscall(struct tracy_event *s);
 char* get_syscall_name(int syscall);
+char* get_signal_name(int signal);
 
 /* Syscall hooks */
 int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func);
