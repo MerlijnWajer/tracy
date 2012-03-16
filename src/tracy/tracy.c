@@ -343,7 +343,8 @@ int tracy_continue(struct tracy_event *s, int sigoverride) {
         sig = s->signal_num;
 
         s->signal_num = 0; /* Clear signal */
-        printf("Passing along signal %d to child %d\n", sig, s->child->pid);
+        printf("Passing along signal %s (%d) to child %d\n",
+            get_signal_name(sig), sig, s->child->pid);
     }
 
     if (sigoverride)
@@ -370,6 +371,7 @@ static const struct _syscall_to_str {
     {NULL, -1}
 };
 
+/* Convert syscall number to syscall name */
 char* get_syscall_name(int syscall)
 {
     int i = 0;
@@ -377,6 +379,31 @@ char* get_syscall_name(int syscall)
     while (syscall_to_string[i].name) {
         if (syscall_to_string[i].call_nr == syscall)
             return syscall_to_string[i].name;
+
+        i++;
+    }
+
+    return NULL;
+}
+
+static const struct _signal_to_str {
+    char *name;
+    int sig_nr;
+} signal_to_string[] = {
+#define DEF_SIGNAL(NAME) \
+    {#NAME, NAME},
+    #include "def_signals.h"
+    {NULL, -1}
+};
+
+/* Convert signal number to signal name */
+char* get_signal_name(int signal)
+{
+    int i = 0;
+
+    while (signal_to_string[i].name) {
+        if (signal_to_string[i].sig_nr == signal)
+            return signal_to_string[i].name;
 
         i++;
     }
@@ -742,7 +769,8 @@ int tracy_main(struct tracy *tracy) {
                     get_syscall_name(e->syscall_num));
         }
         if (e->type == TRACY_EVENT_SIGNAL) {
-            printf("Signal %ld for child %d\n", e->signal_num, e->child->pid);
+            printf("Signal %s (%ld) for child %d\n",
+                get_signal_name(e->signal_num), e->signal_num, e->child->pid);
         } else
 
         if (e->type == TRACY_EVENT_SYSCALL) {
@@ -769,8 +797,8 @@ int tracy_main(struct tracy *tracy) {
         } else
 
         if (e->type == TRACY_EVENT_QUIT) {
-            printf("EVENT_QUIT from %d with signal %ld\n", e->child->pid,
-                    e->signal_num);
+            printf("EVENT_QUIT from %d with signal %s (%ld)\n", e->child->pid,
+                    get_signal_name(e->signal_num), e->signal_num);
             if (e->child->pid == tracy->fpid) {
                 printf("Our first child died.\n");
             }
