@@ -8,9 +8,8 @@
 
 #elif defined(__i386__)
 #define SET_SYSCALL "a"
-#define ENTER_KERNEL "int 0x80\n"
+#define ENTER_KERNEL "int $0x80\n"
 #define TRACY_SYSCALL_BASE (0x0)
-#define
 
 #elif defined(__arm__)
 #define SET_SYSCALL "n"

@@ -87,7 +87,7 @@ int foo(struct tracy_event *e) {
             errno = -mmap_ret;
             perror("tracy_mmap");
         }
-        printf("mmap addr: %ld\n", mmap_ret);
+        printf("mmap addr: %p\n", (void*)mmap_ret);
     } else {
         printf("POST: Returning...\n");
         return 0;
@@ -107,9 +107,9 @@ int foo(struct tracy_event *e) {
     tracy_deny_syscall(e->child);
     e->child->denied_nr = 0;
     ptrace(PTRACE_SYSCALL, e->child->pid, 0, 0);
-    puts("DENIED");
+    puts("DENIED, in PRE");
     waitpid(e->child->pid, &status, 0);
-    puts("AFTER DENIED");
+    puts("AFTER DENIED, entered POST");
 
     args.TRACY_SYSCALL_REGISTER = __NR_fork;
     args.TRACY_SYSCALL_N = __NR_fork;
@@ -120,15 +120,38 @@ int foo(struct tracy_event *e) {
     if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &args))
         perror("SETREGS");
 
-    puts("POST");
+    printf("The IP was changed from %p to %p\n", (void*)ip, (void*)mmap_ret);
+
+    puts("POST, Entering PRE");
 
     ptrace(PTRACE_SYSCALL, e->child->pid, 0, 0);
     waitpid(e->child->pid, &status, 0);
 
-    puts("PRE");
+    /* Since the trampy code modifies the syscall to sched_yield
+     * we now need to reset this syscall to fork again.
+     */
+    if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &args_ret))
+        perror("GETREGS");
+    printf("The IP is now %p\n", (void*)args_ret.TRACY_IP_REG);
+    printf("Modifying syscall back to fork\n");
+
+    args_ret.TRACY_SYSCALL_REGISTER = __NR_fork;
+    args_ret.TRACY_SYSCALL_N = __NR_fork;
+
+    #ifdef __arm__
+    ptrace(PTRACE_SET_SYSCALL, child->pid, 0, (void*)syscall_number);
+    #endif
+    if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &args_ret))
+        perror("SETREGS");
+
+    puts("PRE, Entering POST");
 
     ptrace(PTRACE_SYSCALL, e->child->pid, 0, 0);
     waitpid(e->child->pid, &status, 0);
+
+    if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &args_ret))
+        perror("GETREGS");
+    printf("The IP is now %p\n", (void*)args_ret.TRACY_IP_REG);
 
     puts("POST");
 
