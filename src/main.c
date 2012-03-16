@@ -65,15 +65,10 @@ int bar(struct tracy_event *e) {
 }
 
 int foo(struct tracy_event *e) {
-    long mmap_ret;
+    tracy_child_addr_t mmap_ret;
     int status;
     long ip;
     struct TRACY_REGS_NAME args, args_ret;
-
-    union {
-        int (*foo)(void);
-        char *bar;
-    } h4x, m4x;
 
     if (e->child->pre_syscall) {
        tracy_mmap(e->child, &mmap_ret,
@@ -83,8 +78,8 @@ int foo(struct tracy_event *e) {
                 );
 
         /* I know this is FUBAR, but bear with me */
-        if (mmap_ret < 0 && mmap_ret > -4096) {
-            errno = -mmap_ret;
+        if (mmap_ret < ((tracy_child_addr_t)0) && mmap_ret > ((tracy_child_addr_t)-4096)) {
+            errno = -(long)mmap_ret;
             perror("tracy_mmap");
         }
         printf("mmap addr: %p\n", (void*)mmap_ret);
@@ -93,10 +88,10 @@ int foo(struct tracy_event *e) {
         return 0;
     }
 
-    h4x.foo = I_AM_THE_END_OF_IT_ALL;
-    m4x.foo = start_label;
+    printf("trampy_get_safe_entry() = %p\ntrampy_get_code_size() = %d\n",
+        trampy_get_safe_entry(), trampy_get_code_size());
 
-    if (tracy_write_mem(e->child, (void*) mmap_ret, m4x.bar, h4x.bar - m4x.bar) < 0)
+    if (tracy_write_mem(e->child, (void*) mmap_ret, trampy_get_safe_entry(), trampy_get_code_size()) < 0)
         perror("tracy_write_mem");
 
     if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &args))
@@ -115,7 +110,7 @@ int foo(struct tracy_event *e) {
     args.TRACY_SYSCALL_N = __NR_fork;
 
     ip = args.TRACY_IP_REG;
-    args.TRACY_IP_REG = mmap_ret;
+    args.TRACY_IP_REG = (long)mmap_ret;
 
     if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &args))
         perror("SETREGS");
@@ -139,8 +134,9 @@ int foo(struct tracy_event *e) {
     args_ret.TRACY_SYSCALL_N = __NR_fork;
 
     #ifdef __arm__
-    ptrace(PTRACE_SET_SYSCALL, child->pid, 0, (void*)syscall_number);
+    ptrace(PTRACE_SET_SYSCALL, e->child->pid, 0, (void*)__NR_fork);
     #endif
+
     if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &args_ret))
         perror("SETREGS");
 

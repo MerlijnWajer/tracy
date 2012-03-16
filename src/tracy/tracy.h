@@ -55,6 +55,9 @@ struct tracy_child {
     struct tracy_inject_data inj;
 };
 
+/* Pointers for parent/child memory distinction */
+typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
+
 /* #define OUR_PTRACE_OPTIONS (PTRACE_O_TRACESYSGOOD) */
 #ifdef __linux__
 #define OUR_PTRACE_OPTIONS (PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | \
@@ -95,26 +98,39 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t pid);
  * tracy_destroy
  */
 
-/* Basic functionality */
+/* -- Basic functionality -- */
 int tracy_continue(struct tracy_event *s, int sigoverride);
 int check_syscall(struct tracy_event *s);
 char* get_syscall_name(int syscall);
 char* get_signal_name(int signal);
 
-/* Syscall hooks */
+/* -- Syscall hooks -- */
 int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func);
 int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e);
 
-/* Child memory access */
+/* -- Child memory access -- */
 int tracy_peek_word(struct tracy_child *c, long from, long* word);
-ssize_t tracy_read_mem(struct tracy_child *c, void *dest, void *src, size_t n);
+ssize_t tracy_read_mem(struct tracy_child *c, tracy_parent_addr_t dest,
+    tracy_child_addr_t src, size_t n);
 
 int tracy_poke_word(struct tracy_child *c, long to, long word);
-ssize_t tracy_write_mem(struct tracy_child *c, void *dest, void *src, size_t n);
+ssize_t tracy_write_mem(struct tracy_child *c, tracy_child_addr_t dest,
+    tracy_parent_addr_t src, size_t n);
 
+/* -- Child memory management -- */
+int tracy_mmap(struct tracy_child *child, tracy_child_addr_t *ret,
+        tracy_child_addr_t addr, size_t length, int prot, int flags, int fd,
+        off_t pgoffset);
+int tracy_munmap(struct tracy_child *child, long *ret,
+       tracy_child_addr_t addr, size_t length);
+
+/* -- Syscall management -- */
+
+/* Synchronous injection */
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code);
 
+/* Asynchronous injection */
 int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback);
 int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code);
@@ -123,14 +139,9 @@ int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_numb
         struct tracy_sc_args *a, tracy_hook_func callback);
 int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code);
 
+/* Modification and rejection */
 int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a);
 int tracy_deny_syscall(struct tracy_child* child);
-
-int tracy_mmap(struct tracy_child *child, long *ret,
-        void *addr, size_t length, int prot, int flags, int fd,
-        off_t pgoffset);
-int tracy_munmap(struct tracy_child *child, long *ret,
-       void *addr, size_t length);
 
 #endif
