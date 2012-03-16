@@ -11,12 +11,12 @@
 /* For __NR_<SYSCALL> */
 #include <sys/syscall.h>
 
+#include <errno.h>
+
 
 int count;
 
 int foo(struct tracy_event *e) {
-    struct tracy_sc_args args;
-
     count++;
 
     if (e->child->inj.injected) {
@@ -33,15 +33,30 @@ int foo(struct tracy_event *e) {
     }
 
     if (e->child->pre_syscall) {
-        memcpy(&args, &(e->args), sizeof(struct tracy_sc_args));
-        tracy_inject_syscall_pre_start(e->child, __NR_getpid, &args, foo);
+        tracy_inject_syscall_pre_start(e->child, __NR_getpid, NULL, foo);
     } else {
-        memcpy(&args, &(e->args), sizeof(struct tracy_sc_args));
-        tracy_inject_syscall_post_start(e->child, __NR_getpid, &args, foo);
+        tracy_inject_syscall_post_start(e->child, __NR_getpid, NULL, foo);
     }
 
     return 0;
 }
+
+int _setpgid(struct tracy_event *e) {
+    struct tracy_sc_args a;
+
+    if (e->child->pre_syscall) {
+        tracy_deny_syscall(e->child);
+    } else {
+        memcpy(&a, &(e->args), sizeof(struct tracy_sc_args));
+        a.return_code = -ENOSYS;
+
+        tracy_modify_syscall(e->child, __NR_setpgid, &a);
+    }
+    printf("%ld -> %ld\n", e->args.a0, e->args.a1);
+
+    return 0;
+}
+
 int main(int argc, char** argv) {
     struct tracy *tracy;
 
@@ -55,6 +70,11 @@ int main(int argc, char** argv) {
     }
 
     if (tracy_set_hook(tracy, "write", foo)) {
+        printf("Failed to hook write syscall.\n");
+        return EXIT_FAILURE;
+    }
+
+    if (tracy_set_hook(tracy, "setpgid", _setpgid)) {
         printf("Failed to hook write syscall.\n");
         return EXIT_FAILURE;
     }

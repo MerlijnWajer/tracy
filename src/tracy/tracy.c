@@ -310,6 +310,10 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         } else {
             s->args.syscall = regs.TRACY_SYSCALL_REGISTER;
             s->syscall_num = regs.TRACY_SYSCALL_REGISTER;
+            /*
+            printf(_y("%04d System call: %s")"\n", s->child->pid,
+                    get_syscall_name(s->syscall_num));
+                    */
         }
 
         s->args.a0 = regs.TRACY_ARG_0;
@@ -328,7 +332,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         check_syscall(s);
 
     } else if (signal_id == SIGTRAP) {
-        puts("Recursing due to SIGTRAP");
+        puts(_y("Recursing due to SIGTRAP"));
 
         tracy_continue(s, 0);
 
@@ -738,6 +742,7 @@ int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
         newargs.TRACY_ARG_3 = a->a3;
         newargs.TRACY_ARG_4 = a->a4;
         newargs.TRACY_ARG_5 = a->a5;
+        newargs.TRACY_RETURN_CODE = a->return_code;
     }
 
     if (ptrace(PTRACE_SETREGS, child->pid, 0, &newargs))
