@@ -29,6 +29,19 @@
 #include "ll.h"
 #include "tracy.h"
 
+#ifndef bas_boos
+#define _r(s) "\033[1;31m" s "\033[0m"
+#define _g(s) "\033[1;32m" s "\033[0m"
+#define _y(s) "\033[1;33m" s "\033[0m"
+#define _b(s) "\033[1;34m" s "\033[0m"
+#else
+#define _r(s) s
+#define _g(s) s
+#define _y(s) s
+#define _b(s) s
+#endif
+
+
 struct tracy *tracy_init(void) {
     struct tracy *t;
 
@@ -203,7 +216,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
     if (pid != -1) {
         item = ll_find(t->childs, pid);
         if (!item) {
-            printf("New child: %d. Adding to tracy...\n", pid);
+            printf(_y("New child: %d. Adding to tracy...\n"), pid);
             tc = malloc(sizeof(struct tracy_child));
             if (!tc) {
                 perror("Cannot allocate structure for new child");
@@ -246,7 +259,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         } else if (WIFSIGNALED(status)) {
             s->signal_num = WTERMSIG(status); /* + 128 */
         } else {
-            puts("Recursing due to WIFSTOPPED");
+            puts(_y("Recursing due to WIFSTOPPED"));
             return tracy_wait_event(t, c_pid);
         }
         return s;
@@ -322,7 +335,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         return tracy_wait_event(t, c_pid);
         /* Continue the child but don't deliver the signal? */
     } else {
-        puts("Signal for the child");
+        puts(_y("Signal for the child"));
         /* Signal for the child, pass it along. */
         s->signal_num = signal_id;
         s->type = TRACY_EVENT_SIGNAL;
@@ -343,7 +356,7 @@ int tracy_continue(struct tracy_event *s, int sigoverride) {
         sig = s->signal_num;
 
         s->signal_num = 0; /* Clear signal */
-        printf("Passing along signal %s (%d) to child %d\n",
+        printf(_y("Passing along signal %s (%d) to child %d\n"),
             get_signal_name(sig), sig, s->child->pid);
     }
 
@@ -765,11 +778,13 @@ int tracy_main(struct tracy *tracy) {
         if (e->type == TRACY_EVENT_NONE) {
             break;
         } else if (e->type == TRACY_EVENT_INTERNAL) {
+            /*
             printf("Internal event for syscall: %s\n",
                     get_syscall_name(e->syscall_num));
+            */
         }
         if (e->type == TRACY_EVENT_SIGNAL) {
-            printf("Signal %s (%ld) for child %d\n",
+            printf(_y("Signal %s (%ld) for child %d\n"),
                 get_signal_name(e->signal_num), e->signal_num, e->child->pid);
         } else
 
@@ -797,10 +812,10 @@ int tracy_main(struct tracy *tracy) {
         } else
 
         if (e->type == TRACY_EVENT_QUIT) {
-            printf("EVENT_QUIT from %d with signal %s (%ld)\n", e->child->pid,
+            printf(_b("EVENT_QUIT from %d with signal %s (%ld)\n"), e->child->pid,
                     get_signal_name(e->signal_num), e->signal_num);
             if (e->child->pid == tracy->fpid) {
-                printf("Our first child died.\n");
+                printf(_g("Our first child died.\n"));
             }
         }
 
