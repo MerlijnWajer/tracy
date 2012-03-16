@@ -12,7 +12,7 @@
 
 #define TRACY_IP_REG ARM_pc
 
-#define TRACY_STACK_POINTER unknown
+#define TRACY_STACK_POINTER ARM_sp
 
 /*
  * ARM does nasty stuff
@@ -24,6 +24,8 @@
 #define TRACY_ARG_3 ARM_r3
 #define TRACY_ARG_4 ARM_r4
 #define TRACY_ARG_5 ARM_r5
+
+#define TRACY_NR_MMAP __NR_mmap2
 
 #endif
 
