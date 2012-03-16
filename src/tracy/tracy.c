@@ -216,7 +216,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
     if (pid != -1) {
         item = ll_find(t->childs, pid);
         if (!item) {
-            printf(_y("New child: %d. Adding to tracy...\n"), pid);
+            printf(_y("New child: %d. Adding to tracy...")"\n", pid);
             tc = malloc(sizeof(struct tracy_child));
             if (!tc) {
                 perror("Cannot allocate structure for new child");
@@ -356,7 +356,7 @@ int tracy_continue(struct tracy_event *s, int sigoverride) {
         sig = s->signal_num;
 
         s->signal_num = 0; /* Clear signal */
-        printf(_y("Passing along signal %s (%d) to child %d\n"),
+        printf(_y("Passing along signal %s (%d) to child %d")"\n",
             get_signal_name(sig), sig, s->child->pid);
     }
 
@@ -784,7 +784,7 @@ int tracy_main(struct tracy *tracy) {
             */
         }
         if (e->type == TRACY_EVENT_SIGNAL) {
-            printf(_y("Signal %s (%ld) for child %d\n"),
+            printf(_y("Signal %s (%ld) for child %d")"\n",
                 get_signal_name(e->signal_num), e->signal_num, e->child->pid);
         } else
 
