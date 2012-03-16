@@ -1,12 +1,114 @@
-\documentclass[a4paper]{article}
+\documentclass[a4paper, twoside, 10pt, twocolumn]{report}
 
 \author{Jurriaan Bremer \and Merlijn Wajer \and Bas Weelinck}
-\title{Tracy: Making ptrace fun} % TODO TITLE
+\title{Tracy: Making ptrace(2) fun} % TODO TITLE
 
 \usepackage{hyperref}
 \usepackage[utf8]{inputenc}
 
 \begin{document}
 \maketitle
+
+\begin{abstract}
+    Tracy is a system call tracing framework implemented on top of the POSIX
+    ptrace(2) system call.
+    Tracy can, apare from tracing system calls, modify and inject system calls
+    as well as perform several other useful tasks such as memory allocation in
+    the child, modifying the memory of childs and safely trace all
+    (newly created) children of a process being traced.
+\end{abstract}
+
+\tableofcontents
+
+
+\chapter{Theory}
+
+\section{Introduction to ptrace(2) and Tracy}
+
+Several UNIX and UNIX-like systems support the \textbf{ptrace(2)} system call.
+This system call allows one process to ``control'' another process - from now on
+called \textit{tracee}, enabling the controlling process to stop and inspect
+the \textit{tracee}, as well as writing to its memory. \textbf{ptrace(2)} is
+mostly used by tools that aid debugging of software such as gdb\cite{} or
+valgrind \cite{}. \textbf{ptrace(2)} provides two ways of controlling a process
+- either by controlling all the system calls made by the process or by stopping
+the tracee after each instruction. The latter option has a serious effect on the
+performance of the tracee.
+
+Tracy is a library that uses \textbf{ptrace(2)} to trace the system calls of a
+process. Tracy can inspect, modify and even inject system calls. Being able to
+modify system calls gives the controlling process the ability to change
+arguments of system calls before system calls are allowed - or even the ability
+to ``deny'' system calls by changing the system call to a harmless one such as
+\textbf{getpid(2)}. Obvious uses cases for modifying system calls is a process
+calling ``sandboxing'' - intercepting and changing special system calls like
+\textbf{open(2)} and prepend (if not already in place) a specific path to the
+arguments such that the tracee cannot open files outside a the specified path.
+The same effect can be achieved using \textit{LD\_PRELOAD}. \footnote{fakeroot,
+link} \textit{LD\_PRELOAD} however has serious limitations, it cannot attach to
+already running processes and a process can\footnote{If written to do so} ignore
+\textit{LD\_PRELOAD} all together.
+
+\textbf{ptrace(2)} however, is very platform and operating system dependant,
+the Tracy API tries to be platform and operating system by applying architecture
+and operating system dependant hacks and fixes ``behind the scenes''.
+
+\section{System call tracing, modification and injection}
+
+\textbf{ptrace(2)} stops the tracee right before it executes a system call as
+well as just after it has executed a system call.
+While the controlling process is inspecting the tracee, the execution of the
+tracee is paused.
+
+This gives the controlling process the ability to read and modify registers,
+which gives the controlling process the ability to do pretty much anything
+with the tracee, including but not limited to:
+
+\begin{itemize}
+\item Modify the system call (number) that is executed.
+\item Modify the arguments to system calls of the tracee.
+\item Modify the instruction pointer (commonly called program counter), allowing
+    the controlling process to resume the executing of the tracee at an entirely
+    different set of instructions.
+\item Inject system calls, by modifying the instruction pointer and changing the
+    system call number.
+\end{itemize}
+
+\section{Memory access}
+
+\section{Tracing children}
+
+
+\chapter{Implementation}
+
+\section{System call tracing}
+
+% sync & async tracing
+
+\section{System call modification}
+
+\section{System call injection}
+
+\section{Memory access}
+
+% /proc/<pid>/mem
+% (PEEK|POKE)USER
+
+\section{Tracing children}
+
+\subsection{Linux}
+%
+% PTRACE_O_TRACEVFORK, PTRACE_O_TRACEFORK, PTRACE_O_TRACECLONE
+
+\subsection{Safe execution of fork(2) and friends}
+
+% Safe execution
+
+\chapter{Related work}
+
+\section{strace}
+
+% strace
+% jail?
 
 \end{document}
