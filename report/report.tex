@@ -3,6 +3,7 @@
 \author{Jurriaan Bremer \and Merlijn Wajer \and Bas Weelinck}
 \title{Tracy: Making ptrace(2) fun} % TODO TITLE
 
+\usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage[utf8]{inputenc}
 
@@ -58,7 +59,14 @@ and operating system dependant hacks and fixes ``behind the scenes''.
 \textbf{ptrace(2)} stops the tracee right before it executes a system call as
 well as just after it has executed a system call.
 While the controlling process is inspecting the tracee, the execution of the
-tracee is paused.
+tracee is paused. (Figure \ref{fig1})
+
+
+\begin{figure}
+\label{fig1}
+\includegraphics[scale=0.6]{ptrace.png}
+\caption{Ptrace control flow}
+\end{figure}
 
 This gives the controlling process the ability to read and modify registers,
 which gives the controlling process the ability to do pretty much anything
@@ -106,6 +114,12 @@ immediately trace children on non-Linux platforms:
 \end{quote}
 }
 
+\begin{figure}
+\label{fig2}
+\includegraphics[scale=0.4]{ptrace2.png}
+\caption{One system call with ptrace}
+\end{figure}
+
 We provide a solution to this problem in Tracy such that any children spawned
 by the tracee will not run uncontrolled on any platform.
 
@@ -133,6 +147,9 @@ by the tracee will not run uncontrolled on any platform.
 \subsection{Safe execution of fork(2) and friends}
 
 % Safe execution
+
+
+\chapter{Soxy}
 
 \chapter{Related work}
 

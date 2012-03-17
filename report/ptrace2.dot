@@ -1,0 +1,54 @@
+digraph ptrace {
+
+    subgraph cp {
+        node [style=filled, color=white]
+        style=filled
+        label = "Controlling process"
+        b0 [label="..."]
+
+        b0 -> b1
+        b1 [shape=record, label="{Read/Write Memory\n | Change registers}"]
+
+        b1 -> b2
+        b2 [label="..."]
+        b2 -> b3
+        b3 [label="..."]
+        b3 -> b4
+        b4 [label="..."]
+
+        b4 -> b5
+        b5 [shape=record, label="{Read/Write Memory\n | Change registers}"]
+        b5 -> b6
+        b6 [label="..."]
+
+    }
+
+
+    subgraph tracee {
+        node [style=filled]
+        a0 [label="..."]
+        a0 -> syscall
+        a1 [label="\<suspended\>"]
+        syscall -> a1
+
+        a1 -> a2 -> a3 -> a4 -> a5 -> a6
+        a2 [label="Start system call"]
+
+        a3 [label="Suspend until system\ncall returns"]
+
+        a4 [label="Finished system call"]
+
+        a5 [label="\<suspended\>"]
+
+        a6 [label="Continue execution"]
+
+        label= "tracee"
+        color=blue
+    }
+
+    syscall -> b1
+    b2 -> a2
+    a4 -> b5
+    b5 -> a6
+
+}

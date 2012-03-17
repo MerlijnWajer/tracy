@@ -1,0 +1,17 @@
+digraph ptrace {
+    size="10,10"
+    cp -> stuff
+
+    execution -> syscall
+    execution [label="Execution of Tracee"]
+
+    cp[label="Controlling Process", shape=box]
+
+
+    stuff [shape=record, label="{Read/Write Memory\n | Change registers}", rank=max]
+
+    stuff -> execution [label="Continue execution"]
+    syscall -> cp
+
+    syscall [label="System Call (before and after)"]
+}
