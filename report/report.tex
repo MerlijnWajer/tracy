@@ -76,8 +76,38 @@ with the tracee, including but not limited to:
 
 \section{Memory access}
 
+To fully be able to modify a tracee, the controlling process needs to be able to
+read and write the tracee memory. If the controlling process is to change
+arguments that point to a specific page in the tracee's memory - like a string,
+the controlling process needs to be able to write to the tracee's memory.
+
+However, it is often not a good idea for the controlling process to change data
+in a child. Instead, it would be a better idea to allocated a few pages in the
+child and copy the data to those pages, change the argument to point to the new
+pages and continue the system call. After the system call is complete, the pages
+can be freed again. This way the child's original arguments are left untouched.
+
 \section{Tracing children}
 
+A tracee can spawn children by calling the fork()\footnote{among other system
+calls: vfork, rfork, clone} system call. \textbf{ptrace(2)} does not
+automatically trace children of a tracee. It is often useful to keep track of
+all the children of a tracee. To do this, Linux supports specific
+\textbf{ptrace(2)} options to trace the tree of children spawned by the tracee
+as well. However, other platforms do not support these options and tracing
+children of the tracee can be somewhat problematic.\footnote{strace does not
+immediately trace children on non-Linux platforms:
+\begin{quote}
+    On non-Linux platforms the new process is attached to as soon as its pid is
+    known (through the return value of fork(2) in the parent process).
+    This means that such children may run uncontrolled for a while
+    (especially in the case of a vfork(2)), until the parent is scheduled
+    again to complete its (v)fork(2)  call.
+\end{quote}
+}
+
+We provide a solution to this problem in Tracy such that any children spawned
+by the tracee will not run uncontrolled on any platform.
 
 \chapter{Implementation}
 
