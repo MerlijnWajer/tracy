@@ -4,7 +4,7 @@
 default: report
 
 report: dot
-	texi2pdf report.tex -s
+	texi2pdf report.tex
 
 clean:
 	rm *.pdf -f
@@ -15,5 +15,5 @@ ptrace1: ptrace.dot
 	dot -Tpng ptrace.dot > ptrace.png
 
 ptrace2: ptrace2.dot
-	dot -Tpng ptrace.dot > ptrace.png
+	dot -Tpng ptrace2.dot > ptrace2.png
 

@@ -146,8 +146,32 @@ by the tracee will not run uncontrolled on any platform.
 
 \subsection{Safe execution of fork(2) and friends}
 
-% Safe execution
+On operating systems that do not support the \textit{PTRACE\_O\_TRACE*} options,
+another solution is required to ensure that all children are traced the moment
+they are created. To achieve this, the fork(2)\footnote{and related} system call
+must be executed in a controlled manner.
 
+To implement this feature, we make use system call injection as well as the
+ability to be able to allocate and write to pages in the child. We allocate a
+page in the child and write a few lines of assembly that will safely execute
+fork(2) to the page. Once this is done, we deny the initial fork(2) call by
+changing the system call to getpid(2). In the POST-getpid callback, we change
+the Instruction Pointer (or Program Counter) to the first instruction in the
+newly allocated page. Once the tracee starts executing the instructions in this
+page, it will once again execute a system call - fork(2) in this case, and this
+time we allow the call to proceed. However, after the fork(2) and we stored the
+result of the call (pid), both the tracee and the child execute the rest of the
+instructions in the page. The only other instructions in the page are a busy
+while loop that calls the sched\_yield(2) system call. Now that both the tracee
+and the child of the tracee are caught in this while loop.
+
+At this moment, we are still only tracing the child, but we can now use the
+``attach'' mechanism of ptrace to attach to the child of our tracee. Once we are
+tracing the child of the tracee as well, we can restore the Instruction Pointer
+9or Program Counter) to their original position (that is, just after the
+original fork(2) call) and let both processes continue their execution.
+
+% picture of the process
 
 \chapter{Soxy}
 
