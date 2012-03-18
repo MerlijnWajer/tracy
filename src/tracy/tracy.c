@@ -539,7 +539,8 @@ static int open_child_mem(struct tracy_child *c)
 }
 
 /* Returns bytes read */
-ssize_t tracy_read_mem(struct tracy_child *c, void *dest, void *src, size_t n) {
+ssize_t tracy_read_mem(struct tracy_child *c, tracy_parent_addr_t dest,
+        tracy_child_addr_t src, size_t n) {
     /* Open memory if it's not open yet */
     if (c->mem_fd < 0) {
         if (open_child_mem(c) < 0)
@@ -564,7 +565,8 @@ int tracy_poke_word(struct tracy_child *child, long to, long word) {
     return 0;
 }
 
-ssize_t tracy_write_mem(struct tracy_child *c, void *dest, void *src, size_t n) {
+ssize_t tracy_write_mem(struct tracy_child *c, tracy_child_addr_t dest,
+        tracy_parent_addr_t src, size_t n) {
     /* Open memory if it's not open yet */
     if (c->mem_fd < 0) {
         if (open_child_mem(c) < 0)
@@ -831,8 +833,8 @@ int tracy_main(struct tracy *tracy) {
 }
 
 /* Execute mmap in the child process */
-int tracy_mmap(struct tracy_child *child, long *ret,
-        void *addr, size_t length, int prot, int flags, int fd,
+int tracy_mmap(struct tracy_child *child, tracy_child_addr_t *ret,
+        tracy_child_addr_t addr, size_t length, int prot, int flags, int fd,
         off_t pgoffset) {
     struct tracy_sc_args a;
 
@@ -847,7 +849,7 @@ int tracy_mmap(struct tracy_child *child, long *ret,
      * mmap and mmap2 here, however we should add an expression
      * that normalises the offset parameter passed to both flavors of mmap.
      */
-    if (tracy_inject_syscall(child, TRACY_NR_MMAP, &a, ret))
+    if (tracy_inject_syscall(child, TRACY_NR_MMAP, &a, (long*)ret))
         return -1;
 
     return 0;
@@ -855,7 +857,7 @@ int tracy_mmap(struct tracy_child *child, long *ret,
 
 /* Execute munmap in the child process */
 int tracy_munmap(struct tracy_child *child, long *ret,
-       void *addr, size_t length) {
+       tracy_child_addr_t addr, size_t length) {
     struct tracy_sc_args a;
 
     a.a0 = (long) addr;
