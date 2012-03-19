@@ -17,13 +17,6 @@
 
 #define TRACY_USE_SAFE_TRACE 1 << 31
 
-struct tracy {
-    struct soxy_ll *childs;
-    struct soxy_ll *hooks;
-    pid_t fpid;
-    long opt;
-};
-
 struct tracy_child;
 
 struct tracy_sc_args {
@@ -41,6 +34,15 @@ struct tracy_event {
 };
 
 typedef int (*tracy_hook_func) (struct tracy_event *s);
+
+struct tracy {
+    struct soxy_ll *childs;
+    struct soxy_ll *hooks;
+    pid_t fpid;
+    long opt;
+    tracy_hook_func defhook;
+};
+
 
 struct tracy_inject_data {
     int injecting, injected;
@@ -64,13 +66,6 @@ struct tracy_child {
 
 /* Pointers for parent/child memory distinction */
 typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
-
-/* #define OUR_PTRACE_OPTIONS (PTRACE_O_TRACESYSGOOD) */
-#ifdef __linux__
-#define OUR_PTRACE_OPTIONS (PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | \
-PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE)
-#endif
-
 
 
 #define TRACY_EVENT_NONE 1
@@ -113,6 +108,7 @@ char* get_signal_name(int signal);
 
 /* -- Syscall hooks -- */
 int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func);
+int tracy_set_default_hook(struct tracy *t, tracy_hook_func f);
 int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e);
 
 /* -- Child memory access -- */

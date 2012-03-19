@@ -475,6 +475,15 @@ int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func) {
     return 0;
 }
 
+int tracy_set_default_hook(struct tracy *t, tracy_hook_func f) {
+    if (t->defhook)
+        return 1;
+
+    t->defhook = f;
+
+    return 0;
+}
+
 /* Find and execute hook. */
 int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
     struct soxy_ll_item *item;
@@ -493,6 +502,9 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
         _hax.pvoid = item->data;
         return _hax.pfunc(e);
     }
+
+    if (t->defhook)
+        return t->defhook(e);
 
     return 1;
 }
