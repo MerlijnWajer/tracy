@@ -59,6 +59,8 @@ struct tracy_child {
     int mem_fd;
     int denied_nr;
 
+    void* custom;
+
     struct tracy* tracy;
 
     struct tracy_inject_data inj;

@@ -159,6 +159,7 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     tc->inj.cb = NULL;
     tc->denied_nr = 0;
     tc->tracy = t;
+    tc->custom = NULL;
 
     ll_add(t->childs, tc->pid, tc);
     return tc;
@@ -236,6 +237,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             tc->inj.cb = NULL;
             tc->denied_nr = 0;
             tc->tracy = t;
+            tc->custom = NULL;
 
             ll_add(t->childs, tc->pid, tc);
             s = &tc->event;
