@@ -85,7 +85,7 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     long signal_id;
     struct tracy_child *tc;
 
-    if ((t->opt | TRACY_TRACE_CHILDREN) && !(t->opt | TRACY_USE_SAFE_TRACE)) {
+    if ((t->opt & TRACY_TRACE_CHILDREN) && !(t->opt & TRACY_USE_SAFE_TRACE)) {
         ptrace_options |= PTRACE_O_TRACEFORK;
         ptrace_options |= PTRACE_O_TRACEVFORK;
         ptrace_options |= PTRACE_O_TRACECLONE;
