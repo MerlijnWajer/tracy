@@ -7,7 +7,7 @@ CFLAGS+=-I ../tracy
 #CFLAGS+=-O2
 #CFLAGS+=-m32
 
-TESTS=ll_test loggy
+TESTS=ll_test loggy dotty
 
 default: $(TESTS)
 
@@ -17,6 +17,9 @@ ll_test: ll_test.c
 loggy: loggy.c
 	$(CC) loggy.c ../tracy/ll.o ../tracy/tracy.o $(CFLAGS) $(LDFLAGS) -o loggy
 
+dotty: dotty.c
+	$(CC) dotty.c ../tracy/ll.o ../tracy/tracy.o $(CFLAGS) $(LDFLAGS) -o dotty
+
 
 clean:
-	rm *.o ll_test loggy -f
+	rm *.o ll_test loggy dotty -f
