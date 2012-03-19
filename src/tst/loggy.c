@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    tracy = tracy_init();
+    tracy = tracy_init(TRACY_TRACE_CHILDREN);
 
     if (argc < 2) {
         printf("Usage: loggy <program name> <program arguments>\n");
