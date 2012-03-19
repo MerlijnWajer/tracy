@@ -16,6 +16,11 @@
 
 int count;
 
+int foo_close(struct tracy_event *e) {
+    printf("close() from %d\n", e->child->pid);
+    return 0;
+}
+
 int foo(struct tracy_event *e) {
     count++;
 
@@ -62,7 +67,7 @@ int main(int argc, char** argv) {
 
     count = 0;
 
-    tracy = tracy_init();
+    tracy = tracy_init(TRACY_TRACE_CHILDREN);
 
     if (argc < 2) {
         printf("Usage: soxy <program name> <program arguments>\n");
@@ -70,6 +75,11 @@ int main(int argc, char** argv) {
     }
 
     if (tracy_set_hook(tracy, "write", foo)) {
+        printf("Failed to hook write syscall.\n");
+        return EXIT_FAILURE;
+    }
+
+    if (tracy_set_hook(tracy, "close", foo_close)) {
         printf("Failed to hook write syscall.\n");
         return EXIT_FAILURE;
     }
