@@ -54,20 +54,46 @@ struct tracy_inject_data {
 
 struct tracy_child {
     pid_t pid;
+
+    /* PRE/POST syscall switch */
     int pre_syscall;
-    struct tracy_event event;
+
+    /* File descriptor pointing to /proc/<pid>/mem, -1 if closed */
     int mem_fd;
+
+    /* Last denied syscall */
     int denied_nr;
 
+<<<<<<< HEAD
     void* custom;
 
+=======
+    /* This child's tracy instance */
+>>>>>>> 92d70abd8e8c3051a911d45e9119706f98d85153
     struct tracy* tracy;
 
+    /* Asynchronous syscall injection info */
     struct tracy_inject_data inj;
+
+    /* Last event that occurred */
+    struct tracy_event event;
+
+    /* Child PID acquired through controlled forking */
+    pid_t safe_fork_pid;
 };
 
 /* Pointers for parent/child memory distinction */
 typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
+<<<<<<< HEAD
+=======
+
+/* #define OUR_PTRACE_OPTIONS (PTRACE_O_TRACESYSGOOD) */
+#ifdef __linux__
+#define OUR_PTRACE_OPTIONS (PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | \
+PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE)
+#endif
+
+>>>>>>> 92d70abd8e8c3051a911d45e9119706f98d85153
 
 
 #define TRACY_EVENT_NONE 1
@@ -148,5 +174,8 @@ int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code);
 int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a);
 int tracy_deny_syscall(struct tracy_child* child);
+
+/* Safe forking */
+int tracy_safe_fork(struct tracy_child *c, pid_t *new_child);
 
 #endif

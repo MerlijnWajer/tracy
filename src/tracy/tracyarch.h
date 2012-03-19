@@ -1,4 +1,9 @@
 #ifdef __arm__
+
+/*
+ * See this for more info on ARM:
+ * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0041c/ch09s02s02.html
+ */
 #define TRACY_REGS_NAME pt_regs
 
 /* Unsure about some of the registers */

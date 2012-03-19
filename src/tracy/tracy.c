@@ -26,8 +26,11 @@
 
 #include <sys/syscall.h>
 
+#include <sys/mman.h>
+
 #include "ll.h"
 #include "tracy.h"
+#include "trampy.h"
 
 #ifndef bas_boos
 #define _r(s) "\033[1;31m" s "\033[0m"
@@ -284,6 +287,8 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             /* TODO FAILURE */
         }
 
+
+        s->args.sp = regs.TRACY_STACK_POINTER;
 
         if (s->child->denied_nr) {
             /* printf("DENIED SYSTEM CALL: Changing from %s to %s\n",
@@ -590,6 +595,43 @@ ssize_t tracy_write_mem(struct tracy_child *c, tracy_child_addr_t dest,
     return write(c->mem_fd, src, n);
 }
 
+/* Execute mmap in the child process */
+int tracy_mmap(struct tracy_child *child, tracy_child_addr_t *ret,
+        tracy_child_addr_t addr, size_t length, int prot, int flags, int fd,
+        off_t pgoffset) {
+    struct tracy_sc_args a;
+
+    a.a0 = (long) addr;
+    a.a1 = (long) length;
+    a.a2 = (long) prot;
+    a.a3 = (long) flags;
+    a.a4 = (long) fd;
+    a.a5 = (long) pgoffset;
+
+    /* XXX: Currently we make no distinction between calling
+     * mmap and mmap2 here, however we should add an expression
+     * that normalises the offset parameter passed to both flavors of mmap.
+     */
+    if (tracy_inject_syscall(child, TRACY_NR_MMAP, &a, (long*)ret))
+        return -1;
+
+    return 0;
+}
+
+/* Execute munmap in the child process */
+int tracy_munmap(struct tracy_child *child, long *ret,
+       tracy_child_addr_t addr, size_t length) {
+    struct tracy_sc_args a;
+
+    a.a0 = (long) addr;
+    a.a1 = (long) length;
+
+    if (tracy_inject_syscall(child, __NR_munmap, &a, ret))
+        return -1;
+
+    return 0;
+}
+
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code) {
     int garbage;
@@ -605,6 +647,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
         if (tracy_inject_syscall_pre_end(child, return_code))
             return 1;
+        printf("return_code_2: %ld\n", *return_code);
 
         return 0;
     } else {
@@ -834,39 +877,241 @@ int tracy_main(struct tracy *tracy) {
     return 0;
 }
 
-/* Execute mmap in the child process */
-int tracy_mmap(struct tracy_child *child, tracy_child_addr_t *ret,
-        tracy_child_addr_t addr, size_t length, int prot, int flags, int fd,
-        off_t pgoffset) {
-    struct tracy_sc_args a;
+/* This function is used as a callback by the safe-fork
+ * functions.
+ *
+ * It's main purpose is to set the correct fork result
+ * and restore PRE/POST order.
+ */
+static int restore_fork(struct tracy_event *e) {
+    struct TRACY_REGS_NAME args;
+    pid_t child_pid;
 
-    a.a0 = (long) addr;
-    a.a1 = (long) length;
-    a.a2 = (long) prot;
-    a.a3 = (long) flags;
-    a.a4 = (long) fd;
-    a.a5 = (long) pgoffset;
+    child_pid = e->child->safe_fork_pid;
+/*
+    puts("RESTORE FORK");
+*/
+    
+    if (e->child->pre_syscall)
+        e->child->pre_syscall = 0;
+    else
+        e->child->pre_syscall = 1;
 
-    /* XXX: Currently we make no distinction between calling
-     * mmap and mmap2 here, however we should add an expression
-     * that normalises the offset parameter passed to both flavors of mmap.
+
+    printf("pid: %ld\n", e->args.return_code);
+
+    if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &args))
+        perror("post getregs");
+    args.TRACY_RETURN_CODE = child_pid;
+    if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &args))
+        perror("post setregs");
+/*
+    printf("Set return code to %d\n", child_pid);
+*/
+    return 0;
+}
+
+/* Safe forking/cloning
+ *
+ * This function takes over the PRE fase of a child process' fork
+ * syscall. It then forks the child in a controlled manor ensuring
+ * tracy will be able to trace the forked process.
+ * This function returns the pid of the new child in new_child upon success.
+ *
+ * Upon error the return value will be -1 and errno will be set appropriately.
+ *
+ * FIXME: This function memleaks a page upon failure in the child atm.
+ * TODO: This function needs a lot more error handling than it contains now.
+ */
+int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
+{
+    tracy_child_addr_t mmap_ret;
+    int status;
+    long ip;
+    struct TRACY_REGS_NAME args, args_ret;
+    const long page_size = sysconf(_SC_PAGESIZE);
+    pid_t child_pid;
+
+/*
+    puts("SAFE_FORKING!");
+*/
+    /* First let's allocate a page in the child which we shall use
+     * to write a piece of forkcode (see trampy.c) to.
      */
-    if (tracy_inject_syscall(child, TRACY_NR_MMAP, &a, (long*)ret))
+   tracy_mmap(c, &mmap_ret,
+            NULL, page_size,
+            PROT_READ | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS,
+            -1, 0
+            );
+
+    /* I know this is FUBAR, but bear with me 
+     *
+     * Check for an error value in the return code/address.
+     */
+    if (mmap_ret < ((tracy_child_addr_t)0) &&
+            mmap_ret > ((tracy_child_addr_t)-4096)) {
+        errno = -(long)mmap_ret;
+        perror("tracy_mmap");
         return -1;
+    }
+/*
+    printf("mmap addr: %p\n", (void*)mmap_ret);
+*/
+
+    /* XXX - Debug
+    printf("trampy_get_safe_entry() = %p\ntrampy_get_code_size() = %d\n",
+        trampy_get_safe_entry(), trampy_get_code_size());
+    */
+
+    /* Write the piece of code to the child process */
+    if (tracy_write_mem(c, (void*) mmap_ret,
+            trampy_get_safe_entry(),
+            trampy_get_code_size()) < 0) {
+        perror("tracy_write_mem");
+        return -1;
+    }
+
+    /* Fetch the registers to store the original forking syscall and more importantly
+     * the instruction pointer.
+     */
+    if (ptrace(PTRACE_GETREGS, c->pid, 0, &args)) {
+        perror("GETREGS");
+        return -1;
+    }
+
+    /* Deny so we can set the IP on the denied post and do our own fork in a
+     * controlled environment */
+    tracy_deny_syscall(c);
+    c->denied_nr = 0;
+    ptrace(PTRACE_SYSCALL, c->pid, 0, 0);
+/*
+    puts("DENIED, in PRE");
+*/
+    waitpid(c->pid, &status, 0);
+/*
+    puts("AFTER DENIED, entered POST");
+*/
+
+    /* Okay, the child is now in POST syscall mode, and it has
+     * just executed a bogus syscall (getpid) inserted by deny syscall.
+     *
+     * Setup a fork syscall and point the processor to the injected code.
+     */
+    args.TRACY_SYSCALL_REGISTER = __NR_fork;
+    args.TRACY_SYSCALL_N = __NR_fork;
+
+    ip = args.TRACY_IP_REG;
+    args.TRACY_IP_REG = (long)mmap_ret;
+
+    if (ptrace(PTRACE_SETREGS, c->pid, 0, &args))
+        perror("SETREGS");
+
+/*
+    printf("The IP was changed from %p to %p\n", (void*)ip, (void*)mmap_ret);
+
+    puts("POST, Entering PRE");
+*/
+
+    ptrace(PTRACE_SYSCALL, c->pid, 0, 0);
+    waitpid(c->pid, &status, 0);
+
+    /* At this moment the child is in PRE mode in the trampy code,
+     * trying to execute a sched_yield, which we shall now make
+     * into a fork syscall.
+     */
+    if (ptrace(PTRACE_GETREGS, c->pid, 0, &args_ret))
+        perror("GETREGS");
+/*
+    printf("The IP is now %p\n", (void*)args_ret.TRACY_IP_REG);
+    printf("Modifying syscall back to fork\n");
+*/
+
+    /* TODO: Replace the following with a single call to
+     * tracy_modify_syscall().
+     */
+    args_ret.TRACY_SYSCALL_REGISTER = __NR_fork;
+    args_ret.TRACY_SYSCALL_N = __NR_fork;
+
+    /* On ARM the syscall number is not included in any register, so we have
+     * this special ptrace option to modify the syscall
+     */
+    #ifdef __arm__
+    ptrace(PTRACE_SET_SYSCALL, c->pid, 0, (void*)__NR_fork);
+    #endif
+
+    if (ptrace(PTRACE_SETREGS, c->pid, 0, &args_ret))
+        perror("SETREGS");
+
+/*
+    puts("PRE, Entering POST");
+*/
+
+    /* Now execute the actual fork.
+     *
+     * Afterwards the parent will immediately come to a halt
+     * while the child will wait for us to attach. See 'trampy.c'
+     * for more details.
+     */
+    ptrace(PTRACE_SYSCALL, c->pid, 0, 0);
+    waitpid(c->pid, &status, 0);
+
+    if (ptrace(PTRACE_GETREGS, c->pid, 0, &args_ret))
+        perror("GETREGS");
+
+/*
+    printf("The IP is now %p\n", (void*)args_ret.TRACY_IP_REG);
+    puts("POST");
+*/
+
+    if (ptrace(PTRACE_GETREGS, c->pid, 0, &args_ret))
+        perror("GETREGS");
+
+    /* FIXME: We don't check if the fork failed
+     * which we really should since there is no point in
+     * attaching to a failed fork.
+     */
+    child_pid = args_ret.TRACY_RETURN_CODE;
+    *new_child = child_pid;
+    c->safe_fork_pid = child_pid;
+    printf("Fork return value: %d\n", child_pid);
+
+    /* Now point the parent process after the original fork
+     * syscall instruction.
+     */
+    args_ret.TRACY_IP_REG = ip;
+
+    if (ptrace(PTRACE_SETREGS, c->pid, 0, &args_ret))
+        perror("SETREGS");
+
+    tracy_inject_syscall_post_start(c, __NR_getpid, NULL, restore_fork);
+
+    /* Attach to the new child */
+    printf("Attaching to %d...\n", child_pid);
+    ptrace(PTRACE_ATTACH, child_pid, 0, 0);
+    waitpid(child_pid, &status, 0);
+
+/*
+    if (ptrace(PTRACE_SETREGS, child_pid, 0, &args))
+        perror("SETREGS");
+*/
+
+    /* Restore the new child as well*/
+    args.TRACY_IP_REG = ip;
+    args.TRACY_RETURN_CODE = 0;
+
+    if (ptrace(PTRACE_SETREGS, child_pid, 0, &args))
+        perror("SETREGS");
+
+    ptrace(PTRACE_SETOPTIONS, child_pid, 0, PTRACE_O_TRACESYSGOOD);
+
+    /* Continue the new child */
+    ptrace(PTRACE_SYSCALL, child_pid, 0, 0);
+
+    /* TODO: We should now munmap the pages in both the parent and the child.
+     * Unless ofc. we created a thread which shares VM in which case we should
+     * munmap only once.
+     */
 
     return 0;
 }
 
-/* Execute munmap in the child process */
-int tracy_munmap(struct tracy_child *child, long *ret,
-       tracy_child_addr_t addr, size_t length) {
-    struct tracy_sc_args a;
-
-    a.a0 = (long) addr;
-    a.a1 = (long) length;
-
-    if (tracy_inject_syscall(child, __NR_munmap, &a, ret))
-        return -1;
-
-    return 0;
-}

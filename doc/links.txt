@@ -1,0 +1,3 @@
+Post your useful links here.
+
+http://unix.stackexchange.com/questions/6301/how-do-i-read-from-proc-pid-mem-under-linux
