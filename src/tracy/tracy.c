@@ -42,7 +42,7 @@
 #endif
 
 
-struct tracy *tracy_init(void) {
+struct tracy *tracy_init(long opt) {
     struct tracy *t;
 
     t = malloc(sizeof(struct tracy));
@@ -63,6 +63,8 @@ struct tracy *tracy_init(void) {
         return NULL;
     }
 
+    t->opt = opt;
+
     return t;
 }
 
@@ -78,10 +80,16 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     pid_t pid;
     long r;
     int status;
-    long ptrace_options = OUR_PTRACE_OPTIONS;
+    /* TRACESYSGOOD is default for now. BSD doesn't have this... */
+    long ptrace_options = PTRACE_O_TRACESYSGOOD;
     long signal_id;
     struct tracy_child *tc;
-    /*char proc_mem_path[18];*/
+
+    if ((t->opt | TRACY_TRACE_CHILDREN) && !(t->opt | TRACY_USE_SAFE_TRACE)) {
+        ptrace_options |= PTRACE_O_TRACEFORK;
+        ptrace_options |= PTRACE_O_TRACEVFORK;
+        ptrace_options |= PTRACE_O_TRACECLONE;
+    }
 
     pid = fork();
 
@@ -267,18 +275,6 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
     signal_id = WSTOPSIG(status);
 
-    /*
-    Because we set PTRACE_O_TRACESYSGOOD, bit 8 in the signal number is set
-    when syscall traps are delivered:
-
-           PTRACE_O_TRACESYSGOOD (since Linux 2.4.6)
-             When delivering syscall traps, set bit 7 in the signal number
-             (i.e., deliver  (SIGTRAP |  0x80) This makes it easy for the
-             tracer to tell the difference between normal traps and those
-             caused by a syscall.
-             (PTRACE_O_TRACESYSGOOD may not work on all architectures.)
-    */
-
     if (signal_id == (SIGTRAP | 0x80)) {
         /* Make functions to retrieve this */
         ptrace_r = ptrace(PTRACE_GETREGS, pid, NULL, &regs);
@@ -301,9 +297,6 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             s->type = TRACY_EVENT_SYSCALL;
             s->args.return_code = regs.TRACY_RETURN_CODE;
             s->args.sp = regs.TRACY_STACK_POINTER;
-
-            /* TODO: Set ``return code'' for denied system call. Write expects
-             * the bytes written for example */
 
             check_syscall(s);
             return s;
@@ -662,7 +655,7 @@ int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code) {
 
     /* Wait for PRE, this shouldn't take long as we literally only wait for
      * the OS to notice that we set the PC back it should give us control back
-     * on PRE-syscall*/
+     * on PRE-syscall. */
     waitpid(child->pid, &garbage, 0);
 
     return 0;
@@ -712,7 +705,6 @@ int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code) 
     if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
         printf("PTRACE_GETREGS failed\n");
 
-    /* printf("Return code of getpid(): %ld\n", newargs.TRACY_RETURN_CODE); */
     *return_code = newargs.TRACY_RETURN_CODE;
 
     if (ptrace(PTRACE_SETREGS, child->pid, 0, &child->inj.reg))
@@ -734,6 +726,7 @@ int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
     newargs.TRACY_SYSCALL_N = syscall_number;
 
     #ifdef __arm__
+    /* ARM requires us to call this function to set the system call */
     ptrace(PTRACE_SET_SYSCALL, child->pid, 0, (void*)syscall_number);
     #endif
 
@@ -753,17 +746,12 @@ int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
     return 0;
 }
 
-/*
- * Inject getpid system call, effectivelly rendering the system call useless.
- * TODO: We need to hook into the POST call of this system call, and return a
- * useful value based on the previously called system call.
- * For example, write() returns the number of bytes written.
- */
 int tracy_deny_syscall(struct tracy_child *child) {
     int r, nr;
 
     /* TODO: Set ``return code'' for denied system call. Write expects
-     * the bytes written for example. Hook? Sync? (Hook is better) */
+     * the bytes written for example. This could be done in the POST
+     * hook of the denied system call. (Should be done, imho) */
 
     if (!child->pre_syscall) {
         fprintf(stderr, "ERROR: Calling deny on a POST system call");

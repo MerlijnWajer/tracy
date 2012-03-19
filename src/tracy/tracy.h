@@ -11,10 +11,17 @@
 #include <asm/ptrace.h>
 #include "tracyarch.h"
 
+
+/* Tracy options, pass them to tracy_init(). */
+#define TRACY_TRACE_CHILDREN 1 << 0
+
+#define TRACY_USE_SAFE_TRACE 1 << 31
+
 struct tracy {
     struct soxy_ll *childs;
     struct soxy_ll *hooks;
     pid_t fpid;
+    long opt;
 };
 
 struct tracy_child;
@@ -66,15 +73,15 @@ PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE)
 
 
 
-#define TRACY_EVENT_NONE 1 << 0
-#define TRACY_EVENT_SYSCALL 1 << 1
-#define TRACY_EVENT_SIGNAL 1 << 2
-#define TRACY_EVENT_INTERNAL 1 << 3
-#define TRACY_EVENT_QUIT 1 << 4
+#define TRACY_EVENT_NONE 1
+#define TRACY_EVENT_SYSCALL 2
+#define TRACY_EVENT_SIGNAL 3
+#define TRACY_EVENT_INTERNAL 4
+#define TRACY_EVENT_QUIT 5
 
 
 
-struct tracy *tracy_init(void);
+struct tracy *tracy_init(long opt);
 void tracy_free(struct tracy *t);
 
 /* Helper */
