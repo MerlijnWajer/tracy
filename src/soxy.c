@@ -8,20 +8,36 @@
 
 #include <sys/syscall.h>
 #include <asm/unistd.h>
+#include <sys/mman.h>
+#include <linux/net.h>
 
-#define __NR_connect 203
-#define __NR_socket 198
-#define __NR_send __NR_write
-#define __NR_recv __NR_read
+static int soxy_inject_socketcall(struct tracy_child *child, int nr, long args[6])
+{
+	void *addr; struct tracy_sc_args real_args; long dummy, retcode;
+
+	// write the arguments to the child
+	tracy_mmap(child, (long *) &addr, NULL, sizeof(args), PROT_READ | PROT_WRITE,
+		MAP_PRIVATE, -1, 0);
+	tracy_write_mem(child, addr, args, sizeof(args));
+
+	// execute the syscall
+	memset(&real_args, 0, sizeof(real_args));
+	real_args.a0 = nr;
+	real_args.a1 = (long) addr;
+	tracy_inject_syscall(child, __NR_socketcall, &real_args, &retcode);
+
+	// delete memory in child
+	tracy_munmap(child, &dummy, addr, sizeof(args));
+	return retcode;
+}
 
 static int soxy_socket(struct _socks5_t *s5, int socket_family,
 	int socket_type, int protocol)
 {
-	printf("aup socket :D\n");
-	long retcode; struct tracy_sc_args args = {
-		socket_family, socket_type, protocol, 0, 0, 0, 0, 0, 0, 0
+	long retcode, args[6] = {
+		socket_family, socket_type, protocol
 	};
-	tracy_inject_syscall(s5->arg, __NR_socket, &args, &retcode);
+	retcode = soxy_inject_socketcall(s5->arg, SYS_SOCKET, args);
 	return retcode;
 }
 
@@ -29,10 +45,10 @@ static int soxy_connect(struct _socks5_t *s5, int sockfd,
 	const struct sockaddr *addr, socklen_t addrlen)
 {
 	// TODO: copy `struct sockaddr' to child
-	long retcode; struct tracy_sc_args args = {
-		sockfd, (long) addr, addrlen, 0, 0, 0, 0, 0, 0, 0
+	long retcode, args[6] = {
+		sockfd, (long) addr, addrlen
 	};
-	tracy_inject_syscall(s5->arg, __NR_connect, &args, &retcode);
+	retcode = soxy_inject_socketcall(s5->arg, SYS_CONNECT, args);
 	return retcode;
 }
 
@@ -40,10 +56,10 @@ static ssize_t soxy_send(struct _socks5_t *s5, int sockfd, const void *buf,
 	size_t len, int flags)
 {
 	// TODO: copy `buf' to child
-	long retcode; struct tracy_sc_args args = {
-		sockfd, (long) buf, len, flags, 0, 0, 0, 0, 0, 0
+	long retcode, args[6] = {
+		sockfd, (long) buf, len, flags
 	};
-	tracy_inject_syscall(s5->arg, __NR_send, &args, &retcode);
+	retcode = soxy_inject_socketcall(s5->arg, SYS_SEND, args);
 	return retcode;
 }
 
@@ -60,10 +76,10 @@ static ssize_t soxy_recv(struct _socks5_t *s5, int sockfd, void *buf,
 	size_t len, int flags)
 {
 	// TODO: copy `buf' from child
-	long retcode; struct tracy_sc_args args = {
-		sockfd, (long) buf, len, flags, 0, 0, 0, 0, 0, 0
+	long retcode, args[6] = {
+		sockfd, (long) buf, len, flags
 	};
-	tracy_inject_syscall(s5->arg, __NR_recv, &args, &retcode);
+	retcode = soxy_inject_socketcall(s5->arg, SYS_RECV, args);
 	return retcode;
 }
 	
@@ -98,45 +114,40 @@ static socks5_api_t soxy_api = {
 // TODO: `tracy_child' needs an array of `fd' for mapping fd to `socks5_t'
 socks5_t *aup;
 
-//
-// We use the `arg' value in `socks5_t' to store the
-// `struct tracy_child' object pointer
-//
-
-static int soxy_hook_socket(struct tracy_event *e)
+static int soxy_hook_socketcall(struct tracy_event *e)
 {
-	printf("socket..!\n");
+	static long args[6] = {};
 	if(e->child->pre_syscall) {
-		// does the application want a TCP socket?
-		if(e->args.a1 == SOCK_STREAM) {
-			socks5_t *s5 = socks5_init(&soxy_api, e->child);
-			aup = s5;		
-			return 0;
+		// read the arguments (located in a1)
+		tracy_read_mem(e->child, args, (void *) e->args.a1, sizeof(args));
+		switch (e->args.a0) {
+		case SYS_SOCKET:
+			if(args[0] == SOCK_STREAM) {
+				aup = socks5_init(&soxy_api, e->child);
+				return 0;
+			}
+			return -1;
+
+		case SYS_CONNECT:
+			socks5_set_server(aup, "localhost", 8888);
+			socks5_connect_proxy_server(aup);
+			// ipv4
+			if(args[0] == AF_INET) {
+				// TODO: copy `struct sockaddr' to parent process
+				socks5_proxy_ipv4(aup, (struct sockaddr_in *) args[1]);
+				return 0;
+			}
+			return -1;
 		}
-		return -1;
 	}
 	else {
-		// set the return value
-		e->args.return_code = aup->fd;
-	}
-	return 0;
-}
-
-static int soxy_hook_connect(struct tracy_event *e)
-{
-	printf("connect..!\n");
-	if(e->child->pre_syscall) {
-		socks5_set_server(aup, "localhost", 8888);
-		socks5_connect_proxy_server(aup);
-		// ipv4
-		if(e->args.a0 == AF_INET) {
-			// TODO: copy `struct sockaddr' to parent process
-			socks5_proxy_ipv4(aup, (struct sockaddr_in *) e->args.a1);
+		switch (e->args.a0) {
+		case SYS_SOCKET:
+			e->args.return_code = aup->fd;
 			return 0;
 		}
-		return -1;
 	}
-	return 0;
+	return -1;
 }
 
 static int soxy_hook_close(struct tracy_event *e)
@@ -154,9 +165,8 @@ int main(int argc, char *argv[])
 
 	struct tracy *tracy = tracy_init();
 
-	tracy_set_hook(tracy, "socket", &soxy_hook_socket);
-	tracy_set_hook(tracy, "connect", &soxy_hook_connect);
 	tracy_set_hook(tracy, "close", &soxy_hook_close);
+	tracy_set_hook(tracy, "socketcall", &soxy_hook_socketcall);
 	
 	struct tracy_child *child = fork_trace_exec(tracy, argc-1, argv+1);
 	
