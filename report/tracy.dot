@@ -1,0 +1,55 @@
+digraph tracy {
+    node [shape=record];
+
+    subgraph subtracy {
+        node [fillcolor="#F05050", style=filled]
+
+        tracy
+        tracy_childs [shape=record, label="<f0> C_0 | <f1> … | <f2> C_n"]
+        tracy_hooks [shape=record, label="<f0> H_0 | <f1> … | <f2> H_n"]
+        fpid [label="fpid"]
+        tracy -> tracy_childs:f0
+        tracy -> tracy_hooks:f0
+        tracy -> fpid
+    }
+
+    subgraph tracychild {
+        node [fillcolor="#A05050", style=filled]
+
+        child
+        child -> {type; pre_syscall; mem_fd; denied_nr; inj}
+
+    }
+
+    subgraph tracyevent {
+        node [fillcolor="#509050", style=filled]
+
+        te [label="type"]
+        event -> {te; syscall_num; signal_num}
+    }
+
+    subgraph tracyargs {
+        node [fillcolor="#A0A0A0", style=filled]
+
+        arg -> {a0; a1; a2; a3; a4; a5; return_code; syscall; ip; sp}
+
+    }
+
+    subgraph tracyinj {
+        node [fillcolor="#C0C0C0", style=filled]
+
+        inj -> {injecting ; injected ; pre ; syscall_num; callback}
+
+        reg [shape=record, label="r_0 | … | r_n"]
+        inj -> reg
+
+    }
+
+    tracy_childs:f1 -> child
+
+    child -> tracy
+    child -> event
+
+    event -> child
+    event -> arg
+}
