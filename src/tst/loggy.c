@@ -17,10 +17,13 @@
 /* For O_RDONLY */
 #include <fcntl.h>
 
+/* File descriptors overwrite each other atm if a child has the same fd,
+ * this is bad. Needs a different way to log. */
 FILE *logs[1024];
 
 int fc;
 
+/* We'd better just hook into write(), close(), recv*() and others. */
 int log_open(struct tracy_event *e) {
     int fd;
     char *s;
@@ -48,8 +51,8 @@ int log_open(struct tracy_event *e) {
         return 0;
     }
 
-    s = malloc(sizeof(char) * 15);
-    snprintf(s, 15, "%04d%06d.txt", fd, fc++);
+    s = malloc(sizeof(char) * 25);
+    snprintf(s, 25, "%04d%06d%010d.txt", fd, fc++, e->child->pid);
 
     logs[fd] = fopen(s, "w+");
     printf("Opening for fd %d\n", fd);
@@ -69,8 +72,8 @@ int log_socket(struct tracy_event *e) {
     if (fd < 1)
         return 0;
 
-    s = malloc(sizeof(char) * 15);
-    snprintf(s, 15, "%04d%06d.txt", fd, fc++);
+    s = malloc(sizeof(char) * 25);
+    snprintf(s, 25, "%04d%06d%010d.txt", fd, fc++, e->child->pid);
 
     logs[fd] = fopen(s, "w+");
     printf("Opening for fd (socket) %d\n", fd);
@@ -98,7 +101,6 @@ int log_close(struct tracy_event *e) {
         return 0;
     }
 
-    fprintf(logs[fd], "Closing.\n");
     fclose(logs[fd]);
     logs[fd] = NULL;
 
@@ -123,7 +125,8 @@ int log_write(struct tracy_event *e) {
             e->args.a0, str, e->args.a2); */
 
     /* printf("Going to write: %s\n", str); */
-    fwrite(str, sizeof(char), len, logs[fd]);
+    if (logs[fd])
+        fwrite(str, sizeof(char), len, logs[fd]);
 
     free(str);
 
