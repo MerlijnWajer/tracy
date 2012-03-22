@@ -10,71 +10,80 @@
 
 /* For __NR_<SYSCALL> */
 #include <sys/syscall.h>
-
+#include <unistd.h>
+#include <sys/mman.h>
 #include <errno.h>
 
+#include <sys/ptrace.h>
+#include <sys/types.h>
+#include <sys/user.h>
 
-int count;
+#include <asm/ptrace.h>
 
-int foo_close(struct tracy_event *e) {
-    printf("close() from %d\n", e->child->pid);
+int bar(struct tracy_event *e) {
+    struct TRACY_REGS_NAME args;
+    ptrace(PTRACE_GETREGS, e->child->pid, 0, &args);
+
+    if (e->child->pre_syscall) {
+        printf("Child called mmap\n");
+        printf("Args: %ld, %ld, %ld, %ld, %ld, %ld\n",
+            args.TRACY_ARG_0,
+            args.TRACY_ARG_1,
+            args.TRACY_ARG_2,
+            args.TRACY_ARG_3,
+            args.TRACY_ARG_4,
+            args.TRACY_ARG_5);
+    } else {
+        printf("mmap return value: %ld\n", args.TRACY_RETURN_CODE);
+    }
+
     return 0;
 }
 
 int foo(struct tracy_event *e) {
-    count++;
-
-    if (e->child->inj.injected) {
-        if (e->child->inj.pre) {
-            /*printf("PRE HEYYEYAAEYAAAEYAEYAA: %ld\n", e->args.return_code);*/
-        } else {
-            /*printf("POST HEYYEYAAEYAAAEYAEYAA: %ld\n", e->args.return_code);*/
-        }
-
-        if (count > 0) {
-            count = 0;
-            return 0;
-        }
-    }
+    pid_t new_pid;
 
     if (e->child->pre_syscall) {
-        tracy_inject_syscall_pre_start(e->child, __NR_getpid, NULL, foo);
+        tracy_safe_fork(e->child, &new_pid);
     } else {
-        tracy_inject_syscall_post_start(e->child, __NR_getpid, NULL, foo);
+        printf("POST: Returning...\n");
+        return 0;
     }
 
     return 0;
 }
 
-int _setpgid(struct tracy_event *e) {
-    struct tracy_sc_args a;
-
-    if (e->child->pre_syscall) {
+int foo_write(struct tracy_event *e) {
+    printf("write(2). pre(%d), from child: %d\n", e->child->pre_syscall,
+            e->child->pid);
+    /*
+    if(e->child->pre_syscall)
         tracy_deny_syscall(e->child);
-    } else {
-        memcpy(&a, &(e->args), sizeof(struct tracy_sc_args));
-        a.return_code = -ENOSYS;
-
-        tracy_modify_syscall(e->child, __NR_setpgid, &a);
-    }
-    printf("%ld -> %ld\n", e->args.a0, e->args.a1);
+    */
 
     return 0;
 }
-
 int main(int argc, char** argv) {
     struct tracy *tracy;
 
-    count = 0;
-
-    tracy = tracy_init(TRACY_TRACE_CHILDREN);
+    tracy = tracy_init();
 
     if (argc < 2) {
         printf("Usage: soxy <program name> <program arguments>\n");
         return EXIT_FAILURE;
     }
 
-    if (tracy_set_hook(tracy, "write", foo)) {
+    if (tracy_set_hook(tracy, "fork", foo)) {
+        printf("Failed to hook write syscall.\n");
+        return EXIT_FAILURE;
+    }
+
+    if (tracy_set_hook(tracy, "mmap2", bar)) {
+        printf("Failed to hook mmap2 syscall.\n");
+        return EXIT_FAILURE;
+    }
+
+    if (tracy_set_hook(tracy, "write", foo_write)) {
         printf("Failed to hook write syscall.\n");
         return EXIT_FAILURE;
     }
