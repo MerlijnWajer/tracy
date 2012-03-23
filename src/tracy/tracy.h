@@ -55,6 +55,14 @@ struct tracy_inject_data {
 struct tracy_child {
     pid_t pid;
 
+    /* Switch indicating we attached to this child
+     *
+     * Processes we attached to shouldn't be killed by default
+     * since we only came along to take a peek. Childs of processes
+     * attached to, should inherit this flag.
+     */
+    int attached;
+
     /* PRE/POST syscall switch */
     int pre_syscall;
 
@@ -112,6 +120,7 @@ int tracy_main(struct tracy *tracy);
 
 /* fork_trace, returns pid */
 struct tracy_child *fork_trace_exec(struct tracy *t, int argc, char **argv);
+struct tracy_child *tracy_attach(struct tracy *t, pid_t pid);
 
 /*
  * tracy_attach

@@ -13,6 +13,7 @@ Memory)
 [    ] (Optional) Attaching to running processes
 [    ] (Optional) Trace children as well. Default on Linux, needs hacks to work
 on *BSD, Solaris.
+[   B] Add interrupt handler to tracy_main().
 
 Soxy:
 
