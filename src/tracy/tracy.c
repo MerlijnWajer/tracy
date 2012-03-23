@@ -82,10 +82,13 @@ static void free_children(struct soxy_ll *children)
         tc = cur->data;
 
         /* Detach or kill */
-        if (tc->attached)
+        if (tc->attached) {
+            fprintf(stderr, _b("Detaching from child %d")"\n", tc->pid);
             ptrace(PTRACE_DETACH, tc->pid, NULL, NULL);
-        else
+        } else {
+            fprintf(stderr, _b("Killing child %d")"\n", tc->pid);
             ptrace(PTRACE_KILL, tc->pid, NULL, NULL);
+        }
 
         /* Free data and fetch next item */
         free(tc);
@@ -942,10 +945,32 @@ int tracy_deny_syscall(struct tracy_child *child) {
     return r;
 }
 
+/* Used by the interrupt system to cancel the main loop */
+static int main_loop_go_on = 0;
+
+/* Handle SIGINT in tracy_main and shutdown smoothly */
+static void _main_interrupt_handler(int sig)
+{
+    fprintf(stderr, _y("\ntracy: Received %s, commencing soft shutdown and "
+        "disengaging signal handler.")"\n",
+        get_signal_name(sig));
+    signal(sig, SIG_DFL);
+
+    /* Cancel main loop */
+    main_loop_go_on = 0;
+
+    return;
+}
+
+/* Main function for simple tracy based applications */
 int tracy_main(struct tracy *tracy) {
     struct tracy_event *e;
 
-    while (1) {
+    /* Setup interrupt handler */
+    main_loop_go_on = 1;
+    signal(SIGINT, _main_interrupt_handler);
+
+    while (main_loop_go_on) {
         e = tracy_wait_event(tracy, -1);
 
         if (e->type == TRACY_EVENT_NONE) {
@@ -994,6 +1019,9 @@ int tracy_main(struct tracy *tracy) {
 
         tracy_continue(e, 0);
     }
+
+    /* Tear down interrupt handler */
+    signal(SIGINT, SIG_DFL);
 
     return 0;
 }
