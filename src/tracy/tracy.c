@@ -71,12 +71,69 @@ struct tracy *tracy_init(long opt) {
     return t;
 }
 
-void tracy_free(struct tracy* t) {
-    /* TODO: free childs? */
+/* Loop over all child structs in the children list and free them */
+static void free_children(struct soxy_ll *children)
+{
+    struct tracy_child *tc;
+    struct soxy_ll_item *cur = children->head;
 
+    /* Walk over all items in the list */
+    while(cur) {
+        tc = cur->data;
+
+        /* Detach or kill */
+        if (tc->attached) {
+            fprintf(stderr, _b("Detaching from child %d")"\n", tc->pid);
+            ptrace(PTRACE_DETACH, tc->pid, NULL, NULL);
+        } else {
+            fprintf(stderr, _b("Killing child %d")"\n", tc->pid);
+            ptrace(PTRACE_KILL, tc->pid, NULL, NULL);
+        }
+
+        /* Free data and fetch next item */
+        free(tc);
+        cur = cur->next;
+    }
+
+    return;
+}
+
+void tracy_free(struct tracy* t) {
+    /* Free hooks list */
     ll_free(t->hooks);
+
+    /* Free all children */
+    free_children(t->childs);
     ll_free(t->childs);
+
     free(t);
+}
+
+static struct tracy_child *malloc_tracy_child(struct tracy *t, pid_t pid)
+{
+    struct tracy_child *tc;
+
+    /* Tracy non-null pointer? */
+    if (!t) {
+        errno = EINVAL;
+        return NULL;
+    }
+
+    tc = malloc(sizeof(struct tracy_child));
+    if (!tc)
+        return NULL;
+
+    tc->attached = 0;
+    tc->mem_fd = -1;
+    tc->pid = pid;
+    tc->pre_syscall = 0;
+    tc->inj.injecting = 0;
+    tc->inj.cb = NULL;
+    tc->denied_nr = 0;
+    tc->tracy = t;
+    tc->custom = NULL;
+
+    return tc;
 }
 
 struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
@@ -121,14 +178,7 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     if (pid == -1)
         return NULL;
 
-    tc = malloc(sizeof(struct tracy_child));
-    if (!tc) {
-        kill(pid, SIGKILL);
-        return NULL;
-    }
-
     /* Parent */
-
     if (t->fpid == 0)
         t->fpid = pid;
 
@@ -153,19 +203,96 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     r = ptrace(PTRACE_SYSCALL, pid, NULL, 0);
     if (r) {
         ptrace(PTRACE_KILL, pid, NULL, NULL);
+        return NULL;
     }
 
-    tc->mem_fd = -1;
-    tc->pid = pid;
-    tc->pre_syscall = 0;
-    tc->inj.injecting = 0;
-    tc->inj.cb = NULL;
-    tc->denied_nr = 0;
-    tc->tracy = t;
-    tc->custom = NULL;
+    tc = malloc_tracy_child(t, pid);
+    if (!tc) {
+        ptrace(PTRACE_KILL, pid, NULL, NULL);
+        return NULL;
+    }
 
     ll_add(t->childs, tc->pid, tc);
     return tc;
+}
+
+/* Attach to a process for tracing
+ * Upon failure returns: NULL.
+ *
+ * 'errno' will be set appropriately.
+ */
+struct tracy_child *tracy_attach(struct tracy *t, pid_t pid)
+{
+    long r;
+    int status;
+    /* TRACESYSGOOD is default for now. BSD doesn't have this... */
+    long ptrace_options = PTRACE_O_TRACESYSGOOD;
+    long signal_id;
+    struct tracy_child *tc;
+
+    if ((t->opt & TRACY_TRACE_CHILDREN) && !(t->opt & TRACY_USE_SAFE_TRACE)) {
+        ptrace_options |= PTRACE_O_TRACEFORK;
+        ptrace_options |= PTRACE_O_TRACEVFORK;
+        ptrace_options |= PTRACE_O_TRACECLONE;
+    }
+
+    r = ptrace(PTRACE_ATTACH, pid, NULL, NULL);
+    if (r) {
+        return NULL;
+    }
+
+    tc = malloc(sizeof(struct tracy_child));
+    if (!tc) {
+        ptrace(PTRACE_DETACH, pid, NULL, NULL);
+        return NULL;
+    }
+
+    /* Parent */
+
+    if (t->fpid == 0)
+        t->fpid = pid;
+
+    /* Wait for SIGSTOP from the child */
+    waitpid(pid, &status, 0);
+
+    signal_id = WSTOPSIG(status);
+    if (signal_id != SIGSTOP && signal_id != SIGTRAP) {
+        fprintf(stderr, "tracy: Error: No SIG(STOP|TRAP), got %s (%ld)\n",
+            get_signal_name(signal_id), signal_id);
+        /* TODO: Failure */
+        ptrace(PTRACE_DETACH, pid, NULL, NULL);
+        /* XXX: Need to set errno to something useful */
+        return NULL;
+    }
+
+    r = ptrace(PTRACE_SETOPTIONS, pid, NULL, (void*)ptrace_options);
+    if (r) {
+        ptrace(PTRACE_DETACH, pid, NULL, NULL);
+        /* TODO: Options may not be supported... Linux 2.4? */
+        return NULL;
+    }
+
+    /* We have made sure we will trace each system call of the child, including
+     * the system calls of the children of the child, so the child can now
+     * resume. */
+    r = ptrace(PTRACE_SYSCALL, pid, NULL, 0);
+    if (r) {
+        ptrace(PTRACE_DETACH, pid, NULL, NULL);
+        return NULL;
+    }
+
+    tc = malloc_tracy_child(t, pid);
+    if (!tc) {
+        ptrace(PTRACE_DETACH, pid, NULL, NULL);
+        return NULL;
+    }
+
+    /* This is an attached child */
+    tc->attached = 1;
+
+    ll_add(t->childs, tc->pid, tc);
+    return tc;
+
 }
 
 static int _tracy_handle_injection(struct tracy_event *e) {
@@ -229,18 +356,15 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         item = ll_find(t->childs, pid);
         if (!item) {
             printf(_y("New child: %d. Adding to tracy...")"\n", pid);
-            tc = malloc(sizeof(struct tracy_child));
+            tc = malloc_tracy_child(t, pid);
             if (!tc) {
                 perror("Cannot allocate structure for new child");
                 return NULL; /* TODO Kill the child ? */
             }
 
-            tc->pid = pid;
-            tc->inj.injecting = 0;
-            tc->inj.cb = NULL;
-            tc->denied_nr = 0;
-            tc->tracy = t;
-            tc->custom = NULL;
+            /* TODO: Determine if parent was attached to or created by us,
+             * and set tc->attached appropriately.
+             */
 
             ll_add(t->childs, tc->pid, tc);
             s = &tc->event;
@@ -821,11 +945,33 @@ int tracy_deny_syscall(struct tracy_child *child) {
     return r;
 }
 
+/* Used by the interrupt system to cancel the main loop */
+static int main_loop_go_on = 0;
+
+/* Handle SIGINT in tracy_main and shutdown smoothly */
+static void _main_interrupt_handler(int sig)
+{
+    fprintf(stderr, _y("\ntracy: Received %s, commencing soft shutdown and "
+        "disengaging signal handler.")"\n",
+        get_signal_name(sig));
+    signal(sig, SIG_DFL);
+
+    /* Cancel main loop */
+    main_loop_go_on = 0;
+
+    return;
+}
+
+/* Main function for simple tracy based applications */
 int tracy_main(struct tracy *tracy) {
     struct tracy_event *e;
 
-    while (1) {
-        e = tracy_wait_event(tracy, 0);
+    /* Setup interrupt handler */
+    main_loop_go_on = 1;
+    signal(SIGINT, _main_interrupt_handler);
+
+    while (main_loop_go_on) {
+        e = tracy_wait_event(tracy, -1);
 
         if (e->type == TRACY_EVENT_NONE) {
             break;
@@ -873,6 +1019,9 @@ int tracy_main(struct tracy *tracy) {
 
         tracy_continue(e, 0);
     }
+
+    /* Tear down interrupt handler */
+    signal(SIGINT, SIG_DFL);
 
     return 0;
 }

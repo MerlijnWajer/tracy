@@ -18,6 +18,7 @@ on *BSD, Solaris.
 failures?)
 [    ] Implement deny i.c.w. return code -ENOSYS, perhaps
 ``unimplement_syscall''?
+[X  B] Add interrupt handler to tracy_main().
 
 Soxy:
 

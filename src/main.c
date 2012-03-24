@@ -65,11 +65,12 @@ int foo_write(struct tracy_event *e) {
 }
 int main(int argc, char** argv) {
     struct tracy *tracy;
+    pid_t pid;
 
     tracy = tracy_init();
 
     if (argc < 2) {
-        printf("Usage: soxy <program name> <program arguments>\n");
+        printf("Usage: soxy (<program name> <program arguments>) | (-a <list-of-PIDs>)\n");
         return EXIT_FAILURE;
     }
 
@@ -99,13 +100,43 @@ int main(int argc, char** argv) {
     }
 
     argv++; argc--;
-    if (!fork_trace_exec(tracy, argc, argv)) {
+
+    /* Check for attaching */
+    if (!strcmp(argv[0], "-a")) {
+        argc--;
+        argv++;
+
+        if (!argc) {
+            fprintf(stdout, "Error: -a expects a list of PIDs\n");
+            return EXIT_FAILURE;
+        }
+
+        /* Process all PIDs passed */
+        while (argc) {
+            pid = atoi(argv[0]);
+
+            printf("Attaching to %d\n", pid);
+            if (!tracy_attach(tracy, pid)) {
+                perror("tracy_attach");
+                fprintf(stderr, "Couldn't attach to pid %d \"%s\"\n", pid,
+                    argv[0]);
+                tracy_free(tracy);
+                return EXIT_FAILURE;
+            }
+
+            argc--;
+            argv++;
+        }
+
+    /* If not attaching, fork/exec */
+    } else if (!fork_trace_exec(tracy, argc, argv)) {
         perror("fork_trace_exec returned NULL");
+        tracy_free(tracy);
         return EXIT_FAILURE;
     }
 
     tracy_main(tracy);
-
+    puts("Main loop done.");
     tracy_free(tracy);
 
     return 0;
