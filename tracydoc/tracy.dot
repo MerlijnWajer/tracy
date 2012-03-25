@@ -1,0 +1,51 @@
+digraph totaltracy {
+    subgraph child {
+        node [style=filled, color="#aaaaaa"]
+
+        trace -> execve -> execution -> { syscall ; signal }
+
+        execution -> execution
+
+        syscall [label="System Call"]
+        signal [label="Signal"]
+
+        syscallexe [label="Execute System Call"]
+    }
+
+    subgraph tracy {
+        node [style=filled,color=white]
+        style=filled
+        color=grey
+
+
+        waitevent -> eventchld
+        eventchld [label="Event from child"]
+        eventchld -> {pre_syscall ; post_syscall ; got_signal}
+
+        got_signal ->  signal_anal
+
+        pre_start_injection [label="Change system call number and registers"]
+        pre_stop_injection [label="Reset system call number, registers and Program Counter"]
+        pre_syscall -> pre_start_injection -> internal_event ->
+        pre_stop_injection -> pre_syscall
+
+        post_start_injection [label="Change Program Counter"]
+        post_start_injection_2 [label="Set system call number and registers"]
+        post_stop_injection [label="Save and reset return value"]
+
+        post_syscall -> post_start_injection -> post_start_injection_2 ->
+        post_stop_injection -> post_syscall
+
+    }
+
+    fork -> {trace ; waitevent}
+
+    signal_anal  -> { signal ; execution }
+    pre_syscall -> syscallexe
+    post_syscall -> execution
+
+    { signal ; syscall ; syscallexe } -> eventchld
+
+
+
+}
