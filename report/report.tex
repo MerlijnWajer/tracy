@@ -141,8 +141,13 @@ by the tracee will not run uncontrolled on any platform.
 \section{Tracing children}
 
 \subsection{Linux}
-%
-% PTRACE_O_TRACEVFORK, PTRACE_O_TRACEFORK, PTRACE_O_TRACECLONE
+
+Linux 2.6 and onwards offer options to automatically trace all children
+created by fork(2), vfork(2) and clone(2). Respectively:
+PTRACE\_O\_TRACEVFORK, PTRACE\_O\_TRACEFORK, PTRACE\_O\_TRACECLONE.
+
+% TODO: CLONE_UNTRACED vs PTRACE_O_TRACECLONE
+
 
 \subsection{Safe execution of fork(2) and friends}
 
