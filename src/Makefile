@@ -1,7 +1,7 @@
 
 .PHONY: clean tracy default tests
 
-CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror
+CFLAGS+=-std=c99 -pedantic -Wall -Wextra -Werror
 CFLAGS+=-I tracy/
 CFLAGS+=-D_XOPEN_SOURCE
 CFLAGS+=-ggdb
@@ -20,8 +20,8 @@ TESTS:=tst/fork tst/mmap
 
 tests: $(TESTS)
 
-soxy: main.c tracy
-	$(CC) main.c $(CFLAGS) $(OBJECTS) $(LDFLAGS) -o soxy
+soxy: soxy.c tracy
+	$(CC) soxy.c socks5/socks5.c $(FLAGS) $(OBJECTS) $(LDFLAGS) -o soxy -Itracy
 
 clean:
 	$(MAKE) -C tracy clean
