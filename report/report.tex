@@ -32,6 +32,10 @@
 
 % LD Preload is niet bruikbaar voor programmas die niet glibc gebruiken (zoals
 % bijvoorbeeld alles van Go lang)
+%
+% ptrace api is platform dependent ook al is het POSIX en erg matig in gebruik.
+%
+% Tracy has lots of applications
 
 \chapter{Theory}
 
@@ -189,13 +193,21 @@ original fork(2) call) and let both processes continue their execution.
 
 % picture of the process
 
+\subsection{Safe execution with different ABIs}
+
+%
+
 \chapter{Soxy}
+
+\chapter{Future work}
+
 
 \chapter{Related work}
 
 \section{strace}
 
 % strace
+% gdb
 % jail?
 
 \end{document}
