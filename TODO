@@ -2,7 +2,7 @@ Tracy:
 
 [X M ] Intercept system calls with ptrace(2)
 [X M ] Hook system calls
-[X M ] Read/Write system call arguments
+[X MB] Read/Write system call arguments
 [X MB] Inject system calls
 [X M ] Asynchronous system call injection.
 [/ M ] Modify (and deny) system calls
@@ -10,11 +10,11 @@ Tracy:
 [/  B] Efficiently share (allow read) memory with the child (Use mmap and shared
 Memory)
 [X M ] Means to conveniently store data per child/pid. (void* in tracy_child)
-[    ] (Optional) Attaching to running processes
-[    ] (Optional) Trace children as well. Default on Linux, needs hacks to work
+[X  B] (Optional) Attaching to running processes
+[X MB] (Optional) Trace children as well. Default on Linux, needs hacks to work
 on *BSD, Solaris.
-[  M ] Molkovich-ivy source.
-[    ] Finish code that test for fails. (Do we kill all childs on some
+[  M ] Malkovich-ivy source.
+[    ] Finish code that tests for fails. (Do we kill all childs on some
 failures?)
 [    ] Implement deny i.c.w. return code -ENOSYS, perhaps
 ``unimplement_syscall''?
@@ -33,11 +33,20 @@ least: read(2), write(2), connect(2), getsockname(2), socket(2).
 Documentation / Report
 
 [XJMB] Proposal
-[  M ] Tracy motivation
+[X M ] Tracy motivation
 [  MB] Tracy API
 [  MB] Tracy design decisions (ptrace caveats, platform support, arch support)
 [ JMB] Soxy motivation
 [ JMB] Soxy usage
 [ JMB] Soxy design decisions
 
-[   ] Final report
+[/ M ] Final report
+[/ M ] Motivation Chapter
+[/ M ] Theory (ptrace explanation)
+[/ M ] Implementation (Tracy design decisions)
+[    ] Soxy
+[    ] Caveats / Discussion
+[    ] Conclusion
+[    ] Future work
+[    ] Related work
+[    ] References
