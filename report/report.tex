@@ -131,7 +131,27 @@ caveats \footnote{TODO see caveats section}; but some of these are simply not
 fixable without extending the focus of Tracy to such an extend that it would no
 longer be simply a library to tracy and inject system calls.
 
-% TODO This should be extended.
+Tracy elegantly works around most architexture specific issues and implements
+functionality required to safely and efficiently trace programs on several
+operating systems. (This includes safely tracing children on BSD and fast memory
+read/write on Linux)
+
+Tracy introduces an API that allows a programmers to hook into specific system
+calls only. It also has both a synchronous and asynchronous injection API (which
+will be discussed in more detail later on) and it keeps track of the state of a
+system call - it is an event generated before a system call is executed; or
+after a system call is executed.
+
+It is often important to change arguments of a process that is being traced; to
+safely change these additional hacks are required; both changing the value
+directly as well as validating the value if the child can still change the value
+are bad ideas. The first interferes with the normal execution of the process
+(although this may be exactly what the programmer wants) and the second is
+sensitive to race conditions. Tracy has functionality to allocate memory in a
+tracee which itself cannot write but only read; thus allowing the controlling
+process to copy arguments to that memory space, validate and change them as
+necessary; finally change the pointer in the arguments to point to the memory
+space and continue the system call as normal.
 
 \chapter{Theory}
 
