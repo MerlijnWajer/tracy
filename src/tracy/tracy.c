@@ -68,6 +68,8 @@ struct tracy *tracy_init(long opt) {
 
     t->opt = opt;
 
+    t->se.child_create = NULL;
+
     return t;
 }
 
@@ -213,6 +215,9 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     }
 
     ll_add(t->childs, tc->pid, tc);
+    if (t->se.child_create)
+        (t->se.child_create)(tc);
+
     return tc;
 }
 
@@ -291,6 +296,10 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid)
     tc->attached = 1;
 
     ll_add(t->childs, tc->pid, tc);
+
+    /* TODO: Special event for attached child? */
+    if (t->se.child_create)
+        (t->se.child_create)(tc);
     return tc;
 
 }
@@ -367,6 +376,10 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
              */
 
             ll_add(t->childs, tc->pid, tc);
+
+            if (t->se.child_create)
+                (t->se.child_create)(tc);
+
             s = &tc->event;
             s->child = tc;
         } else {

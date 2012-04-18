@@ -35,12 +35,34 @@ struct tracy_event {
 
 typedef int (*tracy_hook_func) (struct tracy_event *s);
 
+typedef void (*tracy_child_creation) (struct tracy_child *c);
+
+/*
+ * Special events. A set of functions to be called when certain things
+ * happen. Currently contains:
+ *
+ * child_create(tracy_child *c);
+ *
+ *      To be used to initialise some values when a child is created.
+ *      You cannot inject anything at this time and you shall not touch the
+ *      event variable of the child.
+ *
+ *      If you want to mess with system calls and injection, simply wait for the
+ *      first event of the child; as this will always be called before you
+ *      recieve an event from the new child.
+ *
+ */
+struct tracy_special_events {
+    tracy_child_creation child_create;
+} ;
+
 struct tracy {
     struct soxy_ll *childs;
     struct soxy_ll *hooks;
     pid_t fpid;
     long opt;
     tracy_hook_func defhook;
+    struct tracy_special_events se;
 };
 
 
@@ -134,7 +156,7 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid);
 struct tracy_event *tracy_wait_event(struct tracy *t, pid_t pid);
 
 /*
- * tracy_destroy
+ *  XXX:TODO tracy_destroy
  */
 
 /* -- Basic functionality -- */
