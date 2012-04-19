@@ -78,10 +78,11 @@ the process uses.
 
 \subsection{The ptrace(2) API}
 
-\textbf{ptrace(2)} allows one process to catch all of the system calls (or even
-each instruction, but we have no use for that in Tracy)
+\textbf{ptrace(2)} allows a process to catch all of the system calls (or even
+every executed instruction, but we have no use for that in tracy)
 made by another process (called the tracee), which makes it completely
-independant of user space helper libraries used by the tracee.
+independent of user space helper libraries used by the tracee (in other words,
+ptrace(2) does not suffer from the same problem as LD\_PRELOAD.)
 
 \textbf{ptrace(2)} has platform-specific extensions (to the API) and the
 implementation differs per platform.
@@ -99,28 +100,28 @@ children created by the tracee where BSD lacks support for
 this particular feature\footnote{Tracy however does support it on BSD}.
 % TODO link to solution ^
 
-Next to the differences per operating system, there are also issues with using
-ptrace on different architectures with their instruction set.
+Next to the differences per operating system, there are also differences
+regarding the architecture, because every architecture brings it's own
+instruction set.
 
-Due to ptrace being a very low-level system call,
-it is not possible to simply ``change the return value'' of a system call.
+Due to ptrace being a very low-level system call, which operates on assembly
+level, it is not possible to simply ``change the return value'' of a system
+call. Because each architecture has a unique \textit{calling convention}
+\footnote{way of executing a system call}, each architecture needs a custom
+implementation.
 
-One would have to find out what register this is on each platform,
-keep track if the current event is a pre- or post-system call event, let alone
-perform some extra architecture-specific calls to ensure that the result is
-properly set\footnote{ARM requires extra changes to make the register
-modification of a system call number persistent.}.
+% De tekst hieronder iets te veel details heeft, imo.
 
-For our purposes (system call tracing) ptrace supports all of the basic
-operations required to trace system calls.
+% One would have to find out what register this is on each platform,
+% keep track if the current event is a pre- or post-system call event, let alone
+% perform some extra architecture-specific calls to ensure that the result is
+% properly set\footnote{ARM requires extra changes to make the register
+% modification of a system call number persistent.}.
 
-Writing a huge program that uses the ptrace api however is very cumbersome,
-because the api is so extremely low level.
-
-There is no way to hook into a specific system call, no way
-to simply inject a system call, it is not simple to change values of some
-variable/register in an architecture-agnostic way and it is not trivial
-to allocate memory in a child.
+Even though ptrace(2) does exactly what we want, it is very low-level and OS-
+and architecture specific, it does not provide functionality to intercept
+specific system calls, modify them or inject system calls, neither does it
+allow easy memory manipulation in a platform-independent way.
 
 All these seperate issues add up, eventually making the \textit{ptrace(2)} API
 infeasible for big projects.
