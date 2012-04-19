@@ -14,8 +14,9 @@
     Tracy is a system call tracing framework implemented on top of the POSIX
     ptrace(2) system call.
     Tracy can, apart from tracing system calls, modify and inject system calls
-    as well as perform several other useful tasks such as memory allocation,
-    memory manipulation and safely trace any process created by the tracee.
+    as well as perform several other useful tasks such as memory allocation in
+    the child, modifying the memory of children and safely trace all
+    (newly created) children of a process being traced.
 \end{abstract}
 
 \tableofcontents
@@ -39,34 +40,41 @@ for system call interception amongst the popular POSIX systems and several
 CPU architectures. Tracy is built upon a common API supported by most of the
 popular UNIX-es: \textbf{ptrace(2)}.
 
-In order to demonstrate this functionality (intercepting and, possibly,
-modifying system calls) we introduce \textbf{soxy}, an application to
-intercept network traffic and route it through a proxy.
+In order to demonstrate intercepting, injecting and modifying system calls
+we introduce Soxy\ref{chapter:soxy}, an application to route network
+traffic through a SOCKS 5 proxy using Tracy.
+
+% TODO: Add SOCKS5 somewhere. (Probably related work)
 
 \section{Existing solutions and their problems}
 
 \subsection{LD\_PRELOAD}
 
-By using the ``LD\_PRELOAD'' feature, which is available on POSIX, one can
-load a shared object (a library) into a process, \textit{before} any other
-libraries (such as glibc) are loaded; this makes it possible to override
-functions typically provided by other libraries. For example, the soxy
-application would preload a shared object which provides specific functions
-that interact with network traffic, such as ``send'' and ``recv''. The
-application being run will in turn call these functions instead of the
-\textit{real} ones, therefore allowing soxy to route the traffic through a
-proxy. This, transparant network routing (proxifying) through LD\_PRELOAD,
-has been implemented by \textbf{tsocks}
-\footnote{\url{http://linux.die.net/man/8/tsocks}}.
+\textbf{LD\_PRELOAD} is a way to prioritize loading of certain libraries
+while loading a process.
 
-Because of the simple design that LD\_PRELOAD offers, it is also very simple
-and, therefore, has a few downsides.
+One can use this to load a shared object (a library) into a process,
+before any other libraries (such as glibc) are loaded;
+this makes it possible to override functions typically provided by other
+libraries.
 
-A major downsides is that LD\_PRELOAD simply doesn't work on all applications;
-some applications do not use the glibc methods and, instead, perform system
-calls directly. One executes a system call by using an interrupt, which is an
-assembler instruction, this is the lowest usermode processes go. Note that, by
-executing a system call directly, one can ``escape'' from the LD\_PRELOAD hooks.
+(For our example, this ``injected'' library would provide its own
+``recvfrom'' and ``sendto''\footnote{It should probably provide
+a lot more functions; but the example will not benefit from naming others.};
+and the program being run
+would instead call the functions provided by this library. One common
+proxyfier, \textbf{tsocks}, has an application that loads other applications
+with their own library that overwrites specific network functionality,
+thus allowing transparent network routing.
+
+However, because LD\_PRELOAD relies on the dynamic loader and the fact that
+programs have to make use of libraries, it also has several downsides.
+
+One of these downsides is that LD\_PRELOAD simply doesn't work on all
+applications; some applications do not use the glibc methods and instead
+perform system calls directly. Another way to ``escape'' from LD\_PRELOAD
+is indeed to simply perform system calls in the program rather than using
+provided libraries such as glibc.
 
 There are some upcoming languages that do not even use glibc at all - languages
 like Go \footnote{\url{http://golang.org/}} talk to the kernel directly and
@@ -100,28 +108,35 @@ children created by the tracee where BSD lacks support for
 this particular feature\footnote{Tracy however does support it on BSD}.
 % TODO link to solution ^
 
-Next to the differences per operating system, there are also differences
-regarding the architecture, because every architecture brings it's own
+Aside from the differences per operating system, there are also differences
+regarding the cpu architecture, because every architecture has it's own
 instruction set.
 
 Due to ptrace being a very low-level system call, which operates on assembly
 level, it is not possible to simply ``change the return value'' of a system
-call. Because each architecture has a unique \textit{calling convention}
-\footnote{way of executing a system call}, each architecture needs a custom
-implementation.
+call. Each instruction set has its own registers and on top of that, operating
+systems often have different uses for each register.
 
-% De tekst hieronder iets te veel details heeft, imo.
 
-% One would have to find out what register this is on each platform,
-% keep track if the current event is a pre- or post-system call event, let alone
-% perform some extra architecture-specific calls to ensure that the result is
-% properly set\footnote{ARM requires extra changes to make the register
-% modification of a system call number persistent.}.
+% Dit is niet te veel detail, het is een realisatie van echte ptrace problemen
+% en een goede inleiding naar de volgende alineas - namelijk dat ptrace niet
+% geschikt is om direct te gebruiken en dat tracy veel beter is.
+One would have to find out what register this is on each platform,
+keep track if the current event is a pre- or post-system call event, let alone
+perform some extra architecture-specific calls to ensure that the result is
+properly set\footnote{ARM requires extra changes to make the register
+modification of a system call number persistent.}.
 
-Even though ptrace(2) does exactly what we want, it is very low-level and OS-
-and architecture specific, it does not provide functionality to intercept
-specific system calls, modify them or inject system calls, neither does it
-allow easy memory manipulation in a platform-independent way.
+There is no way to hook into a specific system call, no way
+to simply inject a system call, it is not simple to change values of some
+variable/register in an architecture-agnostic way and it is not trivial
+to allocate memory in a child.
+
+Even though ptrace(2) provides all the functionality required to trace and
+intercept system calls\footnote{Which is why Tracy uses ptrace},
+the functions provided by ptrace are very basic and only provide the
+essential building blocks for tracing applications.
+% Wat voor punt maken we hier? Dit moet een betere conclusie worden.
 
 All these seperate issues add up, eventually making the \textit{ptrace(2)} API
 infeasible for big projects.
@@ -149,10 +164,10 @@ system call - if it is an event generated before a system call is executed; or
 after a system call is executed.
 
 It is often important to change arguments to a system call in a process that is
-being traced; to
-safely change these additional hacks are required; both changing the value
-directly as well as validating the value if the child can still change the value
-are bad ideas. The first interferes with the normal execution of the process
+being traced; to safely change these additional hacks are required;
+both changing the value directly as well as validating the value if the child
+can still change the value are bad ideas.
+The first interferes with the normal execution of the process
 (although this may be exactly what the programmer wants) and the second is
 sensitive to race conditions. Tracy has functionality to allocate memory in the
 tracee which itself cannot write but only read; thus allowing the controlling
@@ -233,8 +248,7 @@ in a child. Instead, it would be a better idea to allocate a few pages in the
 child and copy the data to those pages, change the argument to point to the new
 pages and continue the system call. After the system call has completed, the
 pages can be freed again. This way the child's original arguments are left
-untouched (changing the contents of parameters directly could mess up internal
-structures in the tracee, therefore ending up in undefined behaviour.)
+untouched.
 
 \section{Tracing children}
 
