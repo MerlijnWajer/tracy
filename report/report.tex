@@ -43,32 +43,34 @@ In order to demonstrate this functionality (intercepting and, possibly,
 modifying system calls) we introduce \textbf{soxy}, an application to
 intercept network traffic and route it through a proxy.
 
-\section{Problems with existing solutions}
+\section{Existing solutions and their problems}
 
 \subsection{LD\_PRELOAD}
 
-One way to accomplish this is to use the so called ``LD\_PRELOAD'' feature
-available on POSIX. Basically, LD\_PRELOAD allows one to insert a library before
-any of the other libraries (such as glibc) are loaded; this makes it possible to
-override functions typically provided by other libraries. (For our example, this
-``inserted'' library would provide its own ``recvfrom'' and
-``sendto''\footnote{It should probably provide a lot more functions; but
-the example will not benefit from naming others.}; and the program being run
-would instead call the functions provided by this library. One common proxyfier,
-\textbf{tsocks}, has an application that loads other applications with their own
-library that overwrites specific network functionality, thus allowing
-transparent network routing.
+By using the ``LD\_PRELOAD'' feature, which is available on POSIX, one can
+load a shared object (a library) into a process, \textit{before} any other
+libraries (such as glibc) are loaded; this makes it possible to override
+functions typically provided by other libraries. For example, the soxy
+application would preload a shared object which provides specific functions
+that interact with network traffic, such as ``send'' and ``recv''. The
+application being run will in turn call these functions instead of the
+\textit{real} ones, therefore allowing soxy to route the traffic through a
+proxy. This, transparant network routing (proxifying) through LD\_PRELOAD,
+has been implemented by \textbf{tsocks}
+\footnote{\url{http://linux.die.net/man/8/tsocks}}.
 
-However, LD\_PRELOAD has several downsides.
+Because of the simple design that LD\_PRELOAD offers, it is also very simple
+and, therefore, has a few downsides.
 
-One of these downsides is that LD\_PRELOAD simply doesn't work on all
-applications; some applications do not use the glibc methods and instead perform
-system calls directly. Another way to ``escape'' from LD\_PRELOAD is indeed to
-simple perform system calls in the program.
+A major downsides is that LD\_PRELOAD simply doesn't work on all applications;
+some applications do not use the glibc methods and, instead, perform system
+calls directly. One executes a system call by using an interrupt, which is an
+assembler instruction, this is the lowest usermode processes go. Note that, by
+executing a system call directly, one can ``escape'' from the LD\_PRELOAD hooks.
 
 There are some upcoming languages that do not even use glibc at all - languages
-like Go (golang url) talk to the kernel directly and thus perform their own
-system calls.
+like Go \footnote{\url{http://golang.org/}} talk to the kernel directly and
+thus perform their own system calls.
 
 LD\_PRELOAD is not a viable solution if one wants to transparently capture all
 (specific) actions of a process, independent on what kind of userspace libraries
