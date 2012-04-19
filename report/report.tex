@@ -129,17 +129,20 @@ We've tried to design Tracy to be as portable as possible - meaning that code
 for ARM and x86 should be nearly (if not completely) the same. There are some
 caveats \footnote{TODO see caveats section}; but some of these are simply not
 fixable without extending the focus of Tracy to such an extend that it would no
-longer be simply a library to tracy and inject system calls.
+longer be simply a library to trace and inject system calls.
 
-Tracy elegantly works around most architexture specific issues and implements
+Tracy elegantly works around most architecture specific issues and implements
 functionality required to safely and efficiently trace programs on several
 operating systems. (This includes safely tracing children on BSD and fast memory
 read/write on Linux)
 
 Tracy introduces an API that allows a programmers to hook into specific system
-calls only. It also has both a synchronous and asynchronous injection API (which
+calls, rather than every system call as is the case with ptrace.\footnote{Of
+course, under the hood Tracy will handle every syscall, whether it is hooked
+or not}
+It also has both a synchronous and asynchronous injection API (which
 will be discussed in more detail later on) and it keeps track of the state of a
-system call - it is an event generated before a system call is executed; or
+system call - if it is an event generated before a system call is executed; or
 after a system call is executed.
 
 It is often important to change arguments of a process that is being traced; to
