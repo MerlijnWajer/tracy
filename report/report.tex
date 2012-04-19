@@ -148,12 +148,13 @@ will be discussed in more detail later on) and it keeps track of the state of a
 system call - if it is an event generated before a system call is executed; or
 after a system call is executed.
 
-It is often important to change arguments of a process that is being traced; to
+It is often important to change arguments to a system call in a process that is
+being traced; to
 safely change these additional hacks are required; both changing the value
 directly as well as validating the value if the child can still change the value
 are bad ideas. The first interferes with the normal execution of the process
 (although this may be exactly what the programmer wants) and the second is
-sensitive to race conditions. Tracy has functionality to allocate memory in a
+sensitive to race conditions. Tracy has functionality to allocate memory in the
 tracee which itself cannot write but only read; thus allowing the controlling
 process to copy arguments to that memory space, validate and change them as
 necessary; finally change the pointer in the arguments to point to the memory
@@ -181,7 +182,7 @@ to ``deny'' system calls by changing the system call to a harmless one such as
 \textbf{getpid(2)}. Obvious uses cases for modifying system calls is a process
 calling ``sandboxing'' - intercepting and changing special system calls like
 \textbf{open(2)} and prepend (if not already in place) a specific path to the
-arguments such that the tracee cannot open files outside a the specified path.
+arguments such that the tracee cannot open files outside a specified path.
 The same effect can be achieved using \textit{LD\_PRELOAD}. \footnote{fakeroot,
 link} \textit{LD\_PRELOAD} however has serious limitations, it cannot attach to
 already running processes and a process can\footnote{If written to do so} ignore
@@ -217,20 +218,23 @@ with the tracee, including but not limited to:
     different set of instructions.
 \item Inject system calls, by modifying the instruction pointer and changing the
     system call number.
+\item Modify the return value from the system call.
 \end{itemize}
 
 \section{Memory access}
 
 To fully be able to modify a tracee, the controlling process needs to be able to
-read and write the tracee memory. If the controlling process is to change
+read and write the tracee's memory. If the controlling process is to change
 arguments that point to a specific page in the tracee's memory - like a string,
 the controlling process needs to be able to write to the tracee's memory.
 
 However, it is often not a good idea for the controlling process to change data
-in a child. Instead, it would be a better idea to allocated a few pages in the
+in a child. Instead, it would be a better idea to allocate a few pages in the
 child and copy the data to those pages, change the argument to point to the new
-pages and continue the system call. After the system call is complete, the pages
-can be freed again. This way the child's original arguments are left untouched.
+pages and continue the system call. After the system call has completed, the
+pages can be freed again. This way the child's original arguments are left
+untouched (changing the contents of parameters directly could mess up internal
+structures in the tracee, therefore ending up in undefined behaviour.)
 
 \section{Tracing children}
 
