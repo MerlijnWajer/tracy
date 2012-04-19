@@ -14,9 +14,8 @@
     Tracy is a system call tracing framework implemented on top of the POSIX
     ptrace(2) system call.
     Tracy can, apart from tracing system calls, modify and inject system calls
-    as well as perform several other useful tasks such as memory allocation in
-    the child, modifying the memory of childs and safely trace all
-    (newly created) children of a process being traced.
+    as well as perform several other useful tasks such as memory allocation,
+    memory manipulation and safely trace any process created by the tracee.
 \end{abstract}
 
 \tableofcontents
@@ -35,17 +34,18 @@
 % ---- STUFF -----
 \chapter{Motivation}
 
-One of the main reasons we created Tracy was the lack of proper a proper library
+One of the main reasons we created Tracy was the lack of a proper library
 for system call interception amongst the popular POSIX systems and several
 CPU architectures. Tracy is built upon a common API supported by most of the
 popular UNIX-es: \textbf{ptrace(2)}.
 
+In order to demonstrate this functionality (intercepting and, possibly,
+modifying system calls) we introduce \textbf{soxy}, an application to
+intercept network traffic and route it through a proxy.
+
 \section{Problems with existing solutions}
 
 \subsection{LD\_PRELOAD}
-One of the goals of tracy is tracing (and possibly modifying) specific
-functionality of programs. For example; intercept all the network traffic and
-route it through a proxy. % Ref soxy?
 
 One way to accomplish this is to use the so called ``LD\_PRELOAD'' feature
 available on POSIX. Basically, LD\_PRELOAD allows one to insert a library before
