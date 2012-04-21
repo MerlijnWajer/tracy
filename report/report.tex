@@ -32,26 +32,25 @@
 % ---- STUFF -----
 % socketcall
 % KISS
+% Add SOCKS5 somewhere. (Probably related work)
 % ---- STUFF -----
 \chapter{Motivation}
 
 One of the main reasons we created Tracy was the lack of a proper library
-for system call interception amongst the popular POSIX systems and several
-CPU architectures. Tracy is built upon a common API supported by most of the
+for system call interception amongst the popular POSIX systems with
+varying CPU architectures. Tracy is built upon a common API supported by most of the
 popular UNIX-es: \textbf{ptrace(2)}.
 
-In order to demonstrate intercepting, injecting and modifying system calls
-we introduce Soxy\ref{chapter:soxy}, an application to route network
+To demostrate the system call interception, injection and modification
+we introduce Soxy\ref{chapter:soxy}: an application to route network
 traffic through a SOCKS 5 proxy using Tracy.
-
-% TODO: Add SOCKS5 somewhere. (Probably related work)
 
 \section{Existing solutions and their problems}
 
 \subsection{LD\_PRELOAD}
 
 \textbf{LD\_PRELOAD} is a way to prioritize loading of certain libraries
-while loading a process.
+while creating and loading a process.
 
 One can use this to load a shared object (a library) into a process,
 before any other libraries (such as glibc) are loaded;
@@ -280,13 +279,17 @@ by the tracee will not run uncontrolled on any platform.
 
 \chapter{Implementation}
 
+\section{Tracing a process}
+
+
 \section{System call tracing}
 
-% sync & async tracing
 
 \section{System call modification}
 
 \section{System call injection}
+
+% sync & async injection
 
 \section{Memory access}
 
