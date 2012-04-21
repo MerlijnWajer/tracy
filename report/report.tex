@@ -281,9 +281,21 @@ by the tracee will not run uncontrolled on any platform.
 
 \section{Tracing a process}
 
+Tracing a process can be done in two different ways. A process can clone itself
+and have the child announce that it wants to be traced and then execute a
+process, or a process can attach to another running process.
+
+\subsection{Fork and trace}
+
+\subsection{Attaching}
+
+%\begin{itemize}
+%    \item The child can simply call ptrace(PTRACE\_TRACEME, 0, NULL, NULL);
+%    \item A process can attach to an existing process using
+%        ptrace(PTRACE\_ATTACH, pid, NULL, NULL);
+%\end{itemize}
 
 \section{System call tracing}
-
 
 \section{System call modification}
 
