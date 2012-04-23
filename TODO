@@ -20,6 +20,10 @@ failures?)
 ``unimplement_syscall''?
 [X  B] Add interrupt handler to tracy_main().
 
+Optional:
+[    ] System call injection by signal. (Requires some changes to the injection
+functions as we can't use the current value of the PC)
+
 Soxy:
 
 [/J  ] Working implementation of SOCKS 5 protocol
