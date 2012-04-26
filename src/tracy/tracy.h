@@ -118,6 +118,13 @@ typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
 #define TRACY_EVENT_INTERNAL 4
 #define TRACY_EVENT_QUIT 5
 
+/* Define hook return values */
+#define TRACY_HOOK_CONTINUE 0
+#define TRACY_HOOK_KILL_CHILD -1
+#define TRACY_HOOK_ABORT -2
+#define TRACY_HOOK_NOHOOK 1
+
+/* Setting up and tearing down a tracy session */
 
 
 struct tracy *tracy_init(long opt);
@@ -154,6 +161,19 @@ char* get_signal_name(int signal);
 /* -- Syscall hooks -- */
 int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func);
 int tracy_set_default_hook(struct tracy *t, tracy_hook_func f);
+
+/*
+ * tracy_execute_hook
+ *
+ *
+ * Returns the return value of the hook. Hooks should return:
+ *
+ *  -   TRACY_HOOK_CONTINUE if everything is fine.
+ *  -   TRACY_HOOK_KILL_CHILD if the child should be killed.
+ *  -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
+ *  -   TRACY_HOOK_NOHOOK is no hook is in place for this system call.
+ *
+ */
 int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e);
 
 /* -- Child memory access -- */

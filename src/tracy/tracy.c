@@ -625,7 +625,7 @@ int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func) {
 
 int tracy_set_default_hook(struct tracy *t, tracy_hook_func f) {
     if (t->defhook)
-        return 1;
+        return -1;
 
     t->defhook = f;
 
@@ -647,6 +647,8 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
 
     if (item) {
         /* printf("Executing hook for: %s\n", syscall); */
+
+        /* ANSI C has some disadvantages too ... */
         _hax.pvoid = item->data;
         return _hax.pfunc(e);
     }
@@ -654,7 +656,7 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
     if (t->defhook)
         return t->defhook(e);
 
-    return 1;
+    return TRACY_HOOK_NOHOOK;
 }
 
 /* Read a single ``word'' from child e->pid */
@@ -779,7 +781,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
     if (child->pre_syscall) {
         if (tracy_inject_syscall_pre_start(child, syscall_number, a, NULL))
-            return 1;
+            return -1;
 
         child->inj.injecting = 0;
         tracy_continue(&child->event, 1);
@@ -787,13 +789,13 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         waitpid(child->pid, &garbage, 0);
 
         if (tracy_inject_syscall_pre_end(child, return_code))
-            return 1;
+            return -1;
         printf("return_code_2: %ld\n", *return_code);
 
         return 0;
     } else {
         if (tracy_inject_syscall_post_start(child, syscall_number, a, NULL))
-            return 1;
+            return -1;
         child->inj.injecting = 0;
 
         tracy_continue(&child->event, 1);
@@ -801,7 +803,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         waitpid(child->pid, &garbage, 0);
 
         if (tracy_inject_syscall_post_end(child, return_code))
-            return 1;
+            return -1;
 
         tracy_continue(&child->event, 1);
 
@@ -822,7 +824,7 @@ int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_numbe
 
     if (tracy_modify_syscall(child, syscall_number, a)) {
         printf("tracy_modify_syscall failed\n");
-        return 1;
+        return -1;
     }
 
     return 0;
@@ -891,7 +893,7 @@ int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_numb
 
     if (tracy_modify_syscall(child, syscall_number, a)) {
         printf("tracy_modify_syscall failed\n");
-        return 1;
+        return -1;
     }
 
     return 0;
@@ -953,7 +955,7 @@ int tracy_deny_syscall(struct tracy_child *child) {
 
     if (!child->pre_syscall) {
         fprintf(stderr, "ERROR: Calling deny on a POST system call");
-        return 1;
+        return -1;
     }
     nr = child->event.syscall_num;
     r = tracy_modify_syscall(child, __NR_getpid, NULL);
@@ -1005,24 +1007,17 @@ int tracy_main(struct tracy *tracy) {
 
         if (e->type == TRACY_EVENT_SYSCALL) {
             if (e->child->pre_syscall) {
-                /*
-                printf("PRE Syscall %s (%ld) requested by child %d, IP: %ld\n",
-                    get_syscall_name(e->syscall_num), e->syscall_num,
-                    e->child->pid, e->args.ip);
-                */
                 if (get_syscall_name(e->syscall_num))
                     if(!tracy_execute_hook(tracy,
                                 get_syscall_name(e->syscall_num), e)) {
+                        /* TODO */
                     }
             } else {
-                /*
-                printf("POST Syscall %s (%ld) requested by child %d, IP: %ld\n",
-                    get_syscall_name(e->syscall_num), e->syscall_num,
-                        e->child->pid, e->args.ip);
-                */
                 if (get_syscall_name(e->syscall_num))
-                    tracy_execute_hook(tracy, get_syscall_name(e->syscall_num),
-                            e);
+                    if (tracy_execute_hook(tracy,
+                                get_syscall_name(e->syscall_num), e)) {
+                        /* TODO */
+                    }
             }
         } else
 
