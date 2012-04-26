@@ -1109,7 +1109,7 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
      *
      * Check for an error value in the return code/address.
      */
-    if (mmap_ret < ((tracy_child_addr_t)0) &&
+    if (mmap_ret < ((tracy_child_addr_t)NULL) &&
             mmap_ret > ((tracy_child_addr_t)-4096)) {
         errno = -(long)mmap_ret;
         perror("tracy_mmap");
