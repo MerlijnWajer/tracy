@@ -94,12 +94,8 @@ struct tracy_child {
     /* Last denied syscall */
     int denied_nr;
 
-<<<<<<< HEAD
     void* custom;
 
-=======
-    /* This child's tracy instance */
->>>>>>> 92d70abd8e8c3051a911d45e9119706f98d85153
     struct tracy* tracy;
 
     /* Asynchronous syscall injection info */
@@ -114,16 +110,6 @@ struct tracy_child {
 
 /* Pointers for parent/child memory distinction */
 typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
-<<<<<<< HEAD
-=======
-
-/* #define OUR_PTRACE_OPTIONS (PTRACE_O_TRACESYSGOOD) */
-#ifdef __linux__
-#define OUR_PTRACE_OPTIONS (PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | \
-PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE)
-#endif
-
->>>>>>> 92d70abd8e8c3051a911d45e9119706f98d85153
 
 
 #define TRACY_EVENT_NONE 1

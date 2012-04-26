@@ -66,6 +66,7 @@ struct tracy *tracy_init(long opt) {
         return NULL;
     }
 
+    /* TODO Check opt for validity */
     t->opt = opt;
 
     t->se.child_create = NULL;
@@ -138,6 +139,7 @@ static struct tracy_child *malloc_tracy_child(struct tracy *t, pid_t pid)
     return tc;
 }
 
+/* TODO: Environment variables? */
 struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     pid_t pid;
     long r;
@@ -338,6 +340,8 @@ static struct tracy_event none_event = {
  * child (already allocated) or the none_event (which is also already
  * allocated).
  */
+/* TODO: Check if the pid is any of our children? Or will waitpid already return
+ * an error? */
 struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
     int status, signal_id, ptrace_r;
     pid_t pid;
