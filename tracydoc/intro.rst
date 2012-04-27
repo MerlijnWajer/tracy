@@ -87,7 +87,7 @@ Returns an event pointer or NULL.
 
 If NULL is returned, you should probably kill all the children and stop
 tracy; NULL indicates something went wrong internally such as the inability
-to allocate memory.
+to allocate memory or an unsolvable ptrace error.
 
 tracy_continue
 --------------

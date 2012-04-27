@@ -158,6 +158,21 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid);
 
 /*
  * tracy_wait_event
+ *
+ * tracy_wait_event waits for an event to occur on any child when pid is -1;
+ * else on a specific child.
+ *
+ * tracy_wait_event will detect any new children and automatically add them to
+ * the appropriate datastructures.
+ *
+ * An ``event'' is either a signal or a system call. tracy_wait_event populates
+ * events with the right data; arguments; system call number, etc.
+ *
+ * Returns an event pointer or NULL.
+ *
+ * If NULL is returned, you should probably kill all the children and stop
+ * tracy; NULL indicates something went wrong internally such as the inability
+ * to allocate memory or an unsolvable ptrace error.
  */
 struct tracy_event *tracy_wait_event(struct tracy *t, pid_t pid);
 

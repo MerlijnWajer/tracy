@@ -425,7 +425,8 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         /* Make functions to retrieve this */
         ptrace_r = ptrace(PTRACE_GETREGS, pid, NULL, &regs);
         if (ptrace_r) {
-            /* TODO FAILURE */
+            perror("tracy_wait_event: getregs");
+            return NULL; /* TODO */
         }
 
 
@@ -714,6 +715,7 @@ ssize_t tracy_read_mem(struct tracy_child *c, tracy_parent_addr_t dest,
 
 int tracy_poke_word(struct tracy_child *child, long to, long word) {
     if (ptrace(PTRACE_POKEDATA, child->pid, to, word)) {
+        perror("tracy_poke_word: pokedata");
         return -1;
     }
 
@@ -769,8 +771,9 @@ int tracy_munmap(struct tracy_child *child, long *ret,
     a.a0 = (long) addr;
     a.a1 = (long) length;
 
-    if (tracy_inject_syscall(child, __NR_munmap, &a, ret))
+    if (tracy_inject_syscall(child, __NR_munmap, &a, ret)) {
         return -1;
+    }
 
     return 0;
 }
@@ -788,9 +791,11 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
         waitpid(child->pid, &garbage, 0);
 
-        if (tracy_inject_syscall_pre_end(child, return_code))
+        if (tracy_inject_syscall_pre_end(child, return_code)) {
+            puts("tracy_inject_syscall: tracy_inject_syscall_pre_end"
+                    "returned an error.");
             return -1;
-        printf("return_code_2: %ld\n", *return_code);
+        }
 
         return 0;
     } else {
@@ -802,8 +807,11 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
         waitpid(child->pid, &garbage, 0);
 
-        if (tracy_inject_syscall_post_end(child, return_code))
+        if (tracy_inject_syscall_post_end(child, return_code)) {
+            puts("tracy_inject_syscall: tracy_inject_syscall_post_end"
+                    "returned an error.");
             return -1;
+        }
 
         tracy_continue(&child->event, 1);
 
@@ -814,8 +822,10 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback) {
 
-    if (ptrace(PTRACE_GETREGS, child->pid, 0, &child->inj.reg))
-        printf("PTRACE_GETREGS failed\n");
+    if (ptrace(PTRACE_GETREGS, child->pid, 0, &child->inj.reg)) {
+        perror("tracy_inject_syscall_pre_start: getregs");
+        return -1;
+    }
 
     child->inj.cb = callback;
     child->inj.injecting = 1;
@@ -835,8 +845,10 @@ int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code) {
     int garbage;
     struct TRACY_REGS_NAME newargs;
 
-    if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
-        printf("PTRACE_GETREGS failed\n");
+    if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs)) {
+        perror("tracy_inject_syscall_pre_end: getregs");
+        return -1;
+    }
 
     /* printf("Return code of getpid(): %ld\n", newargs.TRACY_RETURN_CODE); */
     *return_code = newargs.TRACY_RETURN_CODE;
@@ -847,11 +859,15 @@ int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code) {
     /* vvvv This is probably not required vvvv */
     child->inj.reg.TRACY_SYSCALL_N = child->inj.reg.TRACY_SYSCALL_REGISTER;
 
-    if (ptrace(PTRACE_SETREGS, child->pid, 0, &child->inj.reg))
-        printf("PTRACE_SETREGS failed\n");
+    if (ptrace(PTRACE_SETREGS, child->pid, 0, &child->inj.reg)) {
+        perror("tracy_inject_syscall_pre_end: setregs");
+        return -1;
+    }
 
-    if (ptrace(PTRACE_SYSCALL, child->pid, NULL, 0))
-        printf("PTRACE_SYSCALL failed\n");
+    if (ptrace(PTRACE_SYSCALL, child->pid, NULL, 0)) {
+        perror("tracy_inject_syscall_pre_end: syscall");
+        return -1;
+    }
 
     /* Wait for PRE, this shouldn't take long as we literally only wait for
      * the OS to notice that we set the PC back it should give us control back
@@ -866,25 +882,33 @@ int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_numb
     int garbage;
     struct TRACY_REGS_NAME newargs;
 
-    if (ptrace(PTRACE_GETREGS, child->pid, 0, &child->inj.reg))
-        printf("PTRACE_GETREGS failed\n");
+    if (ptrace(PTRACE_GETREGS, child->pid, 0, &child->inj.reg)) {
+        perror("tracy_inject_syscall_post_start: getregs");
+        return -1;
+    }
 
     child->inj.cb = callback;
     child->inj.injecting = 1;
     child->inj.pre = 0;
     child->inj.syscall_num = syscall_number;
 
-    if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
-        printf("PTRACE_GETREGS failed\n");
+    if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs)) {
+        perror("tracy_inject_syscall_post_start: getregs_2");
+        return -1;
+    }
 
     /* POST, go back to PRE */
     newargs.TRACY_IP_REG -= TRACY_SYSCALL_OPSIZE;
 
-    if (ptrace(PTRACE_SETREGS, child->pid, 0, &newargs))
-        printf("PTRACE_SETREGS failed\n");
+    if (ptrace(PTRACE_SETREGS, child->pid, 0, &newargs)) {
+        perror("tracy_inject_syscall_post_start: setregs");
+        return -1;
+    }
 
-    if (ptrace(PTRACE_SYSCALL, child->pid, NULL, 0))
-        printf("PTRACE_SYSCALL failed\n");
+    if (ptrace(PTRACE_SYSCALL, child->pid, NULL, 0)) {
+        perror("tracy_inject_syscall_post_start: syscall");
+        return -1;
+    }
 
     /* Wait for PRE, this shouldn't take long as we literally only wait for
      * the OS to notice that we set the PC back it should give us control back
@@ -902,13 +926,17 @@ int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_numb
 int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code) {
     struct TRACY_REGS_NAME newargs;
 
-    if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
-        printf("PTRACE_GETREGS failed\n");
+    if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs)) {
+        perror("tracy_inject_syscall_post_end: getregs");
+        return -1;
+    }
 
     *return_code = newargs.TRACY_RETURN_CODE;
 
-    if (ptrace(PTRACE_SETREGS, child->pid, 0, &child->inj.reg))
-        printf("PTRACE_SETREGS failed\n");
+    if (ptrace(PTRACE_SETREGS, child->pid, 0, &child->inj.reg)) {
+        perror("tracy_inject_syscall_post_end: setregs");
+        return -1;
+    }
 
     return 0;
 }
@@ -919,15 +947,20 @@ int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
     /* change_syscall */
     struct TRACY_REGS_NAME newargs;
 
-    if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs))
-        printf("PTRACE_GETREGS failed\n");
+    if (ptrace(PTRACE_GETREGS, child->pid, 0, &newargs)) {
+        perror("tracy_modify_syscall: getregs");
+        return -1;
+    }
 
     newargs.TRACY_SYSCALL_REGISTER = syscall_number;
     newargs.TRACY_SYSCALL_N = syscall_number;
 
     #ifdef __arm__
     /* ARM requires us to call this function to set the system call */
-    ptrace(PTRACE_SET_SYSCALL, child->pid, 0, (void*)syscall_number);
+    if (ptrace(PTRACE_SET_SYSCALL, child->pid, 0, (void*)syscall_number)) {
+        perror("tracy_modify_syscall: set_syscall");
+        return -1;
+    }
     #endif
 
     if (a) {
@@ -940,8 +973,10 @@ int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
         newargs.TRACY_RETURN_CODE = a->return_code;
     }
 
-    if (ptrace(PTRACE_SETREGS, child->pid, 0, &newargs))
-        printf("PTRACE_SETREGS failed\n");
+    if (ptrace(PTRACE_SETREGS, child->pid, 0, &newargs)) {
+        perror("tracy_modify_syscall: setregs");
+        return -1;
+    }
 
     return 0;
 }
@@ -1061,11 +1096,16 @@ static int restore_fork(struct tracy_event *e) {
 
     printf("pid: %ld\n", e->args.return_code);
 
-    if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &args))
-        perror("post getregs");
+    if (ptrace(PTRACE_GETREGS, e->child->pid, 0, &args)) {
+        perror("restore_fork: getregs");
+        return -1;
+    }
+
     args.TRACY_RETURN_CODE = child_pid;
-    if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &args))
-        perror("post setregs");
+    if (ptrace(PTRACE_SETREGS, e->child->pid, 0, &args)) {
+        perror("restore_fork: setregs");
+        return -1;
+    }
 /*
     printf("Set return code to %d\n", child_pid);
 */
@@ -1136,7 +1176,7 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
      * the instruction pointer.
      */
     if (ptrace(PTRACE_GETREGS, c->pid, 0, &args)) {
-        perror("GETREGS");
+        perror("tracy_safe_fork: getregs");
         return -1;
     }
 
@@ -1164,8 +1204,10 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     ip = args.TRACY_IP_REG;
     args.TRACY_IP_REG = (long)mmap_ret;
 
-    if (ptrace(PTRACE_SETREGS, c->pid, 0, &args))
-        perror("SETREGS");
+    if (ptrace(PTRACE_SETREGS, c->pid, 0, &args)) {
+        perror("tracy_safe_fork: setregs");
+        return -1;
+    }
 
 /*
     printf("The IP was changed from %p to %p\n", (void*)ip, (void*)mmap_ret);
@@ -1180,8 +1222,10 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
      * trying to execute a sched_yield, which we shall now make
      * into a fork syscall.
      */
-    if (ptrace(PTRACE_GETREGS, c->pid, 0, &args_ret))
-        perror("GETREGS");
+    if (ptrace(PTRACE_GETREGS, c->pid, 0, &args_ret)) {
+        perror("tracy_safe_fork: getregs_2");
+        return -1;
+    }
 /*
     printf("The IP is now %p\n", (void*)args_ret.TRACY_IP_REG);
     printf("Modifying syscall back to fork\n");
@@ -1200,8 +1244,10 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     ptrace(PTRACE_SET_SYSCALL, c->pid, 0, (void*)__NR_fork);
     #endif
 
-    if (ptrace(PTRACE_SETREGS, c->pid, 0, &args_ret))
-        perror("SETREGS");
+    if (ptrace(PTRACE_SETREGS, c->pid, 0, &args_ret)) {
+        perror("tracy_safe_fork: setregs_2");
+        return -1;
+    }
 
 /*
     puts("PRE, Entering POST");
@@ -1216,16 +1262,20 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     ptrace(PTRACE_SYSCALL, c->pid, 0, 0);
     waitpid(c->pid, &status, 0);
 
-    if (ptrace(PTRACE_GETREGS, c->pid, 0, &args_ret))
-        perror("GETREGS");
+    if (ptrace(PTRACE_GETREGS, c->pid, 0, &args_ret)) {
+        perror("tracy_safe_fork: getregs_3");
+        return -1;
+    }
 
 /*
     printf("The IP is now %p\n", (void*)args_ret.TRACY_IP_REG);
     puts("POST");
 */
 
-    if (ptrace(PTRACE_GETREGS, c->pid, 0, &args_ret))
-        perror("GETREGS");
+    if (ptrace(PTRACE_GETREGS, c->pid, 0, &args_ret)) {
+        perror("tracy_safe_fork: getregs_4");
+        return -1;
+    }
 
     /* FIXME: We don't check if the fork failed
      * which we really should since there is no point in
@@ -1241,8 +1291,9 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
      */
     args_ret.TRACY_IP_REG = ip;
 
-    if (ptrace(PTRACE_SETREGS, c->pid, 0, &args_ret))
-        perror("SETREGS");
+    if (ptrace(PTRACE_SETREGS, c->pid, 0, &args_ret)) {
+        perror("tracy_safe_fork: setregs_3");
+    }
 
     tracy_inject_syscall_post_start(c, __NR_getpid, NULL, restore_fork);
 
@@ -1260,8 +1311,10 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     args.TRACY_IP_REG = ip;
     args.TRACY_RETURN_CODE = 0;
 
-    if (ptrace(PTRACE_SETREGS, child_pid, 0, &args))
-        perror("SETREGS");
+    if (ptrace(PTRACE_SETREGS, child_pid, 0, &args)) {
+        perror("tracy_safe_fork: setregs_4");
+        return -1;
+    }
 
     ptrace(PTRACE_SETOPTIONS, child_pid, 0, PTRACE_O_TRACESYSGOOD);
 
