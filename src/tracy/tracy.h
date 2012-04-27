@@ -143,7 +143,24 @@ typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
 struct tracy *tracy_init(long opt);
 void tracy_free(struct tracy *t);
 
-/* Helper */
+/*
+ * tracy_quit
+ *
+ * tracy_quit frees all the structures, kills or detaches from all the
+ * children and then calls exit() with *exitcode*. Use tracy_free if you want to
+ * gracefully free tracy.
+ *
+ */
+
+void tracy_quit(struct tracy* t, int exitcode);
+
+/*
+ * tracy_main
+ *
+ * tracy_main is a simple tracy-event loop.
+ * Helper for RAD Tracy deployment
+ *
+ */
 int tracy_main(struct tracy *tracy);
 
 /* fork_trace, returns pid */
@@ -191,6 +208,16 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t pid);
  *
  */
 int tracy_continue(struct tracy_event *s, int sigoverride);
+
+/*
+ * tracy_kill_child
+ *
+ * tracy_kill_child attemps to kill the child *c*; it does so using ptrace with
+ * the PTRACE_KILL argument.
+ *
+ * Return 0 upon success, -1 upon failure.
+ */
+int tracy_kill_child(struct tracy_child *c);
 int check_syscall(struct tracy_event *s);
 char* get_syscall_name(int syscall);
 char* get_signal_name(int signal);

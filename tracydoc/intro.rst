@@ -37,6 +37,16 @@ tracy_free frees all the data associated with tracy:
 
 -   Datastructures used internally.
 
+tracy_quit
+----------
+
+.. c:function::
+    void tracy_quit(struct tracy* t, int exitcode);
+
+tracy_quit frees all the structures, kills or detaches from all the
+children and then calls exit() with *exitcode*. Use tracy_free if you want to
+gracefully free tracy.
+
 tracy_main
 ----------
 
@@ -98,6 +108,14 @@ tracy_continue
 tracy_continue continues the execution of the child that owns event *s*.
 If the event was caused by a signal to the child, the signal
 is passed along to the child, unless *sigoverride* is set to nonzero.
+
+tracy_kill_child
+----------------
+
+tracy_kill_child attemps to kill the child *c*; it does so using ptrace with
+the PTRACE_KILL argument.
+
+Return 0 upon success, -1 upon failure.
 
 check_syscall
 -------------

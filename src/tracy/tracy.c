@@ -2,7 +2,6 @@
  * tracy.c: ptrace convenience library
  *
  * TODO:
- *  -   Implement proper failure of ptrace commands handling.
  *  -   Define and harden async API.
  *  -   Write test cases
  *  -   Replace ll with a better datastructure.
@@ -89,6 +88,15 @@ static void free_children(struct soxy_ll *children)
             fprintf(stderr, _b("Detaching from child %d")"\n", tc->pid);
             ptrace(PTRACE_DETACH, tc->pid, NULL, NULL);
         } else {
+            /* This works because PTRACE_KILL is the only call that allows a
+             * child not to be stopped at the time of the ptrace call:
+             *
+             *   The  above  request is used only by the child process; the
+             *   rest are used only by the parent.  In the following requests,
+             *   pid specifies the child process to be acted on.
+             *   For requests other than PTRACE_KILL,
+             *   the child process must be stopped.
+             */
             fprintf(stderr, _b("Killing child %d")"\n", tc->pid);
             ptrace(PTRACE_KILL, tc->pid, NULL, NULL);
         }
@@ -110,6 +118,11 @@ void tracy_free(struct tracy* t) {
     ll_free(t->childs);
 
     free(t);
+}
+
+void tracy_quit(struct tracy* t, int exitcode) {
+    tracy_free(t);
+    exit(exitcode);
 }
 
 static struct tracy_child *malloc_tracy_child(struct tracy *t, pid_t pid)
@@ -509,7 +522,25 @@ int tracy_continue(struct tracy_event *s, int sigoverride) {
     if (sigoverride)
         sig = 0;
 
-    ptrace(PTRACE_SYSCALL, s->child->pid, NULL, sig);
+    if (ptrace(PTRACE_SYSCALL, s->child->pid, NULL, sig)) {
+        perror("tracy_continue: syscall");
+        return -1;
+    }
+
+    return 0;
+}
+
+int tracy_kill_child(struct tracy_child *c) {
+    printf("tracy_kill_child: %d\n", c->pid);
+    if (ptrace(PTRACE_KILL, c->pid)) {
+        perror("tracy_kill_child: ptrace_kill failed");
+
+        return -1;
+        /*
+        puts("Trying kill(pid, SIGKILL)");
+        kill(c->pid, SIGKILL);
+        */
+    }
 
     return 0;
 }
@@ -1019,12 +1050,14 @@ static void _main_interrupt_handler(int sig)
 /* Main function for simple tracy based applications */
 int tracy_main(struct tracy *tracy) {
     struct tracy_event *e;
+    int hook_ret;
 
     /* Setup interrupt handler */
     main_loop_go_on = 1;
     signal(SIGINT, _main_interrupt_handler);
 
     while (main_loop_go_on) {
+        start:
         e = tracy_wait_event(tracy, -1);
 
         if (e->type == TRACY_EVENT_NONE) {
@@ -1042,17 +1075,43 @@ int tracy_main(struct tracy *tracy) {
 
         if (e->type == TRACY_EVENT_SYSCALL) {
             if (e->child->pre_syscall) {
-                if (get_syscall_name(e->syscall_num))
-                    if(!tracy_execute_hook(tracy,
-                                get_syscall_name(e->syscall_num), e)) {
-                        /* TODO */
+                if (get_syscall_name(e->syscall_num)) {
+                    hook_ret = tracy_execute_hook(tracy,
+                            get_syscall_name(e->syscall_num), e);
+                    switch (hook_ret) {
+                        case TRACY_HOOK_CONTINUE:
+                            break;
+                        case TRACY_HOOK_KILL_CHILD:
+                            tracy_kill_child(e->child);
+                            /* We don't want to call tracy_continue(e, 0); */
+                            goto start;
+
+                        case TRACY_HOOK_ABORT:
+                            tracy_quit(tracy, 1);
+                            break;
+                        case TRACY_HOOK_NOHOOK:
+                            break;
                     }
+                }
             } else {
-                if (get_syscall_name(e->syscall_num))
-                    if (tracy_execute_hook(tracy,
-                                get_syscall_name(e->syscall_num), e)) {
-                        /* TODO */
+                if (get_syscall_name(e->syscall_num)) {
+                    hook_ret = tracy_execute_hook(tracy,
+                            get_syscall_name(e->syscall_num), e);
+                    switch (hook_ret) {
+                        case TRACY_HOOK_CONTINUE:
+                            break;
+                        case TRACY_HOOK_KILL_CHILD:
+                            tracy_kill_child(e->child);
+                            /* We don't want to call tracy_continue(e, 0); */
+                            goto start;
+
+                        case TRACY_HOOK_ABORT:
+                            tracy_quit(tracy, 1);
+                            break;
+                        case TRACY_HOOK_NOHOOK:
+                            break;
                     }
+                }
             }
         } else
 
