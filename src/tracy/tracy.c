@@ -542,7 +542,34 @@ int tracy_kill_child(struct tracy_child *c) {
         */
     }
 
+    if (tracy_remove_child(c)) {
+        puts("Could not remove child");
+    }
+
     return 0;
+}
+
+int tracy_remove_child(struct tracy_child *c) {
+    int r;
+    r = ll_del(c->tracy->childs, c->pid);
+
+    if (!r)
+        free(c);
+
+    return r;
+}
+
+int tracy_children_count(struct tracy* t) {
+    struct soxy_ll_item * cur;
+    int i = 0;
+    cur = t->childs->head;
+
+    while (cur) {
+        cur = cur->next;
+        i++;
+    }
+
+    return i;
 }
 
 /* Used to keep track of what is PRE and what is POST. */
@@ -1121,6 +1148,13 @@ int tracy_main(struct tracy *tracy) {
             if (e->child->pid == tracy->fpid) {
                 printf(_g("Our first child died.\n"));
             }
+
+            tracy_remove_child(e->child);
+            goto start;
+        }
+
+        if (!tracy_children_count(tracy)) {
+            break;
         }
 
         tracy_continue(e, 0);
@@ -1146,7 +1180,7 @@ static int restore_fork(struct tracy_event *e) {
 /*
     puts("RESTORE FORK");
 */
-    
+
     if (e->child->pre_syscall)
         e->child->pre_syscall = 0;
     else

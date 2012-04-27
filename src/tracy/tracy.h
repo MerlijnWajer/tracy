@@ -218,6 +218,10 @@ int tracy_continue(struct tracy_event *s, int sigoverride);
  * Return 0 upon success, -1 upon failure.
  */
 int tracy_kill_child(struct tracy_child *c);
+
+int tracy_remove_child(struct tracy_child *c);
+
+int tracy_children_count(struct tracy* t);
 int check_syscall(struct tracy_event *s);
 char* get_syscall_name(int syscall);
 char* get_signal_name(int signal);
