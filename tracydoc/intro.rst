@@ -11,35 +11,93 @@ Tracy object
 
 tracy_init
 ----------
-.. c:function:: struct tracy *tracy_init(void);
+.. c:function::
+    struct tracy *tracy_init(void);
+
+tracy_init creates the tracy record and returns a pointer to this record on
+success. Possible options for *opt*:
+
+-   *TRACY_TRACY_CHILDREN* (Trace children of the tracee created with fork,
+    vfork or clone.)
+-   *TRACY_USE_SAFE_TRACE* (Do not rely on Linux' auto-trace on fork abilities
+    and instead use our own safe implementation)
+
+Returns the tracy record created.
 
 tracy_free
 ----------
 
-.. c:function:: void tracy_free(struct tracy *t);
+.. c:function::
+    void tracy_free(struct tracy *t);
+
+tracy_free frees all the data associated with tracy:
+
+-   Any children being traced are either detached (if we attached) or killed
+    if tracy started them.
+
+-   Datastructures used internally.
 
 tracy_main
 ----------
 
-.. c:function:: int tracy_main(struct tracy *tracy);
+.. c:function::
+    int tracy_main(struct tracy *tracy);
+
+tracy_main is a simple tracy-event loop.
+Helper for RAD Tracy deployment
 
 fork_trace_exec
 ---------------
 
-.. TODO REMOVE?
+.. c:function::
+    struct tracy_child *fork_trace_exec(struct tracy *t, int argc, char **argv);
 
-.. c:function:: struct tracy_child *fork_trace_exec(struct tracy *t, int argc, char **argv);
+fork_trace_exec is the function tracy offers to actually start tracing a
+process. fork_trace_exec safely forks, asks to be traced in the child and
+then executes the given process with possible arguments.
+
+Returns the first tracy_child. You don't really need to store this as each
+event will be directly coupled to a child.
+
+tracy_attach
+------------
+
+.. c:function::
+    struct tracy_child *tracy_attach(struct tracy *t, pid_t pid);
+
+tracy_attach attaches to a running process specified by pid.
+
+Returns the structure of the attached child.
 
 tracy_wait_event
 ----------------
 
 .. c:function:: struct tracy_event *tracy_wait_event(struct tracy *t, pid_t pid);
 
+tracy_wait_event waits for an event to occur on any child when pid is -1;
+else on a specific child.
+
+tracy_wait_event will detect any new children and automatically add them to
+the appropriate datastructures.
+
+An *event* is either a signal or a system call. tracy_wait_event populates
+events with the right data; arguments; system call number, etc.
+
+Returns an event pointer or NULL.
+
+If NULL is returned, you should probably kill all the children and stop
+tracy; NULL indicates something went wrong internally such as the inability
+to allocate memory.
+
 tracy_continue
 --------------
 
 .. c:function::
     int tracy_continue(struct tracy_event *s, int sigoverride);
+
+tracy_continue continues the execution of the child that owns event *s*.
+If the event was caused by a signal to the child, the signal
+is passed along to the child, unless *sigoverride* is set to nonzero.
 
 check_syscall
 -------------

@@ -126,6 +126,19 @@ typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
 
 /* Setting up and tearing down a tracy session */
 
+/*
+ * tracy_init
+ *
+ * tracy_init creates the tracy record and returns a pointer to this record on
+ * success. Possible options for ``opt'':
+ *
+ *  -   TRACY_TRACY_CHILDREN (Trace children of the tracee created with fork,
+ *      vfork or clone.)
+ *  -   TRACY_USE_SAFE_TRACE (Do not rely on Linux' auto-trace on fork abilities
+ *      and instead use our own safe implementation)
+ *
+ * Returns the tracy record created.
+ */
 
 struct tracy *tracy_init(long opt);
 void tracy_free(struct tracy *t);
@@ -153,6 +166,15 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t pid);
  */
 
 /* -- Basic functionality -- */
+
+/*
+ * tracy_continue
+ *
+ * tracy_continue continues the execution of the child that owns event *s*.
+ * If the event was caused by a signal to the child, the signal
+ * is passed along to the child, unless *sigoverride* is set to nonzero.
+ *
+ */
 int tracy_continue(struct tracy_event *s, int sigoverride);
 int check_syscall(struct tracy_event *s);
 char* get_syscall_name(int syscall);
