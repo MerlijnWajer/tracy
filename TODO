@@ -19,6 +19,7 @@ failures?)
 [    ] Implement deny i.c.w. return code -ENOSYS, perhaps
 ``unimplement_syscall''?
 [X  B] Add interrupt handler to tracy_main().
+[    ] Documentation for tracy. (in sphinx and code)
 
 Optional:
 [    ] System call injection by signal. (Requires some changes to the injection
