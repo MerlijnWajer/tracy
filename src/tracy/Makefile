@@ -19,7 +19,9 @@ check-rwmem: tests/test-rwmem tests/hello
 tracy.o: def_syscalls.h
 
 def_syscalls.h:
-	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E -dM | grep "define SYS" | cut -f2 -d" " | sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' > def_syscalls.h
+	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E -dM \
+		| grep "define SYS" | cut -f2 -d" " | \
+		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' > def_syscalls.h
 
 clean:
 	rm *.o def_syscalls.h test-rwmem -f
