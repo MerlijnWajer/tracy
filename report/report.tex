@@ -1,7 +1,7 @@
 \documentclass[a4paper, twoside, 10pt, twocolumn]{report}
 
 \author{Jurriaan Bremer \and Merlijn Wajer \and Bas Weelinck}
-\title{Tracy: Making ptrace(2) fun} % TODO TITLE
+\title{Tracy: UNIX system call tracing}
 
 \usepackage{graphicx}
 \usepackage{hyperref}
@@ -11,12 +11,12 @@
 \maketitle
 
 \begin{abstract}
-    Tracy is a system call tracing framework implemented on top of the POSIX
+    Tracy is a system call tracing framework implemented on top of the UNIX
     ptrace(2) system call.
-    Tracy can, apart from tracing system calls, modify and inject system calls
-    as well as perform several other useful tasks such as memory allocation in
-    the child, modifying the memory of children and safely trace all
-    (newly created) children of a process being traced.
+    Tracy can trace, modify and inject system calls as well as perform several
+    other useful tasks such as memory allocation in the child, modifying the
+    memory of children and safely trace all (newly created) children of a
+    process being traced.
 \end{abstract}
 
 \tableofcontents
@@ -33,15 +33,19 @@
 % socketcall
 % KISS
 % Add SOCKS5 somewhere. (Probably related work)
+% UDP in the current SOCKS5 protocol
+% UDP over ssh ( :-( )
 % ---- STUFF -----
 \chapter{Motivation}
 
+% Uitbreiden, rare opening. Begin met een introductie, dan pas motivatie.
+
 One of the main reasons we created Tracy was the lack of a proper library
-for system call interception amongst the popular POSIX systems with
+for system call interception amongst the popular UNIX systems with
 varying CPU architectures. Tracy is built upon a common API supported by most of the
 popular UNIX-es: \textbf{ptrace(2)}.
 
-To demostrate the system call interception, injection and modification
+To demonstrate the system call interception, injection and modification
 we introduce Soxy\ref{chapter:soxy}: an application to route network
 traffic through a SOCKS 5 proxy using Tracy.
 
@@ -137,7 +141,7 @@ the functions provided by ptrace are very basic and only provide the
 essential building blocks for tracing applications.
 % Wat voor punt maken we hier? Dit moet een betere conclusie worden.
 
-All these seperate issues add up, eventually making the \textit{ptrace(2)} API
+All these separate issues add up, eventually making the \textit{ptrace(2)} API
 infeasible for big projects.
 
 \section{Enter: Tracy}
@@ -155,11 +159,11 @@ read/write on Linux)
 
 Tracy introduces an API that allows a programmers to hook into specific system
 calls, rather than every system call as is the case with ptrace.\footnote{Of
-course, under the hood Tracy will handle every syscall, whether it is hooked
-or not}
-It also has both a synchronous and asynchronous injection API (which
-will be discussed in more detail later on) and it keeps track of the state of a
-system call - if it is an event generated before a system call is executed; or
+course, under the hood Tracy will handle every system call, whether the system
+call is hooked or not.}
+Tracy also has both a synchronous and asynchronous injection API (which
+will be discussed in more detail later on) and tracy keeps track of the state of
+a system call - if it is an event generated before a system call is executed; or
 after a system call is executed.
 
 It is often important to change arguments to a system call in a process that is
