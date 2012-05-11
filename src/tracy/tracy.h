@@ -120,9 +120,9 @@ typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
 
 /* Define hook return values */
 #define TRACY_HOOK_CONTINUE 0
-#define TRACY_HOOK_KILL_CHILD -1
-#define TRACY_HOOK_ABORT -2
-#define TRACY_HOOK_NOHOOK 1
+#define TRACY_HOOK_KILL_CHILD 1
+#define TRACY_HOOK_ABORT 2
+#define TRACY_HOOK_NOHOOK 3
 
 /* Setting up and tearing down a tracy session */
 

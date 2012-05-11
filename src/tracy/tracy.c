@@ -465,10 +465,10 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         } else {
             s->args.syscall = regs.TRACY_SYSCALL_REGISTER;
             s->syscall_num = regs.TRACY_SYSCALL_REGISTER;
-            /*
-            printf(_y("%04d System call: %s")"\n", s->child->pid,
-                    get_syscall_name(s->syscall_num));
-                    */
+
+            printf(_y("%04d System call: %s (%ld) Pre: %d")"\n", s->child->pid,
+                    get_syscall_name(s->syscall_num), s->syscall_num,
+                    !s->child->pre_syscall);
         }
 
         s->args.a0 = regs.TRACY_ARG_0;
@@ -531,8 +531,25 @@ int tracy_continue(struct tracy_event *s, int sigoverride) {
 }
 
 int tracy_kill_child(struct tracy_child *c) {
+    int garbage;
+
     printf("tracy_kill_child: %d\n", c->pid);
-    if (ptrace(PTRACE_KILL, c->pid)) {
+    /*
+     * PTRACE_KILL is deprecated
+     * if (ptrace(PTRACE_KILL, c->pid)) {
+    */
+
+    kill(c->pid, SIGKILL);
+
+    if (c->pre_syscall) {
+        puts("Kill in pre");
+        tracy_deny_syscall(c);
+        ptrace(PTRACE_SYSCALL, c->pid, NULL, NULL);
+    }
+
+    waitpid(c->pid, &garbage, 0);
+
+    if (ptrace(PTRACE_SYSCALL, c->pid, NULL, SIGKILL)) {
         perror("tracy_kill_child: ptrace_kill failed");
 
         return -1;
