@@ -381,7 +381,8 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
     if (pid != -1) {
         item = ll_find(t->childs, pid);
         if (!item) {
-            printf(_y("New child: %d. Adding to tracy...")"\n", pid);
+            if (t->opt & TRACY_VERBOSE)
+                printf(_y("New child: %d. Adding to tracy...")"\n", pid);
             tc = malloc_tracy_child(t, pid);
             if (!tc) {
                 perror("Cannot allocate structure for new child");
@@ -426,7 +427,8 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         } else if (WIFSIGNALED(status)) {
             s->signal_num = WTERMSIG(status); /* + 128 */
         } else {
-            puts(_y("Recursing due to WIFSTOPPED"));
+            if (t->opt & TRACY_VERBOSE)
+                puts(_y("Recursing due to WIFSTOPPED"));
             return tracy_wait_event(t, c_pid);
         }
         return s;
@@ -466,9 +468,10 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             s->args.syscall = regs.TRACY_SYSCALL_REGISTER;
             s->syscall_num = regs.TRACY_SYSCALL_REGISTER;
 
-            printf(_y("%04d System call: %s (%ld) Pre: %d")"\n", s->child->pid,
-                    get_syscall_name(s->syscall_num), s->syscall_num,
-                    !s->child->pre_syscall);
+            if (t->opt & TRACY_VERBOSE)
+                printf(_y("%04d System call: %s (%ld) Pre: %d")"\n",
+                        s->child->pid, get_syscall_name(s->syscall_num),
+                        s->syscall_num, !s->child->pre_syscall);
         }
 
         s->args.a0 = regs.TRACY_ARG_0;
@@ -487,14 +490,16 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         check_syscall(s);
 
     } else if (signal_id == SIGTRAP) {
-        puts(_y("Recursing due to SIGTRAP"));
+        if (t->opt & TRACY_VERBOSE)
+            puts(_y("Recursing due to SIGTRAP"));
 
         tracy_continue(s, 0);
 
         return tracy_wait_event(t, c_pid);
         /* Continue the child but don't deliver the signal? */
     } else {
-        puts(_y("Signal for the child"));
+        if (t->opt & TRACY_VERBOSE)
+            puts(_y("Signal for the child"));
         /* Signal for the child, pass it along. */
         s->signal_num = signal_id;
         s->type = TRACY_EVENT_SIGNAL;
@@ -515,8 +520,9 @@ int tracy_continue(struct tracy_event *s, int sigoverride) {
         sig = s->signal_num;
 
         s->signal_num = 0; /* Clear signal */
-        printf(_y("Passing along signal %s (%d) to child %d")"\n",
-            get_signal_name(sig), sig, s->child->pid);
+        if (s->child->tracy->opt & TRACY_VERBOSE)
+            printf(_y("Passing along signal %s (%d) to child %d")"\n",
+                get_signal_name(sig), sig, s->child->pid);
     }
 
     if (sigoverride)
@@ -1160,10 +1166,13 @@ int tracy_main(struct tracy *tracy) {
         } else
 
         if (e->type == TRACY_EVENT_QUIT) {
-            printf(_b("EVENT_QUIT from %d with signal %s (%ld)\n"), e->child->pid,
-                    get_signal_name(e->signal_num), e->signal_num);
+            if (tracy->opt & TRACY_VERBOSE)
+                printf(_b("EVENT_QUIT from %d with signal %s (%ld)\n"),
+                        e->child->pid, get_signal_name(e->signal_num),
+                        e->signal_num);
             if (e->child->pid == tracy->fpid) {
-                printf(_g("Our first child died.\n"));
+                if (tracy->opt & TRACY_VERBOSE)
+                    printf(_g("Our first child died.\n"));
             }
 
             tracy_remove_child(e->child);

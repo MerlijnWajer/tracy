@@ -14,6 +14,7 @@
 
 /* Tracy options, pass them to tracy_init(). */
 #define TRACY_TRACE_CHILDREN 1 << 0
+#define TRACY_VERBOSE 1 << 1
 
 #define TRACY_USE_SAFE_TRACE 1 << 31
 
