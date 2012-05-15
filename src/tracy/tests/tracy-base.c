@@ -11,7 +11,7 @@
 int main(int argc, char** argv) {
     struct tracy *tracy;
 
-    /* */
+    /* Tracy options */
     tracy = tracy_init(TRACY_TRACE_CHILDREN);
 
     if (argc < 2) {
@@ -21,11 +21,13 @@ int main(int argc, char** argv) {
 
     argv++; argc--;
 
+    /* Start child */
     if (!fork_trace_exec(tracy, argc, argv)) {
         perror("fork_trace_exec");
         return EXIT_FAILURE;
     }
 
+    /* Main event-loop */
     tracy_main(tracy);
 
     tracy_free(tracy);

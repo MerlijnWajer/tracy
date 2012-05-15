@@ -15,30 +15,71 @@
     }
 
 int hook_write(struct tracy_event *e) {
-    (void) e;
-    return 0;
+    long ret;
+
+    if (e->child->pre_syscall) {
+        printf("PRE-write\n");
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+    } else {
+        printf("POST-write\n");
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+        printf("Return code: %ld\n", ret);
+    }
+    return TRACY_HOOK_CONTINUE;
 }
 
 int main(int argc, char** argv) {
     struct tracy *tracy;
 
-    /* */
-    tracy = tracy_init(TRACY_TRACE_CHILDREN);
+    /* Tracy options */
+    tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE);
 
     if (argc < 2) {
-        printf("Usage: ./example <program-name>\n");
+        printf("Usage: ./tracy-inject-simple <program-name>\n");
         return EXIT_FAILURE;
     }
 
+    /* Hooks */
     set_hook(write);
 
     argv++; argc--;
 
+    /* Start child */
     if (!fork_trace_exec(tracy, argc, argv)) {
         perror("fork_trace_exec");
         return EXIT_FAILURE;
     }
 
+    /* Main event-loop */
     tracy_main(tracy);
 
     tracy_free(tracy);
