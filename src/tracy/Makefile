@@ -1,6 +1,6 @@
 .PHONY: default clean check-inject tests
 
-CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror
+CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror -pipe
 CFLAGS+=-D_POSIX_SOURCE -D_GNU_SOURCE
 CFLAGS+=-ggdb
 #CFLAGS+=-O2
@@ -8,7 +8,7 @@ CFLAGS+=-ggdb
 
 OBJECTS=tracy.o ll.o trampy.o
 
-default: $(OBJECTS)
+default: $(OBJECTS) tests
 
 tests: tests/hello tests/test-rwmem tests/tracy-base tests/tracy-inject-simple
 tests/test-rwmem: tests/test-rwmem.o tracy.o ll.o trampy.o

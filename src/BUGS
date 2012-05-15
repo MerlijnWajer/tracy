@@ -1,0 +1,8 @@
+-   setpgid (bash werkt niet)
+-   problemen met injectie
+-   attached & detach (repeatedly)
+
+-   Onthou om te kijken SIGTRAP ook gedaan wordt op BSD bij exec, clone, etc
+-   Error on invalid hook return values.
+-   Sanitise syscall arguments. OF string, OF __NR_foo (of SYS_foo), maar niet
+mixed.

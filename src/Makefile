@@ -1,7 +1,7 @@
 
 .PHONY: clean tracy default tests
 
-CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror
+CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror -pipe
 CFLAGS+=-I tracy/
 CFLAGS+=-D_XOPEN_SOURCE
 CFLAGS+=-ggdb
