@@ -882,6 +882,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
     } else {
         if (tracy_inject_syscall_post_start(child, syscall_number, a, NULL))
             return -1;
+
         child->inj.injecting = 0;
 
         tracy_continue(&child->event, 1);

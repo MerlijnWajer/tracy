@@ -16,43 +16,20 @@
 
 int hook_write(struct tracy_event *e) {
     long ret;
+    int i;
 
     if (e->child->pre_syscall) {
         printf("PRE-write\n");
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
+        for (i = 0; i < 10; i++) {
+            tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+            printf("Return code: %ld\n", ret);
+        }
     } else {
         printf("POST-write\n");
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
-        tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-        printf("Return code: %ld\n", ret);
+        for (i = 0; i < 10; i++) {
+            tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
+            printf("Return code: %ld\n", ret);
+        }
     }
     return TRACY_HOOK_CONTINUE;
 }
