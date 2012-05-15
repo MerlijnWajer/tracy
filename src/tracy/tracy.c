@@ -859,6 +859,29 @@ int tracy_munmap(struct tracy_child *child, long *ret,
     return 0;
 }
 
+int tracy_debug_current(struct tracy_child *child) {
+    struct TRACY_REGS_NAME a;
+
+    printf("Child pid: %d\n", child->pid);
+
+    if (ptrace(PTRACE_GETREGS, child->pid, 0, &a)) {
+        perror("tracy_debug_current: getregs");
+        return -1;
+    }
+
+    printf("DEBUG: 0: %ld 1: %ld 2: %ld 3: %ld 4: %ld 5: %ld"
+            "r: %ld, R: %ld, IP: %ld SP: %ld\n",
+            a.TRACY_ARG_0, a.TRACY_ARG_1,
+            a.TRACY_ARG_2, a.TRACY_ARG_3,
+            a.TRACY_ARG_4, a.TRACY_ARG_5,
+            a.TRACY_SYSCALL_REGISTER, a.TRACY_RETURN_CODE,
+            a.TRACY_IP_REG, a.TRACY_STACK_POINTER
+            );
+
+
+    return 0;
+}
+
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code) {
     int garbage;
@@ -880,6 +903,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
         return 0;
     } else {
+        /*tracy_debug_current(child);*/
         if (tracy_inject_syscall_post_start(child, syscall_number, a, NULL))
             return -1;
 
@@ -895,7 +919,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
             return -1;
         }
 
-        tracy_continue(&child->event, 1);
+        /*tracy_debug_current(child);*/
 
         return 0;
     }
@@ -993,7 +1017,7 @@ int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_numb
     }
 
     /* Wait for PRE, this shouldn't take long as we literally only wait for
-     * the OS to notice that we set the PC back it should give us control back
+     * the OS to notice that we set the PC back; it should give us control back
      * on PRE-syscall*/
     waitpid(child->pid, &garbage, 0);
 
