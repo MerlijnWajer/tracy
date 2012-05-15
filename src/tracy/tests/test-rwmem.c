@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <string.h>
 
 #include <stdio.h>
@@ -131,9 +130,8 @@ void cat_file(char *file)
 
 int main(int argc, char** argv) {
     struct tracy *tracy;
-    struct tracy_event *e;
 
-    tracy = tracy_init();
+    tracy = tracy_init(0);
 
     if (argc < 2) {
         printf("Usage: soxy <program name> <program arguments>\n");
@@ -151,54 +149,7 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    while (1) {
-        e = tracy_wait_event(tracy);
-
-        /* Handle events */
-
-        /* If the (last) child died, break */
-        if (e->type == TRACY_EVENT_NONE) {
-            /* puts("We're done"); */
-            break;
-        }
-
-        if (e->type == TRACY_EVENT_SIGNAL) {
-            printf("Signal %ld for child %d\n", e->signal_num, e->child->pid);
-        }
-
-        if (e->type == TRACY_EVENT_SYSCALL) {
-            if (e->child->pre_syscall) {
-                /*
-                printf("PRE Syscall %s (%ld) requested by child %d, IP: %ld\n",
-                    get_syscall_name(e->syscall_num), e->syscall_num,
-                    e->child->pid, e->args.ip);
-                */
-                if (get_syscall_name(e->syscall_num))
-                    if(!tracy_execute_hook(tracy,
-                                get_syscall_name(e->syscall_num), e)) {
-                    }
-            } else {
-                /*
-                printf("POST Syscall %s (%ld) requested by child %d, IP: %ld\n",
-                    get_syscall_name(e->syscall_num), e->syscall_num,
-                        e->child->pid, e->args.ip);
-                */
-                if (get_syscall_name(e->syscall_num))
-                    tracy_execute_hook(tracy, get_syscall_name(e->syscall_num),
-                            e);
-            }
-        }
-
-        if (e->type == TRACY_EVENT_QUIT) {
-            printf("\nEVENT_QUIT from %d with signal %ld\n", e->child->pid,
-                    e->signal_num);
-            if (e->child->pid == tracy->fpid) {
-                printf("Our first child died.\n");
-            }
-        }
-
-        tracy_continue(e);
-    }
+    tracy_main(tracy);
 
     tracy_free(tracy);
 

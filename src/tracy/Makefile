@@ -10,8 +10,9 @@ OBJECTS=tracy.o ll.o trampy.o
 
 default: $(OBJECTS)
 
-tests: tests/hello tests/test-rwmem
-tests/test-rwmem: tests/test-rwmem.o tracy.o ll.o
+tests: tests/hello tests/test-rwmem tests/tracy-base.o
+tests/test-rwmem: tests/test-rwmem.o tracy.o ll.o trampy.o
+tests/tracy-base: tests/tracy-base.o tracy.o ll.o trampy.o
 
 check-rwmem: tests/test-rwmem tests/hello
 	tests/test-rwmem tests/hello
@@ -24,4 +25,5 @@ def_syscalls.h:
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' > def_syscalls.h
 
 clean:
-	rm *.o def_syscalls.h test-rwmem -f
+	rm *.o def_syscalls.h tests/test-rwmem tests/tracy_base tests/hello \
+		tests/*.o -f
