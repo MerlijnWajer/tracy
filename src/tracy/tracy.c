@@ -920,7 +920,6 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
         return 0;
     } else {
-        tracy_debug_current(child);
         if (tracy_inject_syscall_post_start(child, syscall_number, a, NULL))
             return -1;
 
@@ -943,7 +942,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback) {
 
-    PTRACE_CHECK(PTRACE_GETREGS, child->pid+1, 0, &child->inj.reg, -1);
+    PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &child->inj.reg, -1);
 
     child->inj.cb = callback;
     child->inj.injecting = 1;
