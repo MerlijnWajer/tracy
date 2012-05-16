@@ -1,8 +1,32 @@
--   setpgid (bash werkt niet)
--   problemen met injectie
--   attached & detach (repeatedly)
+Tracy:
+    -   [     ] setpgid (bash werkt niet)
+    -   [FIXED] problemen met injectie
+    -   [     ] attached & detach (repeatedly)
+    -   [     ] Interrupt handler moet niet zomaar SIGINT afvangen; denk aan
+    interactieve processen zoals Python.
 
--   Onthou om te kijken SIGTRAP ook gedaan wordt op BSD bij exec, clone, etc
--   Error on invalid hook return values.
--   Sanitise syscall arguments. OF string, OF __NR_foo (of SYS_foo), maar niet
-mixed.
+-   [     ] Onthou om te kijken SIGTRAP ook gedaan wordt op BSD bij exec, clone, etc
+-   [     ] Error on invalid hook return values.
+-   [     ] Sanitise syscall arguments. OF string, OF __NR_foo (of SYS_foo), maar niet
+            mixed.
+-   [     ] Goede API support voor threaded tracees. (Als ze threaded zijn,
+delen ze resources)
+-   [     ] Deny API beter maken en documenteren.
+-   [     ] Tests voor:
+                -   Async syscall injection.
+                -   Deny syscall.
+                -   safe-fork.
+                -   mmap/munmap
+                -   child read/write mem (test failed atm)
+
+-   [     ] Safely lezen van memory uit een child (copy naar ro mem, validate,
+veranderd pointers van syscall) (Kan al met current api)
+
+Niet nodig:
+
+-   [     ] BSD Support?
+
+
+Soxy:
+
+    -   [     ] …
