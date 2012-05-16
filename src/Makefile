@@ -8,6 +8,8 @@ CFLAGS+=-ggdb
 #CFLAGS+=-O2
 #CFLAGS+=-m32
 
+LDFLAGS+=-rdynamic
+
 BINARY=soxy
 
 default: soxy

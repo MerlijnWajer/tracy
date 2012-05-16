@@ -3,6 +3,8 @@
 CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror -pipe
 CFLAGS+=-D_POSIX_SOURCE -D_GNU_SOURCE
 CFLAGS+=-ggdb
+
+LDFLAGS+=-rdynamic
 #CFLAGS+=-O2
 #CFLAGS+=-m32
 
