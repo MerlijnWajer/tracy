@@ -194,10 +194,6 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid);
  */
 struct tracy_event *tracy_wait_event(struct tracy *t, pid_t pid);
 
-/*
- *  XXX:TODO tracy_destroy
- */
-
 /* -- Basic functionality -- */
 
 /*
