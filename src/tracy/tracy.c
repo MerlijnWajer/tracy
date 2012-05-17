@@ -912,13 +912,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
         waitpid(child->pid, &garbage, 0);
 
-        if (tracy_inject_syscall_pre_end(child, return_code)) {
-            puts("tracy_inject_syscall: tracy_inject_syscall_pre_end"
-                    "returned an error.");
-            return -1;
-        }
-
-        return 0;
+        return tracy_inject_syscall_pre_end(child, return_code);
     } else {
         if (tracy_inject_syscall_post_start(child, syscall_number, a, NULL))
             return -1;
@@ -929,13 +923,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
         waitpid(child->pid, &garbage, 0);
 
-        if (tracy_inject_syscall_post_end(child, return_code)) {
-            puts("tracy_inject_syscall: tracy_inject_syscall_post_end"
-                    "returned an error.");
-            return -1;
-        }
-
-        return 0;
+        return tracy_inject_syscall_post_end(child, return_code);
     }
 }
 
@@ -949,12 +937,7 @@ int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_numbe
     child->inj.pre = 1;
     child->inj.syscall_num = syscall_number;
 
-    if (tracy_modify_syscall(child, syscall_number, a)) {
-        printf("tracy_modify_syscall failed\n");
-        return -1;
-    }
-
-    return 0;
+    return tracy_modify_syscall(child, syscall_number, a);
 }
 
 
@@ -1011,12 +994,7 @@ int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_numb
      * on PRE-syscall*/
     waitpid(child->pid, &garbage, 0);
 
-    if (tracy_modify_syscall(child, syscall_number, a)) {
-        printf("tracy_modify_syscall failed\n");
-        return -1;
-    }
-
-    return 0;
+    return tracy_modify_syscall(child, syscall_number, a);
 }
 
 int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code) {
@@ -1071,6 +1049,7 @@ int tracy_deny_syscall(struct tracy_child *child) {
 
     if (!child->pre_syscall) {
         fprintf(stderr, "ERROR: Calling deny on a POST system call");
+        tracy_backtrace();
         return -1;
     }
     nr = child->event.syscall_num;
@@ -1124,6 +1103,7 @@ int tracy_main(struct tracy *tracy) {
         } else
 
         if (e->type == TRACY_EVENT_SYSCALL) {
+            /* TODO: Duplicate code */
             if (e->child->pre_syscall) {
                 if (get_syscall_name(e->syscall_num)) {
                     hook_ret = tracy_execute_hook(tracy,

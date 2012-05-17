@@ -263,10 +263,12 @@ int tracy_munmap(struct tracy_child *child, long *ret,
 
 /* -- Syscall management -- */
 
-/* Synchronous injection */
 
+/* -- Debug functions -- */
 int tracy_debug_current(struct tracy_child *child);
 void tracy_backtrace(void);
+
+/* Synchronous injection */
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code);
 
