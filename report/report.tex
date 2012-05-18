@@ -27,6 +27,29 @@
 % Implementatie / Toepassing / Illustratie
 % Conclusie
 % Referenties / Further Work
+%
+% XXX NOTES XXX
+%
+% PTRACE_TRACE_{FORK,VFORK,CLONE} is a mess. If we simply want to be called on
+% clone() in case of a clone event, we must disable fork and vfork; otherwise it
+% may also instead return fork or vfork events. From the man page:
+%
+% This  option  may not catch clone(2) calls in all cases.  If the tracee calls clone(2)
+% with  the  CLONE_VFORK  flag,  PTRACE_EVENT_VFORK  will  be   delivered   instead   if
+% PTRACE_O_TRACEVFORK  is set; otherwise if the tracee calls clone(2) with the exit sig‐
+% nal set to SIGCHLD, PTRACE_EVENT_FORK will be delivered if PTRACE_O_TRACEFORK is set.
+
+% Gebruiken PTRACE_O_TRACESYSGOOD voor performance.
+
+% execve(2) under ptrace:
+% When one thread in a multithreaded process calls execve(2), the kernel destroys all other threads in
+% the  process,  and  resets  the thread ID of the execing thread to the thread group ID (process ID).
+% (Or, to put things another way, when a multithreaded process does an execve(2), at completion of the
+% call,  it  appears  as though the execve(2) occurred in the thread group leader, regardless of which
+% thread did the execve(2).)  This resetting of the thread ID looks very confusing to tracers:
+
+
+% XXX END NOTES XXX
 
 %
 % ---- STUFF -----

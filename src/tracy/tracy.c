@@ -183,9 +183,28 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     struct tracy_child *tc;
 
     if ((t->opt & TRACY_TRACE_CHILDREN) && !(t->opt & TRACY_USE_SAFE_TRACE)) {
+        /* XXX: None of this is available on BSD.
+         * So if at some point we are going to rely on these events, we should
+         * mimic them on BSD. I suggest not relying on them and just using our
+         * own internal call.
+         *
+         * The only important ptrace option is PTRACE_O_TRACESYSGOOD, which we
+         * use simply for performance reasons.
+         *
+         * All the non-process creation extra options are used only for clarity
+         * when we are sent a SIGTRAP.
+         *
+         * Eventually, we should replace the process-creation options with our
+         * own equivalent (safe-fork). When that happens, we could remove all
+         * these extra options and implement something that works on BSD as
+         * well, at least theoretically.
+         */
         ptrace_options |= PTRACE_O_TRACEFORK;
         ptrace_options |= PTRACE_O_TRACEVFORK;
         ptrace_options |= PTRACE_O_TRACECLONE;
+        ptrace_options |= PTRACE_O_TRACEEXIT;
+        ptrace_options |= PTRACE_O_TRACEEXEC;
+        ptrace_options |= PTRACE_O_TRACEVFORKDONE;
     }
 
     pid = fork();
@@ -377,7 +396,8 @@ static struct tracy_event none_event = {
 /* TODO: Check if the pid is any of our children? Or will waitpid already return
  * an error? */
 struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
-    int status, signal_id;
+    int status, savedstatus, signal_id, info;
+    siginfo_t siginfo;
     pid_t pid;
     struct TRACY_REGS_NAME regs;
     struct tracy_child *tc;
@@ -388,6 +408,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
     /* Wait for changes */
     pid = waitpid(c_pid, &status, __WALL);
+    savedstatus = status;
 
     /* Something went wrong. */
     if (pid == -1) {
@@ -506,13 +527,40 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         check_syscall(s);
 
     } else if (signal_id == SIGTRAP) {
-        if (t->opt & TRACY_VERBOSE)
+
+        if (t->opt & TRACY_VERBOSE) {
+            /* XXX We probably want to move most of this logic out of the
+             * verbose statement soon */
+            PTRACE_CHECK(PTRACE_GETEVENTMSG, pid, NULL, &info, NULL);
+            PTRACE_CHECK(PTRACE_GETSIGINFO, pid, NULL, &siginfo, NULL);
+
             puts(_y("Recursing due to SIGTRAP"));
+            printf("SIGTRAP Info: %d, Status: %d, Signal id: %d\n", info,
+                savedstatus, signal_id);
+            printf("status>>8: %d\n", savedstatus>>8);
 
-        tracy_continue(s, 0);
+            printf("CLONE: %d\n", SIGTRAP | (PTRACE_EVENT_CLONE<<8));
+            printf("VFORK: %d\n", SIGTRAP | (PTRACE_EVENT_VFORK<<8));
+            printf("FORK: %d\n", SIGTRAP | (PTRACE_EVENT_FORK<<8));
+            printf("EXEC: %d\n", SIGTRAP | (PTRACE_EVENT_EXEC<<8));
+            printf("VFORK: %d\n", SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8));
+            printf("TRACEEXIT: %d\n", SIGTRAP | (PTRACE_EVENT_EXIT<<8));
 
+            printf("Signal info: %d\n", siginfo.si_code);
+            if (siginfo.si_code == SI_KERNEL) {
+                printf("SIGTRAP from kernel\n");
+            }
+            if (siginfo.si_code <= 0) {
+                printf("SIGTRAP from userspace\n");
+            }
+        }
+
+        /* Resume, set signal to 0; we don't want to pass SIGTRAP. */
+        tracy_continue(s, 1);
+
+        /* TODO: Replace this with goto or loop */
         return tracy_wait_event(t, c_pid);
-        /* Continue the child but don't deliver the signal? */
+
     } else {
         if (t->opt & TRACY_VERBOSE)
             puts(_y("Signal for the child"));

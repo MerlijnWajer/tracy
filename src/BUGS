@@ -22,6 +22,8 @@ delen ze resources)
 -   [     ] Safely lezen van memory uit een child (copy naar ro mem, validate,
 veranderd pointers van syscall) (Kan al met current api)
 -   [     ] tracy_safe_fork opschonen.
+-   [     ] TRACY_USE_SAFE_TRACE doet nog niets.
+
 
 Niet nodig:
 
