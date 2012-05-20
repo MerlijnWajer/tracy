@@ -72,6 +72,65 @@ To demonstrate the system call interception, injection and modification
 we introduce Soxy\ref{chapter:soxy}: an application to route network
 traffic through a SOCKS 5 proxy using Tracy.
 
+
+% Oplossing voor problemen zoals:
+%   -   Jailing/Sandboxing
+%   -   Debugging tools
+%   -   Performance analysis tools
+%   -   Transparent routing of lots of different things. (fuse in only userspace
+%   for example, vpn, socks proxy)
+%
+%   Bestaande tools:
+%   -   GDB, Valgrind
+%   -   strace
+%   -   tsocks (maar limited)
+
+% Tracy can be used to create a wide variety of software, including
+% \textit{Debugging tools}, \textit{Performance analysis tools}, \textit{Forensic
+% tools}, \textit{Jailing and Sandboxing tools} and \textit{Transparent routing of
+% data} (such as internet packets of user space filesystems).
+
+
+% Hopelijk is dit iets meer wat Leen bedoelt. Wat secties hier onder moeten we
+% omschrijven. Een beetje dubbel op informatie is geen probleem, daarvoor is het
+% een inleiding.
+% LD_PRELOAD is niet zo boeiend.
+%
+\textbf{OMSCHRIJVEN NAAR ENGELS}
+Als men programmas wil analyseren is het vaak heel nuttig om alle system calls
+die een process maakt de ``tracen''. Dit houdt in dat bij elke system call die
+een process maakt, men een bericht krijgt en vervolgens het programma kan
+inspecteren en verder kan laten lopen. Een voorbeeld van een programma dat dat
+doet is ``strace''.
+
+Het tracen van system calls wordt ook veel gebruikt in debuggers, onder andere
+valgrind(?). Zo kan men bijvoorbeeld kijken waar en of er veel system calls
+gebruikt worden.
+
+Omdat het tracen van programmas ook toestaat om het proces aan te passen, zijn
+er nog legio andere mogelijkheden voor process tracing. Het is bijvoorbeeld
+mogelijk om system calls aan te passen, system calls niet toe te staan en
+system calls te injecteren en zelfs om het geheugen van een ander proces te
+lezen en te schrijven. Denk hierbij aan het toelaten van een specifieke set van
+system calls, gecombineerd met het bekijken en aanpassen van system call
+argumenten - jailing, ook wel sandboxing genoemt. Er liggen ook veel
+mogelijkheden in het ``virtualiseren'' van input en output, denk aan het
+transparent doorsturen van internet pakketen of het transparant implementeren
+van een extra ``filesystem'' over bijvoorbeeld ssh. (Er bestaat al zoiets -
+sshfs, maar dat heeft een kernel module nodig en access naar /dev/fuse)
+
+De standaard manier om processen te tracen op UNIX is met de ptrace system
+call. Het grote nadeel aan ptrace is dat de API niet gestandariseerd is en
+verschilt per UNIX platform en computer architectuur. (Linux, BSD, etc).
+Andere tekortkomingen van ptrace worden in FOO behandeld.
+
+Tracy is process tracing implementatie die ``under the hood'' gebruikt maakt
+van ptrace, maar een zo goed mogelijk platform en computer architectuur
+agnostische implementatie te bieden. Hoewel het niet mogelijk is een volledig
+achitectuur onafhankelijke implementatie te bieden, hopen wij dat proces tracing
+op verschillende platformen met tracy een stuk simpeler zal zijn dan met ptrace.
+
+
 \section{Existing solutions and their problems}
 
 \subsection{LD\_PRELOAD}
@@ -88,7 +147,7 @@ libraries.
 ``recvfrom'' and ``sendto''\footnote{It should probably provide
 a lot more functions; but the example will not benefit from naming others.};
 and the program being run
-would instead call the functions provided by this library. One common
+would instead call the functions provided by this library.) One common
 proxyfier, \textbf{tsocks}, has an application that loads other applications
 with their own library that overwrites specific network functionality,
 thus allowing transparent network routing.
@@ -121,6 +180,7 @@ ptrace(2) does not suffer from the same problem as LD\_PRELOAD.)
 \textbf{ptrace(2)} has platform-specific extensions (to the API) and the
 implementation differs per platform.
 
+% Beetje vreemd, want we willen wel alle system calls afvangen
 To actually catch every single system call made by a process one has to
 perform all sorts of tricks\cite{}, depending on the operating system and
 architecture - this is \textit{currently} not the focus of tracy.
@@ -379,6 +439,11 @@ original fork(2) call) and let both processes continue their execution.
 \subsection{Safe execution with different ABIs}
 
 %
+
+\subsection{Children with threads}
+
+
+
 
 \chapter{Soxy}
 

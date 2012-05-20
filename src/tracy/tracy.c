@@ -1405,7 +1405,11 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
      * attaching to a failed fork.
      */
     child_pid = args_ret.TRACY_RETURN_CODE;
-    *new_child = child_pid;
+
+    /* Return PID to caller if they're interested. */
+    if (new_child)
+        *new_child = child_pid;
+
     c->safe_fork_pid = child_pid;
     printf("Fork return value: %d\n", child_pid);
 

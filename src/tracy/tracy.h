@@ -95,8 +95,10 @@ struct tracy_child {
     /* Last denied syscall */
     int denied_nr;
 
+    /* User data passed to the hooks */
     void* custom;
 
+    /* This child's tracy instance */
     struct tracy* tracy;
 
     /* Asynchronous syscall injection info */
@@ -112,7 +114,7 @@ struct tracy_child {
 /* Pointers for parent/child memory distinction */
 typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
 
-
+/* The various tracy events */
 #define TRACY_EVENT_NONE 1
 #define TRACY_EVENT_SYSCALL 2
 #define TRACY_EVENT_SIGNAL 3
@@ -140,8 +142,17 @@ typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
  *
  * Returns the tracy record created.
  */
-
 struct tracy *tracy_init(long opt);
+
+/*
+ * tracy_free
+ *
+ * tracy_free frees all the data associated with tracy:
+ * -    Any children being traced are either detached (if we attached) or killed
+ *      if tracy started them
+ * -    Datastructures used internally.
+ *
+ */
 void tracy_free(struct tracy *t);
 
 /*
@@ -164,14 +175,31 @@ void tracy_quit(struct tracy* t, int exitcode);
  */
 int tracy_main(struct tracy *tracy);
 
-/* fork_trace, returns pid */
+/*
+ * fork_trace_exec
+ *
+ * fork_trace_exec is the function tracy offers to actually start tracing a
+ * process. fork_trace_exec safely forks, asks to be traced in the child and
+ * then executes the given process with possible arguments.
+ *
+ * Returns the first tracy_child. You don't really need to store this as each
+ * event will be directly coupled to a child.
+ */
 struct tracy_child *fork_trace_exec(struct tracy *t, int argc, char **argv);
+
+/*
+ * tracy_attach
+ *
+ * tracy_attach attaches to a running process specified by pid.
+ *
+ * Returns the structure of the attached child.
+ */
 struct tracy_child *tracy_attach(struct tracy *t, pid_t pid);
 
 /*
  * tracy_attach
- * tracy_fork
- * tracy_fork_exec
+ * tracy_fork XXX: ???
+ * tracy_fork_exec XXX: ???
  */
 
 /*
@@ -282,7 +310,7 @@ int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a);
 int tracy_deny_syscall(struct tracy_child* child);
 
-/* Safe forking */
+/* -- Safe forking -- */
 int tracy_safe_fork(struct tracy_child *c, pid_t *new_child);
 
 #endif
