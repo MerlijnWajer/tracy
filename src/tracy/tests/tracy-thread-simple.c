@@ -8,16 +8,31 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#define set_hook(NAME) \
+    if (tracy_set_hook(tracy, #NAME, hook_##NAME)) { \
+        printf("Could not hook "#NAME" syscall\n"); \
+        return EXIT_FAILURE; \
+    }
+
+int hook_write(struct tracy_event *e) {
+    (void) e;
+    return TRACY_HOOK_CONTINUE;
+}
+
 int main(int argc, char** argv) {
     struct tracy *tracy;
 
     /* Tracy options */
+    /*tracy = tracy_init(TRACY_TRACE_CHILDREN);*/
     tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE);
 
     if (argc < 2) {
-        printf("Usage: ./example <program-name>\n");
+        printf("Usage: ./tracy-inject-simple <program-name>\n");
         return EXIT_FAILURE;
     }
+
+    /* Hooks */
+    set_hook(write);
 
     argv++; argc--;
 

@@ -55,9 +55,16 @@
             printf("Arguments: %s, %s, %s, %s\n", #A1, #A2, #A3, #A4); \
             printf("-------------------------------" \
                     "-------------------------------------------------\n"); \
+            tracy_backtrace(); \
             return A5; \
         } \
     }
+
+/* Foreground PID, used by tracy main's interrupt handler */
+static pid_t global_fpid;
+
+/* Static functions */
+static int check_syscall(struct tracy_event *s);
 
 struct tracy *tracy_init(long opt) {
     struct tracy *t;
@@ -74,6 +81,7 @@ struct tracy *tracy_init(long opt) {
     t->hooks = ll_init();
 
     if (!t->childs || !t->hooks) {
+        /* TODO: Does this even work */
         free(t->childs);
         free(t->hooks);
         free(t);
@@ -169,6 +177,8 @@ static struct tracy_child *malloc_tracy_child(struct tracy *t, pid_t pid)
     tc->tracy = t;
     tc->custom = NULL;
 
+    tc->event.child = tc;
+
     return tc;
 }
 
@@ -235,8 +245,12 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
         return NULL;
 
     /* Parent */
-    if (t->fpid == 0)
+    if (t->fpid == 0) {
         t->fpid = pid;
+
+        /* Also set global FPID used by tracy_main's interrupt handler */
+        global_fpid = pid;
+    }
 
     /* Wait for SIGTRAP from the child */
     waitpid(pid, &status, 0);
@@ -356,7 +370,23 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid)
     if (t->se.child_create)
         (t->se.child_create)(tc);
     return tc;
+}
 
+struct tracy_child * tracy_add_child(struct tracy *t, int pid) {
+    struct tracy_child * child;
+
+    child = malloc_tracy_child(t, pid);
+    if (!child) {
+        perror("Cannot allocate structure for new child");
+        return NULL; /* TODO Kill the child ? */
+    }
+
+    ll_add(t->childs, pid, child);
+
+    if (t->se.child_create)
+        (t->se.child_create)(child);
+
+    return child;
 }
 
 static int _tracy_handle_injection(struct tracy_event *e) {
@@ -381,6 +411,49 @@ static int _tracy_handle_injection(struct tracy_event *e) {
     e->child->inj.injected = 0;
 
     return 0;
+}
+
+/* HELP */
+static int tracy_internal_syscall(struct tracy_event *s) {
+    pid_t child;
+    struct tracy_child *new_child;
+
+    if (!(s->child->tracy->opt & TRACY_USE_SAFE_TRACE))
+        return -1;
+
+    if (!s->child->pre_syscall)
+        return -1;
+
+
+    switch(s->syscall_num) {
+        case SYS_fork:
+            printf("Internal Syscall %s\n", get_syscall_name(s->syscall_num));
+            if (tracy_safe_fork(s->child, &child)) {
+                printf("tracy_safe_fork failed\n!");
+                tracy_debug_current(s->child);
+                /* Probably kill child, or at least make sure it can't fork */
+                return -1;
+            }
+            printf("New child: %d\n", child);
+
+            new_child = tracy_add_child(s->child->tracy, child);
+
+            printf("Added and resuming child\n");
+            tracy_continue(&new_child->event, 1);
+
+            printf("Continue parent\n");
+            tracy_continue(s, 1);
+
+            printf("Done!\n");
+            return 0;
+            break;
+        case SYS_clone:
+        case SYS_vfork:
+        default:
+            break;
+    }
+
+    return -1;
 }
 
 static struct tracy_event none_event = {
@@ -425,20 +498,11 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         if (!item) {
             if (t->opt & TRACY_VERBOSE)
                 printf(_y("New child: %d. Adding to tracy...")"\n", pid);
-            tc = malloc_tracy_child(t, pid);
+
+            tc = tracy_add_child(t, pid);
             if (!tc) {
-                perror("Cannot allocate structure for new child");
-                return NULL; /* TODO Kill the child ? */
+                return NULL;
             }
-
-            /* TODO: Determine if parent was attached to or created by us,
-             * and set tc->attached appropriately.
-             */
-
-            ll_add(t->childs, tc->pid, tc);
-
-            if (t->se.child_create)
-                (t->se.child_create)(tc);
 
             s = &tc->event;
             s->child = tc;
@@ -524,7 +588,13 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
         s->type = TRACY_EVENT_SYSCALL;
 
+        /* If we fork, then I can't think of a way to nicely send a pre and post
+         * fork event to the user. XXX TODO FIXME */
         check_syscall(s);
+
+        if (!tracy_internal_syscall(s)) {
+            return tracy_wait_event(t, c_pid);
+        }
 
     } else if (signal_id == SIGTRAP) {
 
@@ -649,7 +719,7 @@ int tracy_children_count(struct tracy* t) {
 }
 
 /* Used to keep track of what is PRE and what is POST. */
-int check_syscall(struct tracy_event *s) {
+static int check_syscall(struct tracy_event *s) {
     s->child->pre_syscall = s->child->pre_syscall ? 0 : 1;
     return 0;
 }
@@ -724,12 +794,11 @@ static int hash_syscall(char * syscall) {
 /*
  *
  * Simple hooking into system calls. Calls are passed by name to keep them
- * platform indepentent.
+ * platform independent.
  *
- * TODO:
- *  - We need to figure out what exact arguments to pass to the hooks
- *  - We need to define the return values of the hooks. It should be possible to
- *  block / deny system calls based on the result of the hook. (Right?)
+ *
+ * XXX: This is not true^, we can just use SYS_foo too. (Although SYS_clone does
+ * not exist on say, BSD)
  *
  */
 int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func) {
@@ -759,9 +828,6 @@ int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func) {
 }
 
 int tracy_set_default_hook(struct tracy *t, tracy_hook_func f) {
-    if (t->defhook)
-        return -1;
-
     t->defhook = f;
 
     return 0;
@@ -978,6 +1044,8 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback) {
 
+    /* TODO CHECK PRE_SYSCALL BIT */
+
     PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &child->inj.reg, -1);
 
     child->inj.cb = callback;
@@ -995,7 +1063,6 @@ int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code) {
 
     PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &newargs, -1);
 
-    /* printf("Return code of getpid(): %ld\n", newargs.TRACY_RETURN_CODE); */
     *return_code = newargs.TRACY_RETURN_CODE;
 
     /* POST */
@@ -1021,6 +1088,7 @@ int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_numb
     int garbage;
     struct TRACY_REGS_NAME newargs;
 
+    /* TODO CHECK PRE_SYSCALL BIT */
     PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &child->inj.reg, -1);
 
     child->inj.cb = callback;
@@ -1113,13 +1181,20 @@ static int main_loop_go_on = 0;
 /* Handle SIGINT in tracy_main and shutdown smoothly */
 static void _main_interrupt_handler(int sig)
 {
-    fprintf(stderr, _y("\ntracy: Received %s, commencing soft shutdown and "
-        "disengaging signal handler.")"\n",
-        get_signal_name(sig));
-    signal(sig, SIG_DFL);
+    if (kill(global_fpid, SIGINT) < 0) {
+        if (errno == ESRCH)
+            fprintf(stderr, _y("\ntracy: Received %s, foreground PID "
+                "does not exists, killing all."), get_signal_name(sig));
+        else
+            fprintf(stderr, _y("\ntracy: Received %s, kill(%i, SIGINT) failed: %s"),
+                get_signal_name(sig), global_fpid, strerror(errno));
 
-    /* Cancel main loop */
-    main_loop_go_on = 0;
+        /* Reset to default so tracy can be killed */
+        signal(sig, SIG_DFL);
+
+        /* Cancel main loop */
+        main_loop_go_on = 0;
+    }
 
     return;
 }
@@ -1220,39 +1295,6 @@ int tracy_main(struct tracy *tracy) {
     return 0;
 }
 
-/* This function is used as a callback by the safe-fork
- * functions.
- *
- * It's main purpose is to set the correct fork result
- * and restore PRE/POST order.
- */
-static int restore_fork(struct tracy_event *e) {
-    struct TRACY_REGS_NAME args;
-    pid_t child_pid;
-
-    child_pid = e->child->safe_fork_pid;
-/*
-    puts("RESTORE FORK");
-*/
-
-    if (e->child->pre_syscall)
-        e->child->pre_syscall = 0;
-    else
-        e->child->pre_syscall = 1;
-
-
-    printf("pid: %ld\n", e->args.return_code);
-
-    PTRACE_CHECK(PTRACE_GETREGS, e->child->pid, 0, &args, -1);
-
-    args.TRACY_RETURN_CODE = child_pid;
-    PTRACE_CHECK(PTRACE_SETREGS, e->child->pid, 0, &args, -1);
-/*
-    printf("Set return code to %d\n", child_pid);
-*/
-    return 0;
-}
-
 /* Safe forking/cloning
  *
  * This function takes over the PRE fase of a child process' fork
@@ -1339,6 +1381,8 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     args.TRACY_SYSCALL_REGISTER = __NR_fork;
     args.TRACY_SYSCALL_N = __NR_fork;
 
+    /* XXX: TODO: Should we place an ARM PTRACE_SET_SYSCALL here? */
+
     ip = args.TRACY_IP_REG;
     args.TRACY_IP_REG = (long)mmap_ret;
 
@@ -1410,20 +1454,23 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     if (new_child)
         *new_child = child_pid;
 
-    c->safe_fork_pid = child_pid;
     printf("Fork return value: %d\n", child_pid);
 
     /* Now point the parent process after the original fork
      * syscall instruction.
      */
     args_ret.TRACY_IP_REG = ip;
+    args_ret.TRACY_RETURN_CODE = child_pid;
 
     PTRACE_CHECK(PTRACE_SETREGS, c->pid, 0, &args_ret, -1);
+    printf("Return code set to %d\n", child_pid);
 
-    tracy_inject_syscall_post_start(c, __NR_getpid, NULL, restore_fork);
+    c->pre_syscall = 0;
 
     /* Attach to the new child */
     printf("Attaching to %d...\n", child_pid);
+
+    /* Ptrace guarantees PRE state (? XXX TODO FIXME)*/
     PTRACE_CHECK(PTRACE_ATTACH, child_pid, 0, 0, -1);
     waitpid(child_pid, &status, 0);
 
@@ -1441,7 +1488,8 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     PTRACE_CHECK(PTRACE_SETOPTIONS, child_pid, 0, PTRACE_O_TRACESYSGOOD, -1);
 
     /* Continue the new child */
-    PTRACE_CHECK(PTRACE_SYSCALL, child_pid, 0, 0, -1);
+
+    /* PTRACE_CHECK(PTRACE_SYSCALL, child_pid, 0, 0, -1); */
 
     /* TODO: We should now munmap the pages in both the parent and the child.
      * Unless ofc. we created a thread which shares VM in which case we should

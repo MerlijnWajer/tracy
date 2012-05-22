@@ -106,9 +106,6 @@ struct tracy_child {
 
     /* Last event that occurred */
     struct tracy_event event;
-
-    /* Child PID acquired through controlled forking */
-    pid_t safe_fork_pid;
 };
 
 /* Pointers for parent/child memory distinction */
@@ -203,6 +200,17 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid);
  */
 
 /*
+ * tracy_add_child
+ *
+ * tracy_add_child adds a child to tracy's list of children.
+ *
+ * Returns the structure of the child.
+ */
+struct tracy_event *tracy_wait_event(struct tracy *t, pid_t pid);
+
+struct tracy_child * tracy_add_child(struct tracy *t, int pid);
+
+/*
  * tracy_wait_event
  *
  * tracy_wait_event waits for an event to occur on any child when pid is -1;
@@ -246,13 +254,35 @@ int tracy_kill_child(struct tracy_child *c);
 
 int tracy_remove_child(struct tracy_child *c);
 
+/*
+ * tracy_children_count
+ *
+ * tracy_children_count returns the amount of alive children managed by tracy.
+ */
 int tracy_children_count(struct tracy* t);
-int check_syscall(struct tracy_event *s);
+
 char* get_syscall_name(int syscall);
 char* get_signal_name(int signal);
 
 /* -- Syscall hooks -- */
+/*
+ * tracy_set_hook
+ *
+ * Set the hook for a system call.
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+
 int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func);
+
+/*
+ * tracy_set_default_hook
+ *
+ * Set the default hook. (Called when a syscall occurs and no hook is installed
+ * for the system call. *func* is the function to be set as hook.
+ *
+ * Returns 0 on success. Success is guaranteed! :-)
+ */
 int tracy_set_default_hook(struct tracy *t, tracy_hook_func f);
 
 /*
@@ -285,7 +315,10 @@ int tracy_mmap(struct tracy_child *child, tracy_child_addr_t *ret,
 int tracy_munmap(struct tracy_child *child, long *ret,
        tracy_child_addr_t addr, size_t length);
 
-/* -- Syscall management -- */
+
+/* -- Debug functions -- */
+int tracy_debug_current(struct tracy_child *child);
+void tracy_backtrace(void);
 
 
 /* -- Debug functions -- */
