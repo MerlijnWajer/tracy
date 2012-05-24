@@ -822,6 +822,52 @@ int tracy_peek_word(struct tracy_child *child, long from, long *word) {
     return 0;
 }
 
+/* Read a byte chunk using ptrace's peek/poke API 
+ * This function is a lot slower than tracy_read_mem which uses the proc
+ * filesystem for accessing the child's memory space.
+ *
+ * If this function errors the 'dest' memory is left in an undefined state.
+ *
+ * XXX: We currently do not align at word boundaries, furthermore we only read
+ * whole words, this might cause trouble on some architectures.
+ *
+ */
+ssize_t tracy_peek_mem(struct tracy_child *c, tracy_parent_addr_t dest,
+        tracy_child_addr_t src, ssize_t n) {
+
+    long *l_dest = (long*)dest;
+
+    /* The long source address */
+    long from;
+
+    /* Force cast from (void*) to (long) */
+    union {
+        void *p_addr;
+        long l_addr;
+    } _cast_addr;
+
+    /* The only way to check for a ptrace peek error is errno, so reset it */
+    errno = 0;
+
+    /* Convert source address to a long to be used by ptrace */
+    _cast_addr.p_addr = src;
+    from = _cast_addr.l_addr;
+
+    /* Peek memory loop */
+    while (n > 0) {
+        *l_dest = ptrace(PTRACE_PEEKDATA, c->pid, from, NULL);
+        if (errno)
+            return -1;
+
+        /* Update the various pointers */
+        l_dest++;
+        from += sizeof(long);
+        n -= sizeof(long);
+    }
+
+    return 0;
+}
+
 /* Open child's memory space */
 static int open_child_mem(struct tracy_child *c)
 {
@@ -871,6 +917,51 @@ int tracy_poke_word(struct tracy_child *child, long to, long word) {
 
     return 0;
 }
+
+/* Write a byte chunk using ptrace's peek/poke API 
+ * This function is a lot slower than tracy_write_mem which uses the proc
+ * filesystem for accessing the child's memory space.
+ *
+ * If this function errors the 'dest' child memory is left in an undefined state.
+ *
+ * XXX: We currently do not align at word boundaries, furthermore we only read
+ * whole words, this might cause trouble on some architectures.
+ *
+ * XXX: We could possibly return the negative of words successfully written
+ * on error.
+ */
+ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
+        tracy_parent_addr_t src, ssize_t n) {
+
+    long *l_src = (long*)src;
+
+    /* The long target address */
+    long to;
+
+    /* Force cast from (void*) to (long) */
+    union {
+        void *p_addr;
+        long l_addr;
+    } _cast_addr;
+
+    /* Convert source address to a long to be used by ptrace */
+    _cast_addr.p_addr = dest;
+    to = _cast_addr.l_addr;
+
+    /* Peek memory loop */
+    while (n > 0) {
+        if (ptrace(PTRACE_POKEDATA, c->pid, to, *l_src))
+            return -1;
+
+        /* Update the various pointers */
+        l_src++;
+        to += sizeof(long);
+        n -= sizeof(long);
+    }
+
+    return 0;
+}
+
 
 ssize_t tracy_write_mem(struct tracy_child *c, tracy_child_addr_t dest,
         tracy_parent_addr_t src, size_t n) {
