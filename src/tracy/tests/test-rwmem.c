@@ -33,8 +33,27 @@
 /* For __NR_<SYSCALL> */
 #include <sys/syscall.h>
 
+static int use_ptrace_mem = 0;
+
 void cat_file(char *file);
 
+static ssize_t read_mem(struct tracy_child *c, tracy_parent_addr_t dest,
+    tracy_child_addr_t src, size_t n)
+{
+    if (use_ptrace_mem)
+        return tracy_peek_mem(c, dest, src, n);
+    return tracy_read_mem(c, dest, src, n);
+}
+
+static ssize_t write_mem(struct tracy_child *c, tracy_child_addr_t dest,
+    tracy_parent_addr_t src, size_t n)
+{
+    if (use_ptrace_mem)
+        return tracy_poke_mem(c, dest, src, n);
+    return tracy_write_mem(c, dest, src, n);
+}
+
+static 
 /* write syscall hook args layout:
  *      e->args.a0: file descriptor
  *      e->args.a1: data pointer
@@ -70,8 +89,8 @@ int foo(struct tracy_event *e) {
     str = malloc(sizeof(char) * 4096);
 
     /* Read memory */
-    if ((i = tracy_read_mem(e->child, str, (void*)e->args.a1, sizeof(char) * len)) < 0)
-        perror("tracy_read_mem");
+    if ((i = read_mem(e->child, str, (void*)e->args.a1, sizeof(char) * len)) < 0)
+        perror("read_mem");
     printf("Read %d bytes.\n", i);
 
     /* Python style string dump */
@@ -97,8 +116,8 @@ int foo(struct tracy_event *e) {
     printf("Data by peek word: %p, '%s'\n", (void*)word, wstr);
 
     strfry(str);
-    if (tracy_write_mem(e->child, (void*)e->args.a1, str, sizeof(char) * len) < 0)
-        perror("tracy_write_mem");
+    if (write_mem(e->child, (void*)e->args.a1, str, sizeof(char) * len) < 0)
+        perror("write_mem");
 
     free(str);
 
@@ -146,13 +165,9 @@ void cat_file(char *file)
 
 int main(int argc, char** argv) {
     struct tracy *tracy;
+    const char *program_name = argv[0];
 
     tracy = tracy_init(0);
-
-    if (argc < 2) {
-        printf("Usage: soxy <program name> <program arguments>\n");
-        return EXIT_FAILURE;
-    }
 
     if (tracy_set_hook(tracy, "write", foo)) {
         printf("Failed to hook write syscall.\n");
@@ -160,6 +175,19 @@ int main(int argc, char** argv) {
     }
 
     argv++; argc--;
+    if (argc) {
+        if (!strcmp(argv[0], "-p")) {
+            use_ptrace_mem = 1;
+            argv++; argc--;
+        }
+    }
+
+    if (!argc) {
+        printf("Usage: %s [-p] <program name> <program arguments>\n",
+            program_name);
+        return EXIT_FAILURE;
+    }
+
     if (!fork_trace_exec(tracy, argc, argv)) {
         perror("fork_trace_exec returned NULL");
         return EXIT_FAILURE;
@@ -168,6 +196,10 @@ int main(int argc, char** argv) {
     tracy_main(tracy);
 
     tracy_free(tracy);
+
+    /* Most of the times newlines get shuffled in between, so for
+     * shell clarity's sake, write a newline */
+    puts("");
 
     return 0;
 }
