@@ -61,6 +61,7 @@
 #define _b(s) s
 #endif
 
+/* Macro's */
 #define PTRACE_CHECK(A1, A2, A3, A4, A5) \
     { \
         if (ptrace(A1, A2, A3, A4)) { \
@@ -865,7 +866,7 @@ ssize_t tracy_peek_mem(struct tracy_child *c, tracy_parent_addr_t dest,
         n -= sizeof(long);
     }
 
-    return 0;
+    return from - _cast_addr.l_addr;
 }
 
 /* Open child's memory space */
@@ -959,7 +960,7 @@ ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
         n -= sizeof(long);
     }
 
-    return 0;
+    return to - _cast_addr.l_addr;
 }
 
 
