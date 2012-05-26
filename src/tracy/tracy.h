@@ -32,6 +32,9 @@
 #define TRACY_TRACE_CHILDREN 1 << 0
 #define TRACY_VERBOSE 1 << 1
 
+/* Enable automatic usage of ptrace's memory API when PPM (/proc based) fails */
+#define TRACY_MEMORY_FALLBACK 1 << 2
+
 #define TRACY_USE_SAFE_TRACE 1 << 31
 
 struct tracy_child;
@@ -71,7 +74,7 @@ typedef void (*tracy_child_creation) (struct tracy_child *c);
  */
 struct tracy_special_events {
     tracy_child_creation child_create;
-} ;
+};
 
 struct tracy {
     struct soxy_ll *childs;
@@ -107,6 +110,9 @@ struct tracy_child {
 
     /* File descriptor pointing to /proc/<pid>/mem, -1 if closed */
     int mem_fd;
+
+    /* Fallback indicator used in case /proc access fails */
+    int mem_fallback;
 
     /* Last denied syscall */
     int denied_nr;

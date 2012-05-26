@@ -178,6 +178,7 @@ static struct tracy_child *malloc_tracy_child(struct tracy *t, pid_t pid)
 
     tc->attached = 0;
     tc->mem_fd = -1;
+    tc->mem_fallback = 0;
     tc->pid = pid;
     tc->pre_syscall = 0;
     tc->inj.injecting = 0;
@@ -892,12 +893,12 @@ static int open_child_mem(struct tracy_child *c)
 }
 
 /* Returns bytes read */
-ssize_t tracy_read_mem(struct tracy_child *c, tracy_parent_addr_t dest,
-        tracy_child_addr_t src, size_t n) {
+static ssize_t tracy_ppm_read_mem(struct tracy_child *c,
+        tracy_parent_addr_t dest, tracy_child_addr_t src, size_t n) {
     /* Open memory if it's not open yet */
     if (c->mem_fd < 0) {
         if (open_child_mem(c) < 0)
-            return -1;
+            return -2;
     }
 
     /* Try seeking this memory postion */
@@ -908,6 +909,30 @@ ssize_t tracy_read_mem(struct tracy_child *c, tracy_parent_addr_t dest,
 
     /* And read. */
     return read(c->mem_fd, dest, n);
+}
+
+/* XXX The memory access functions should not be used for reading more than 2GB
+ * on 32-bit because they will cause the error handling code to trigger incorrectly
+ * while executing successfully
+ */
+ssize_t tracy_read_mem(struct tracy_child *child,
+        tracy_parent_addr_t dest, tracy_child_addr_t src, size_t n) {
+    int r;
+
+    if (child->mem_fallback)
+        return tracy_peek_mem(child, dest, src, n);
+
+    r = tracy_ppm_read_mem(child, dest, src, n);
+
+    /* The fallback should only trigger upon failure of opening the
+     * child's memory, tracy_ppm_read_mem returns -2 when this happens.
+     */
+    if (r == -2 && (child->tracy->opt & TRACY_MEMORY_FALLBACK)) {
+        child->mem_fallback = 1;
+        r = tracy_peek_mem(child, dest, src, n);
+    }
+
+    return r;
 }
 
 int tracy_poke_word(struct tracy_child *child, long to, long word) {
@@ -929,7 +954,8 @@ int tracy_poke_word(struct tracy_child *child, long to, long word) {
  * whole words, this might cause trouble on some architectures.
  *
  * XXX: We could possibly return the negative of words successfully written
- * on error.
+ * on error. When we do, we need to be careful because the negative value
+ * returned is used to signal some faults in the tracy_ppm* functions.
  */
 ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
         tracy_parent_addr_t src, ssize_t n) {
@@ -964,12 +990,12 @@ ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
 }
 
 
-ssize_t tracy_write_mem(struct tracy_child *c, tracy_child_addr_t dest,
-        tracy_parent_addr_t src, size_t n) {
+static ssize_t tracy_ppm_write_mem(struct tracy_child *c,
+        tracy_child_addr_t dest, tracy_parent_addr_t src, size_t n) {
     /* Open memory if it's not open yet */
     if (c->mem_fd < 0) {
         if (open_child_mem(c) < 0)
-            return -1;
+            return -2;
     }
 
     /* Try seeking this memory postion */
@@ -980,6 +1006,26 @@ ssize_t tracy_write_mem(struct tracy_child *c, tracy_child_addr_t dest,
 
     /* And write. */
     return write(c->mem_fd, src, n);
+}
+
+ssize_t tracy_write_mem(struct tracy_child *child,
+        tracy_parent_addr_t dest, tracy_child_addr_t src, size_t n) {
+    int r;
+
+    if (child->mem_fallback)
+        return tracy_poke_mem(child, dest, src, n);
+
+    r = tracy_ppm_write_mem(child, dest, src, n);
+
+    /* The fallback should only trigger upon failure of opening the
+     * child's memory, tracy_ppm_write_mem returns -2 when this happens.
+     */
+    if (r == -2 && (child->tracy->opt & TRACY_MEMORY_FALLBACK)) {
+        child->mem_fallback = 1;
+        r = tracy_poke_mem(child, dest, src, n);
+    }
+
+    return r;
 }
 
 /* Execute mmap in the child process */

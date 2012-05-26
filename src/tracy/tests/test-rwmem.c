@@ -33,7 +33,15 @@
 /* For __NR_<SYSCALL> */
 #include <sys/syscall.h>
 
+/* XXX: Currently the actual kicking in of the memory fallback is not tested
+ * because we do not simulate a failure of the open syscall used
+ * to access the specific /proc/<pid>/mem file. We could in the future
+ * use Tracy itself to trace a test, simulating a failure of the PPM
+ * API.
+ */
+
 static int use_ptrace_mem = 0;
+static int force_mem_fallback = 0;
 
 void cat_file(char *file);
 
@@ -75,6 +83,12 @@ int foo(struct tracy_event *e) {
         sprintf(child_maps_path, "/proc/%i/maps", e->child->pid);
         cat_file(child_maps_path);
         perror(child_maps_path);
+
+        /* This once block is also used for forcing the memory fallback
+         * if required
+         */
+        if (force_mem_fallback)
+            e->child->mem_fallback = 1;
         dump_maps_once = 0;
     }
 
@@ -178,9 +192,21 @@ int main(int argc, char** argv) {
     }
 
     argv++; argc--;
+
+    /* Switch the ptrace API on */
     if (argc) {
         if (!strcmp(argv[0], "-p")) {
+            puts("test-rwmem: Switching to ptrace API");
             use_ptrace_mem = 1;
+            argv++; argc--;
+        }
+    }
+
+    /* Force use of fallback mechanism (also ptrace) */
+    if (argc) {
+        if (!strcmp(argv[0], "-f")) {
+            puts("test-rwmem: Forcing use of memory fallback");
+            force_mem_fallback = 1;
             argv++; argc--;
         }
     }
