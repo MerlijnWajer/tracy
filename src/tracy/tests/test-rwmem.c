@@ -61,7 +61,7 @@ static ssize_t write_mem(struct tracy_child *c, tracy_child_addr_t dest,
     return tracy_write_mem(c, dest, src, n);
 }
 
-static 
+static
 /* write syscall hook args layout:
  *      e->args.a0: file descriptor
  *      e->args.a1: data pointer

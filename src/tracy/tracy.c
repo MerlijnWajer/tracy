@@ -824,7 +824,7 @@ int tracy_peek_word(struct tracy_child *child, long from, long *word) {
     return 0;
 }
 
-/* Read a byte chunk using ptrace's peek/poke API 
+/* Read a byte chunk using ptrace's peek/poke API
  * This function is a lot slower than tracy_read_mem which uses the proc
  * filesystem for accessing the child's memory space.
  *
@@ -944,7 +944,7 @@ int tracy_poke_word(struct tracy_child *child, long to, long word) {
     return 0;
 }
 
-/* Write a byte chunk using ptrace's peek/poke API 
+/* Write a byte chunk using ptrace's peek/poke API
  * This function is a lot slower than tracy_write_mem which uses the proc
  * filesystem for accessing the child's memory space.
  *
@@ -1440,7 +1440,7 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
             -1, 0
             );
 
-    /* I know this is FUBAR, but bear with me 
+    /* I know this is FUBAR, but bear with me
      *
      * Check for an error value in the return code/address.
      */
