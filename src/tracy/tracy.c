@@ -61,6 +61,7 @@
 #define _b(s) s
 #endif
 
+/* Macro's */
 #define PTRACE_CHECK(A1, A2, A3, A4, A5) \
     { \
         if (ptrace(A1, A2, A3, A4)) { \
@@ -177,6 +178,7 @@ static struct tracy_child *malloc_tracy_child(struct tracy *t, pid_t pid)
 
     tc->attached = 0;
     tc->mem_fd = -1;
+    tc->mem_fallback = 0;
     tc->pid = pid;
     tc->pre_syscall = 0;
     tc->inj.injecting = 0;
@@ -822,6 +824,52 @@ int tracy_peek_word(struct tracy_child *child, long from, long *word) {
     return 0;
 }
 
+/* Read a byte chunk using ptrace's peek/poke API
+ * This function is a lot slower than tracy_read_mem which uses the proc
+ * filesystem for accessing the child's memory space.
+ *
+ * If this function errors the 'dest' memory is left in an undefined state.
+ *
+ * XXX: We currently do not align at word boundaries, furthermore we only read
+ * whole words, this might cause trouble on some architectures.
+ *
+ */
+ssize_t tracy_peek_mem(struct tracy_child *c, tracy_parent_addr_t dest,
+        tracy_child_addr_t src, ssize_t n) {
+
+    long *l_dest = (long*)dest;
+
+    /* The long source address */
+    long from;
+
+    /* Force cast from (void*) to (long) */
+    union {
+        void *p_addr;
+        long l_addr;
+    } _cast_addr;
+
+    /* The only way to check for a ptrace peek error is errno, so reset it */
+    errno = 0;
+
+    /* Convert source address to a long to be used by ptrace */
+    _cast_addr.p_addr = src;
+    from = _cast_addr.l_addr;
+
+    /* Peek memory loop */
+    while (n > 0) {
+        *l_dest = ptrace(PTRACE_PEEKDATA, c->pid, from, NULL);
+        if (errno)
+            return -1;
+
+        /* Update the various pointers */
+        l_dest++;
+        from += sizeof(long);
+        n -= sizeof(long);
+    }
+
+    return from - _cast_addr.l_addr;
+}
+
 /* Open child's memory space */
 static int open_child_mem(struct tracy_child *c)
 {
@@ -845,12 +893,12 @@ static int open_child_mem(struct tracy_child *c)
 }
 
 /* Returns bytes read */
-ssize_t tracy_read_mem(struct tracy_child *c, tracy_parent_addr_t dest,
-        tracy_child_addr_t src, size_t n) {
+static ssize_t tracy_ppm_read_mem(struct tracy_child *c,
+        tracy_parent_addr_t dest, tracy_child_addr_t src, size_t n) {
     /* Open memory if it's not open yet */
     if (c->mem_fd < 0) {
         if (open_child_mem(c) < 0)
-            return -1;
+            return -2;
     }
 
     /* Try seeking this memory postion */
@@ -863,6 +911,30 @@ ssize_t tracy_read_mem(struct tracy_child *c, tracy_parent_addr_t dest,
     return read(c->mem_fd, dest, n);
 }
 
+/* XXX The memory access functions should not be used for reading more than 2GB
+ * on 32-bit because they will cause the error handling code to trigger incorrectly
+ * while executing successfully
+ */
+ssize_t tracy_read_mem(struct tracy_child *child,
+        tracy_parent_addr_t dest, tracy_child_addr_t src, size_t n) {
+    int r;
+
+    if (child->mem_fallback)
+        return tracy_peek_mem(child, dest, src, n);
+
+    r = tracy_ppm_read_mem(child, dest, src, n);
+
+    /* The fallback should only trigger upon failure of opening the
+     * child's memory, tracy_ppm_read_mem returns -2 when this happens.
+     */
+    if (r == -2 && (child->tracy->opt & TRACY_MEMORY_FALLBACK)) {
+        child->mem_fallback = 1;
+        r = tracy_peek_mem(child, dest, src, n);
+    }
+
+    return r;
+}
+
 int tracy_poke_word(struct tracy_child *child, long to, long word) {
     if (ptrace(PTRACE_POKEDATA, child->pid, to, word)) {
         perror("tracy_poke_word: pokedata");
@@ -872,12 +944,58 @@ int tracy_poke_word(struct tracy_child *child, long to, long word) {
     return 0;
 }
 
-ssize_t tracy_write_mem(struct tracy_child *c, tracy_child_addr_t dest,
-        tracy_parent_addr_t src, size_t n) {
+/* Write a byte chunk using ptrace's peek/poke API
+ * This function is a lot slower than tracy_write_mem which uses the proc
+ * filesystem for accessing the child's memory space.
+ *
+ * If this function errors the 'dest' child memory is left in an undefined state.
+ *
+ * XXX: We currently do not align at word boundaries, furthermore we only read
+ * whole words, this might cause trouble on some architectures.
+ *
+ * XXX: We could possibly return the negative of words successfully written
+ * on error. When we do, we need to be careful because the negative value
+ * returned is used to signal some faults in the tracy_ppm* functions.
+ */
+ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
+        tracy_parent_addr_t src, ssize_t n) {
+
+    long *l_src = (long*)src;
+
+    /* The long target address */
+    long to;
+
+    /* Force cast from (void*) to (long) */
+    union {
+        void *p_addr;
+        long l_addr;
+    } _cast_addr;
+
+    /* Convert source address to a long to be used by ptrace */
+    _cast_addr.p_addr = dest;
+    to = _cast_addr.l_addr;
+
+    /* Peek memory loop */
+    while (n > 0) {
+        if (ptrace(PTRACE_POKEDATA, c->pid, to, *l_src))
+            return -1;
+
+        /* Update the various pointers */
+        l_src++;
+        to += sizeof(long);
+        n -= sizeof(long);
+    }
+
+    return to - _cast_addr.l_addr;
+}
+
+
+static ssize_t tracy_ppm_write_mem(struct tracy_child *c,
+        tracy_child_addr_t dest, tracy_parent_addr_t src, size_t n) {
     /* Open memory if it's not open yet */
     if (c->mem_fd < 0) {
         if (open_child_mem(c) < 0)
-            return -1;
+            return -2;
     }
 
     /* Try seeking this memory postion */
@@ -888,6 +1006,26 @@ ssize_t tracy_write_mem(struct tracy_child *c, tracy_child_addr_t dest,
 
     /* And write. */
     return write(c->mem_fd, src, n);
+}
+
+ssize_t tracy_write_mem(struct tracy_child *child,
+        tracy_parent_addr_t dest, tracy_child_addr_t src, size_t n) {
+    int r;
+
+    if (child->mem_fallback)
+        return tracy_poke_mem(child, dest, src, n);
+
+    r = tracy_ppm_write_mem(child, dest, src, n);
+
+    /* The fallback should only trigger upon failure of opening the
+     * child's memory, tracy_ppm_write_mem returns -2 when this happens.
+     */
+    if (r == -2 && (child->tracy->opt & TRACY_MEMORY_FALLBACK)) {
+        child->mem_fallback = 1;
+        r = tracy_poke_mem(child, dest, src, n);
+    }
+
+    return r;
 }
 
 /* Execute mmap in the child process */
@@ -1302,7 +1440,7 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
             -1, 0
             );
 
-    /* I know this is FUBAR, but bear with me 
+    /* I know this is FUBAR, but bear with me
      *
      * Check for an error value in the return code/address.
      */
