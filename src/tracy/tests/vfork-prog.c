@@ -2,14 +2,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <sys/syscall.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 
 int main () {
-    int child;
+    pid_t child;
 
-    child = syscall(__NR_fork);
+    child = vfork();
 
     if (child == -1) {
         printf("Fork failed: %d.\n", getpid());
@@ -20,6 +20,7 @@ int main () {
         printf("We are the parent: %d.\n", getpid());
     } else {
         printf("We are the child: %d.\n", getpid());
+        _exit(0);
     }
 
     return EXIT_SUCCESS;

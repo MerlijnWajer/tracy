@@ -463,7 +463,29 @@ static int tracy_internal_syscall(struct tracy_event *s) {
             printf("Done!\n");
             return 0;
             break;
+
         case SYS_clone:
+            printf("Internal Syscall %s\n", get_syscall_name(s->syscall_num));
+            if (tracy_safe_fork(s->child, &child)) {
+                printf("tracy_safe_fork failed\n!");
+                tracy_debug_current(s->child);
+                /* Probably kill child, or at least make sure it can't fork */
+                return -1;
+            }
+            printf("New child: %d\n", child);
+
+            new_child = tracy_add_child(s->child->tracy, child);
+
+            printf("Added and resuming child\n");
+            tracy_continue(&new_child->event, 1);
+
+            printf("Continue parent\n");
+            tracy_continue(s, 1);
+
+            printf("Done!\n");
+            return 0;
+            break;
+
         case SYS_vfork:
         default:
             break;
@@ -1327,7 +1349,7 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
 {
     tracy_child_addr_t mmap_ret;
     int status;
-    long ip;
+    long ip, orig_syscall;
     struct TRACY_REGS_NAME args, args_ret;
     const long page_size = sysconf(_SC_PAGESIZE);
     pid_t child_pid;
@@ -1394,8 +1416,14 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
      *
      * Setup a fork syscall and point the processor to the injected code.
      */
+    /*
+     * XXX: We do not have to modify the syscall NR since we use this function
+     * for fork, clone and vfork.
     args.TRACY_SYSCALL_REGISTER = __NR_fork;
     args.TRACY_SYSCALL_N = __NR_fork;
+    */
+    orig_syscall = args.TRACY_SYSCALL_REGISTER;
+    printf(_r("Safe forking syscall:")" "_g("%s")"\n", get_syscall_name(args.TRACY_SYSCALL_REGISTER));
 
     /* XXX: TODO: Should we place an ARM PTRACE_SET_SYSCALL here? */
 
@@ -1426,14 +1454,14 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     /* TODO: Replace the following with a single call to
      * tracy_modify_syscall().
      */
-    args_ret.TRACY_SYSCALL_REGISTER = __NR_fork;
-    args_ret.TRACY_SYSCALL_N = __NR_fork;
+    args_ret.TRACY_SYSCALL_REGISTER = orig_syscall;
+    args_ret.TRACY_SYSCALL_N = orig_syscall;
 
     /* On ARM the syscall number is not included in any register, so we have
      * this special ptrace option to modify the syscall
      */
     #ifdef __arm__
-    PTRACE_CHECK(PTRACE_SET_SYSCALL, c->pid, 0, (void*)__NR_fork, -1);
+    PTRACE_CHECK(PTRACE_SET_SYSCALL, c->pid, 0, (void*)orig_syscall, -1);
     #endif
 
     PTRACE_CHECK(PTRACE_SETREGS, c->pid, 0, &args_ret, -1);

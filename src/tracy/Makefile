@@ -12,21 +12,24 @@ OBJECTS=tracy.o ll.o trampy.o
 
 default: $(OBJECTS) tests
 
-tests: tests/hello tests/test-rwmem tests/tracy-base tests/tracy-inject-simple \
-	tests/tracy-thread-simple tests/tracy-thread-simple-prog tests/tracy-fork \
-	tests/tracy-fork-prog
-tests/test-rwmem: tests/test-rwmem.o tracy.o ll.o trampy.o
-tests/tracy-base: tests/tracy-base.o tracy.o ll.o trampy.o
-tests/tracy-inject-simple: tests/tracy-inject-simple.o tracy.o ll.o trampy.o
-tests/tracy-thread-simple: tests/tracy-thread-simple.o tracy.o ll.o trampy.o
-tests/tracy-thread-simple-prog: CFLAGS+=-pthread
-tests/tracy-thread-simple-prog: LDFLAGS+=-pthread
-tests/tracy-thread-simple-prog: tests/tracy-thread-simple-prog.o
-tests/tracy-fork: tests/tracy-fork.o tracy.o ll.o trampy.o
-tests/tracy-fork-prog: tests/tracy-fork-prog.o
+test_binaries=tests/hello tests/rwmem tests/base tests/inject-simple \
+	tests/thread-simple tests/thread-simple-prog tests/fork \
+	tests/fork-prog tests/vfork-prog
 
-check-rwmem: tests/test-rwmem tests/hello
-	tests/test-rwmem tests/hello
+tests: $(test_binaries)
+tests/rwmem: tests/rwmem.o tracy.o ll.o trampy.o
+tests/base: tests/base.o tracy.o ll.o trampy.o
+tests/inject-simple: tests/inject-simple.o tracy.o ll.o trampy.o
+tests/thread-simple: tests/thread-simple.o tracy.o ll.o trampy.o
+tests/thread-simple-prog: CFLAGS+=-pthread
+tests/thread-simple-prog: LDFLAGS+=-pthread
+tests/thread-simple-prog: tests/thread-simple-prog.o
+tests/fork: tests/fork.o tracy.o ll.o trampy.o
+#tests/fork-prog: tests/fork-prog.o
+#tests/vfork-prog: tests/vfork-prog.o
+
+check-rwmem: tests/rwmem tests/hello
+	tests/rwmem tests/hello
 
 tracy.o: def_syscalls.h
 
@@ -36,5 +39,5 @@ def_syscalls.h:
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' > def_syscalls.h
 
 clean:
-	rm *.o def_syscalls.h tests/test-rwmem tests/tracy_base tests/hello \
-		tests/*.o -f
+	rm *.o def_syscalls.h tests/*.o -f $(test_binaries)
+

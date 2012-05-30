@@ -120,6 +120,9 @@ struct tracy_child {
     /* Asynchronous syscall injection info */
     struct tracy_inject_data inj;
 
+    /* Child in vfork parent state (frozen until child execve, etc.) */
+    /* XXX Add me */
+
     /* Last event that occurred */
     struct tracy_event event;
 };
