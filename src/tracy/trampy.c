@@ -152,6 +152,11 @@ void __trampy_container_func() {
      */
     SEND_TRACER_SIGNAL();
 
+#if 0
+    /* Break stuff for libSegFault */
+    __asm__("hlt\n");
+#endif
+
     /* Now the child keeps making sched_yield syscalls until
      * the tracer restores it.
      */

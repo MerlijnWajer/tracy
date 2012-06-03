@@ -14,7 +14,7 @@ default: $(OBJECTS) tests
 
 test_binaries=tests/hello tests/rwmem tests/base tests/inject-simple \
 	tests/thread-simple tests/thread-simple-prog tests/fork \
-	tests/fork-prog tests/vfork-prog
+	tests/fork-prog tests/vfork-prog tests/bounce
 
 tests: $(test_binaries)
 tests/rwmem: tests/rwmem.o tracy.o ll.o trampy.o
@@ -25,8 +25,7 @@ tests/thread-simple-prog: CFLAGS+=-pthread
 tests/thread-simple-prog: LDFLAGS+=-pthread
 tests/thread-simple-prog: tests/thread-simple-prog.o
 tests/fork: tests/fork.o tracy.o ll.o trampy.o
-#tests/fork-prog: tests/fork-prog.o
-#tests/vfork-prog: tests/vfork-prog.o
+tests/bounce: tests/bounce.o trampy.o
 
 check-rwmem: tests/rwmem tests/hello
 	tests/rwmem tests/hello
