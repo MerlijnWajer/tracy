@@ -1441,6 +1441,11 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     args_ret.TRACY_SYSCALL_REGISTER = orig_syscall;
     args_ret.TRACY_SYSCALL_N = orig_syscall;
 
+    /* This stores our pid in a specific register, which will then be used by
+     * the new child to inform us of its existence.
+     */
+    args_ret.TRAMPY_PID_REG = getpid();
+
     /* On ARM the syscall number is not included in any register, so we have
      * this special ptrace option to modify the syscall
      */
