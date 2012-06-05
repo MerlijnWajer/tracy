@@ -44,6 +44,15 @@ int main()
         "a"(safe_entry),
         "rdx"(pid)
     );
+    #elif defined(__arm__)
+    __asm__(
+        "ldr r0, %0\n"
+        "ldr r4, %1\n"
+        "mov pc, r0"
+        ::
+        "Q"(safe_entry),
+        "Q"(pid)
+    );
     #endif
 
     return 0;

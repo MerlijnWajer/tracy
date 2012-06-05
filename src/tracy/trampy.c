@@ -68,6 +68,15 @@
          * so we should be fine.
          */
         #define SET_SYSCALL "n"
+        #define INLINE_ARG0 "b"
+        #define INLINE_ARG1 "i"
+        /* On ARM, since we cannot load into specific registers,
+         * we have to cheat a little by also loading the signal
+         * number during the LOAD_TRACER_PID command.
+         */
+        #define LOAD_TRACER_PID \
+            "mov r4, r0\n" \
+            "mov r1, %1\n"
         #define ENTER_KERNEL "swi %0\n"
         /* EABI SWI_BASE */
         #define TRACY_SYSCALL_BASE (0x900000)
