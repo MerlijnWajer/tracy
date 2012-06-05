@@ -17,13 +17,20 @@ delen ze resources)
                 -   Deny syscall.
                 -   safe-fork.
                 -   mmap/munmap
-                -   child read/write mem (test failed atm)
+                -   child read/write mem (de test werkt)
 
 -   [     ] Safely lezen van memory uit een child (copy naar ro mem, validate,
 veranderd pointers van syscall) (Kan al met current api)
 -   [     ] tracy_safe_fork opschonen.
--   [     ] TRACY_USE_SAFE_TRACE doet nog niets.
-
+-   [FIXED] TRACY_USE_SAFE_TRACE doet nog niets.
+-   [     ] Tracy Hook voor signal override in tracy_continue(e, 0);
+-   [     ] Tracy's TRACY_INTERNAL_EVENT niet exposen aan user?
+-   [     ] Safe fork is helemaal niet netjes wrt events naar de user:
+        -   Niet alle fork, vfork en clone worden doorgegeven.
+        -   Userspace kan het atm niet eens denyen. (Event loop herschrijven)
+-   [     ] Optioneel alle overgebleven children killen wanneer tracy_main verlaten wordt.
+-   [     ] Optioneel peek/poke voor read/write mem als fallback.
+-   [     ] tracy_wait_event niet recursief.
 
 Niet nodig:
 
@@ -32,4 +39,6 @@ Niet nodig:
 
 Soxy:
 
-    -   [     ] …
+    -   [     ] Non-blocking sockets.
+    -   [     ] Support voor threads
+    -   [     ] Support voor UDP

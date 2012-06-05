@@ -4,7 +4,7 @@ CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror -pipe
 CFLAGS+=-D_POSIX_SOURCE -D_GNU_SOURCE
 CFLAGS+=-ggdb
 
-LDFLAGS+=-rdynamic
+LDFLAGS+=-rdynamic -pthread
 #CFLAGS+=-O2
 #CFLAGS+=-m32
 
@@ -12,13 +12,23 @@ OBJECTS=tracy.o ll.o trampy.o
 
 default: $(OBJECTS) tests
 
-tests: tests/hello tests/test-rwmem tests/tracy-base tests/tracy-inject-simple
-tests/test-rwmem: tests/test-rwmem.o tracy.o ll.o trampy.o
-tests/tracy-base: tests/tracy-base.o tracy.o ll.o trampy.o
-tests/tracy-inject-simple: tests/tracy-inject-simple.o tracy.o ll.o trampy.o
+test_binaries=tests/hello tests/rwmem tests/base tests/inject-simple \
+	tests/thread-simple tests/thread-simple-prog tests/fork \
+	tests/fork-prog tests/vfork-prog tests/bounce
 
-check-rwmem: tests/test-rwmem tests/hello
-	tests/test-rwmem tests/hello
+tests: $(test_binaries)
+tests/rwmem: tests/rwmem.o tracy.o ll.o trampy.o
+tests/base: tests/base.o tracy.o ll.o trampy.o
+tests/inject-simple: tests/inject-simple.o tracy.o ll.o trampy.o
+tests/thread-simple: tests/thread-simple.o tracy.o ll.o trampy.o
+tests/thread-simple-prog: CFLAGS+=-pthread
+tests/thread-simple-prog: LDFLAGS+=-pthread
+tests/thread-simple-prog: tests/thread-simple-prog.o
+tests/fork: tests/fork.o tracy.o ll.o trampy.o
+tests/bounce: tests/bounce.o trampy.o
+
+check-rwmem: tests/rwmem tests/hello
+	tests/rwmem tests/hello
 
 tracy.o: def_syscalls.h
 
@@ -28,5 +38,5 @@ def_syscalls.h:
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' > def_syscalls.h
 
 clean:
-	rm *.o def_syscalls.h tests/test-rwmem tests/tracy_base tests/hello \
-		tests/*.o -f
+	rm *.o def_syscalls.h tests/*.o -f $(test_binaries)
+

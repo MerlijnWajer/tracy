@@ -48,6 +48,10 @@
 
 #define TRACY_NR_MMAP __NR_mmap2
 
+/* Register used to pass trampy code the tracer PID */
+#define TRAMPY_PID_REG ARM_r4
+#define TRAMPY_PID_ARG a4
+
 #endif
 
 #ifdef __i386__
@@ -71,6 +75,10 @@
 #define TRACY_ARG_5 ebp
 
 #define TRACY_NR_MMAP __NR_mmap2
+
+/* Register used to pass trampy code the tracer PID */
+#define TRAMPY_PID_REG edi
+#define TRAMPY_PID_ARG a4
 
 #endif
 
@@ -98,6 +106,10 @@
 #define TRACY_ARG_5 r9
 
 #define TRACY_NR_MMAP __NR_mmap
+
+/* Register used to pass trampy code the tracer PID */
+#define TRAMPY_PID_REG r8
+#define TRAMPY_PID_ARG a4
 
 #endif
 

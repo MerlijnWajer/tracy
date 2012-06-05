@@ -13,10 +13,9 @@
 \begin{abstract}
     Tracy is a system call tracing framework implemented on top of the UNIX
     ptrace(2) system call.
-    Tracy can trace, modify and inject system calls as well as perform several
-    other useful tasks such as memory allocation in the child, modifying the
-    memory of children and safely trace all (newly created) children of a
-    process being traced.
+    Tracy can trace, modify and inject system calls as well as memory allocation
+    in the child, modifying the memory of children and safely trace all
+    (newly created) children of a process being traced.
 \end{abstract}
 
 \tableofcontents
@@ -71,7 +70,6 @@ popular UNIX-es: \textbf{ptrace(2)}.
 To demonstrate the system call interception, injection and modification
 we introduce Soxy\ref{chapter:soxy}: an application to route network
 traffic through a SOCKS 5 proxy using Tracy.
-
 
 % Oplossing voor problemen zoals:
 %   -   Jailing/Sandboxing
@@ -448,6 +446,28 @@ original fork(2) call) and let both processes continue their execution.
 \chapter{Soxy}
 
 \chapter{Future work}
+
+\textit{Netjes uitschrijven.}
+\begin{itemize}
+    \item Securing from mixed ABI using dynamic X\^W protection. (Including
+        picture)
+    \item Support more architectures and OSes.
+    \item Sharing memory between tracer and children using mapped files.
+    \item Instant injection of system calls using signals to stop the process.
+    \item Multithreaded tracing.
+    \item Python bindings
+\end{itemize}
+
+Applications
+\begin{itemize}
+    \item Buggy: Bug generation for application testing.
+    \item Jelly: Secure Jail
+    \item Fussy: User space fuse.
+    \item Trippy: Visualising system calls using audio (and possibly video)
+    \item Rippy: Ripping/dumping media streams.
+    \item Dumpy: I/O dumping. (Like tcpdump)
+    \item Loggy/stracy/dotty: System call logging/tracing/visualisation.
+\end{itemize}
 
 
 \chapter{Related work}
