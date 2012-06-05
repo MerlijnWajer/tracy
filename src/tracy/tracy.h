@@ -32,6 +32,9 @@
 #define TRACY_TRACE_CHILDREN 1 << 0
 #define TRACY_VERBOSE 1 << 1
 
+/* Enable automatic usage of ptrace's memory API when PPM (/proc based) fails */
+#define TRACY_MEMORY_FALLBACK 1 << 2
+
 #define TRACY_USE_SAFE_TRACE 1 << 31
 
 struct tracy_child;
@@ -71,7 +74,7 @@ typedef void (*tracy_child_creation) (struct tracy_child *c);
  */
 struct tracy_special_events {
     tracy_child_creation child_create;
-} ;
+};
 
 struct tracy {
     struct soxy_ll *childs;
@@ -107,6 +110,9 @@ struct tracy_child {
 
     /* File descriptor pointing to /proc/<pid>/mem, -1 if closed */
     int mem_fd;
+
+    /* Fallback indicator used in case /proc access fails */
+    int mem_fallback;
 
     /* Last denied syscall */
     int denied_nr;
@@ -325,10 +331,14 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e);
 
 /* -- Child memory access -- */
 int tracy_peek_word(struct tracy_child *c, long from, long* word);
+ssize_t tracy_peek_mem(struct tracy_child *c, tracy_parent_addr_t dest,
+        tracy_child_addr_t src, ssize_t n);
 ssize_t tracy_read_mem(struct tracy_child *c, tracy_parent_addr_t dest,
     tracy_child_addr_t src, size_t n);
 
 int tracy_poke_word(struct tracy_child *c, long to, long word);
+ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
+        tracy_parent_addr_t src, ssize_t n);
 ssize_t tracy_write_mem(struct tracy_child *c, tracy_child_addr_t dest,
     tracy_parent_addr_t src, size_t n);
 
