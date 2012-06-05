@@ -72,6 +72,10 @@
 
 #define TRACY_NR_MMAP __NR_mmap2
 
+/* Register used to pass trampy code the tracer PID */
+#define TRAMPY_PID_REG edi
+#define TRAMPY_PID_ARG a4
+
 #endif
 
 /* 'cs' determines the call type, we can use this to check if we are calling a

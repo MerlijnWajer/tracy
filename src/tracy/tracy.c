@@ -23,6 +23,7 @@
  *  -   Replace ll with a better datastructure.
  */
 #include <inttypes.h>
+#include <sys/types.h>
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -61,20 +62,24 @@
 #define _b(s) s
 #endif
 
-#define PTRACE_CHECK(A1, A2, A3, A4, A5) \
+#define _PTRACE_CHECK(A1, A2, A3, A4, A5) \
     { \
         if (ptrace(A1, A2, A3, A4)) { \
             printf("\n-------------------------------" \
                     "-------------------------------------------------\n"); \
             perror("Whoops"); \
             printf("Function: %s, Line: %d\n", __FUNCTION__, __LINE__); \
-            printf("Arguments: %s, %s, %s, %s\n", #A1, #A2, #A3, #A4); \
+            printf("Arguments: %s, %s (%d), %s, %s\n", #A1, #A2, A2, #A3, #A4); \
             printf("-------------------------------" \
                     "-------------------------------------------------\n"); \
             tracy_backtrace(); \
-            return A5; \
+            A5 \
         } \
     }
+
+#define PTRACE_CHECK(A1, A2, A3, A4, A5) _PTRACE_CHECK(A1, A2, A3, A4, return A5;)
+
+#define PTRACE_CHECK_NORETURN(A1, A2, A3, A4) _PTRACE_CHECK(A1, A2, A3, A4, ;)
 
 /* Foreground PID, used by tracy main's interrupt handler */
 static pid_t global_fpid;
@@ -189,6 +194,7 @@ static struct tracy_child *malloc_tracy_child(struct tracy *t, pid_t pid)
     tc->pre_syscall = 0;
     tc->inj.injecting = 0;
     tc->inj.cb = NULL;
+    tc->frozen_by_vfork = 0;
     tc->denied_nr = 0;
     tc->tracy = t;
     tc->custom = NULL;
@@ -437,6 +443,19 @@ static int tracy_internal_syscall(struct tracy_event *s) {
     if (!(s->child->tracy->opt & TRACY_USE_SAFE_TRACE))
         return -1;
 
+    if (s->child->frozen_by_vfork) {
+        printf(_r("Resuming a parent-role child in a vfork operation")"\n");
+        s->child->frozen_by_vfork = 0;
+
+        /* Restore post-vfork values */
+        s->args.TRAMPY_PID_ARG = s->child->orig_trampy_pid_reg;
+        s->args.return_code = s->child->orig_return_code;
+        s->args.ip = s->child->orig_pc;
+
+        /* Finally update child registers */
+        tracy_modify_syscall(s->child, s->args.syscall, &s->args);
+    }
+
     if (!s->child->pre_syscall)
         return -1;
 
@@ -487,6 +506,29 @@ static int tracy_internal_syscall(struct tracy_event *s) {
             break;
 
         case SYS_vfork:
+            printf("Internal Syscall %s\n", get_syscall_name(s->syscall_num));
+            if (tracy_safe_fork(s->child, &child)) {
+                printf("tracy_safe_fork failed\n!");
+                tracy_debug_current(s->child);
+                /* Probably kill child, or at least make sure it can't fork */
+                return -1;
+            }
+            printf("New child: %d\n", child);
+
+            new_child = tracy_add_child(s->child->tracy, child);
+
+            printf("Added and resuming child\n");
+            tracy_continue(&new_child->event, 1);
+
+            /*
+            printf("Continue parent\n");
+            tracy_continue(s, 1);
+            */
+
+            printf("Done!\n");
+            return 0;
+            break;
+
         default:
             break;
     }
@@ -1187,6 +1229,11 @@ int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
         newargs.TRACY_ARG_4 = a->a4;
         newargs.TRACY_ARG_5 = a->a5;
         newargs.TRACY_RETURN_CODE = a->return_code;
+        /* XXX For safe fork purposes this line was added
+         * changing the IP reg on modify syscall might
+         * cause some unexpected behaviour later on.
+         */
+        newargs.TRACY_IP_REG = a->ip;
     }
 
     PTRACE_CHECK(PTRACE_SETREGS, child->pid, 0, &newargs, -1);
@@ -1333,6 +1380,18 @@ int tracy_main(struct tracy *tracy) {
     return 0;
 }
 
+static void _tracer_fork_signal_handler(int sig, siginfo_t *info, void *uctx)
+{
+    /* Context useable by setcontext, not of any use for us */
+    (void)uctx;
+
+    fprintf(stderr, _y("tracy: Received %s would attach to child %d")"\n",
+        get_signal_name(sig),
+        info->si_pid);
+
+    /*PTRACE_CHECK_NORETURN(PTRACE_ATTACH, info->si_pid, 0, 0); */
+}
+
 /* Safe forking/cloning
  *
  * This function takes over the PRE fase of a child process' fork
@@ -1344,15 +1403,22 @@ int tracy_main(struct tracy *tracy) {
  *
  * FIXME: This function memleaks a page upon failure in the child atm.
  * TODO: This function needs a lot more error handling than it contains now.
+ * FIXME: Due to the PTRACE_CHECK macro's if a ptrace fails, we will not
+ * restore the original signal handler for SIGUSR1.
  */
 int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
 {
     tracy_child_addr_t mmap_ret;
     int status;
-    long ip, orig_syscall;
+    long ip, orig_syscall, orig_trampy_pid_reg;
     struct TRACY_REGS_NAME args, args_ret;
     const long page_size = sysconf(_SC_PAGESIZE);
     pid_t child_pid;
+    struct sigaction act, old_sigusr1, old_sigchld;
+    sigset_t set, old_set;
+    struct timespec timeout;
+    siginfo_t info;
+    int is_vforking = 0;
 
 /*
     puts("SAFE_FORKING!");
@@ -1423,7 +1489,13 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     args.TRACY_SYSCALL_N = __NR_fork;
     */
     orig_syscall = args.TRACY_SYSCALL_REGISTER;
+    orig_trampy_pid_reg = args.TRAMPY_PID_REG;
+
     printf(_r("Safe forking syscall:")" "_g("%s")"\n", get_syscall_name(args.TRACY_SYSCALL_REGISTER));
+
+    /* TODO: We need to add a check for the CLONE_VFORK flag here */
+    if (orig_syscall == __NR_vfork)
+        is_vforking = 1;
 
     /* XXX: TODO: Should we place an ARM PTRACE_SET_SYSCALL here? */
 
@@ -1457,6 +1529,11 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     args_ret.TRACY_SYSCALL_REGISTER = orig_syscall;
     args_ret.TRACY_SYSCALL_N = orig_syscall;
 
+    /* This stores our pid in a specific register, which will then be used by
+     * the new child to inform us of its existence.
+     */
+    args_ret.TRAMPY_PID_REG = getpid();
+
     /* On ARM the syscall number is not included in any register, so we have
      * this special ptrace option to modify the syscall
      */
@@ -1470,6 +1547,22 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     puts("PRE, Entering POST");
 */
 
+    /* Setup the blocking of signals to atomically wait for them after ptrace */
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR1);
+    sigaddset(&set, SIGCHLD);
+    pthread_sigmask(SIG_BLOCK, &set, &old_set);
+
+    /* Finally before we execute an actual fork syscall
+     * setup the SIGUSR1 handler which is used by trampy to
+     * inform us of vforking children
+     */
+    act.sa_sigaction = _tracer_fork_signal_handler;
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = SA_SIGINFO;
+    sigaction(SIGUSR1, &act, &old_sigusr1);
+    sigaction(SIGCHLD, &act, &old_sigchld);
+
     /* Now execute the actual fork.
      *
      * Afterwards the parent will immediately come to a halt
@@ -1477,39 +1570,112 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
      * for more details.
      */
     PTRACE_CHECK(PTRACE_SYSCALL, c->pid, 0, 0, -1);
-    waitpid(c->pid, &status, 0);
 
-    PTRACE_CHECK(PTRACE_GETREGS, c->pid, 0, &args_ret, -1);
-
-/*
-    printf("The IP is now %p\n", (void*)args_ret.TRACY_IP_REG);
-    puts("POST");
-*/
-
-    PTRACE_CHECK(PTRACE_GETREGS, c->pid, 0, &args_ret, -1);
-
-    /* FIXME: We don't check if the fork failed
-     * which we really should since there is no point in
-     * attaching to a failed fork.
+    /* Now wait for either SIGCHLD from the forker,
+     * or SIGUSR1 from the forkee
      */
-    child_pid = args_ret.TRACY_RETURN_CODE;
-
-    /* Return PID to caller if they're interested. */
-    if (new_child)
-        *new_child = child_pid;
-
-    printf("Fork return value: %d\n", child_pid);
-
-    /* Now point the parent process after the original fork
-     * syscall instruction.
+    /*sigsuspend(&set);*/
+    /*pause();*/
+    /*sigwait(&set);*/
+    /* XXX: The manpage states all threads within the current process must block
+     * aforementioned signals, so there might be some trouble caused by using tracy
+     * within a multithreaded larger whole. If not all threads block these signals
+     * some thread might still handle them before we get to call sigwaitinfo which
+     * causes lock-up of this thread in the worst case or otherwise a race condition
+     * wherein we never restore the child or the parent in case of vfork().
      */
-    args_ret.TRACY_IP_REG = ip;
-    args_ret.TRACY_RETURN_CODE = child_pid;
+    while (1) {
+        sigwaitinfo(&set, &info);
+        /* In case of SIGCHLD the parent or another process might've stopped */
+        if (info.si_signo == SIGCHLD && info.si_pid == c->pid) {
+            /* The parent has stopped (completed its syscall), in case of vfork
+             * this means the vfork failed. If it didn't something that shouldn't
+             * happen occurred.
+             */
+            if (is_vforking) {
+                /* FIXME: There must be a more elegant way to handle failure,
+                 * which we currently don't do anyway so go.. go.. go..
+                 */
+                printf(_r("tracy: During vfork(), failure in parent.")"\n");
+                child_pid = -1;
+            } else {
+                printf(_b("tracy: During fork(), parent returned first.")"\n");
+                break;
+            }
+        }
 
-    PTRACE_CHECK(PTRACE_SETREGS, c->pid, 0, &args_ret, -1);
-    printf("Return code set to %d\n", child_pid);
+        /* This is the new child */
+        if (info.si_signo == SIGUSR1) {
+            printf(_b("Handling SIGUSR1 from process %d and continue")"\n",
+                info.si_pid);
+            /* If we're vforking the parent is now marked frozen */
+            if (is_vforking) {
+                c->frozen_by_vfork = 1;
+                c->orig_trampy_pid_reg = orig_trampy_pid_reg;
+                c->orig_pc = ip;
+                c->orig_return_code = info.si_pid;
+            }
 
-    c->pre_syscall = 0;
+            /* Attach to the new child */
+            /*PTRACE_CHECK(PTRACE_ATTACH, info.si_pid, 0, 0, -1);*/
+            child_pid = info.si_pid;
+
+            /* Return PID to caller if they're interested. */
+            /* XXX: Assignment to child_pid rarely happens, collapse this
+             * line with th other somewhere useful.
+             */
+            if (new_child)
+                *new_child = child_pid;
+            break;
+        }
+    }
+
+    /* The trampy register is now restored to the original value */
+    args_ret.TRAMPY_PID_REG = orig_trampy_pid_reg;
+
+    /* If we're vforking there is no point in resuming the parent because
+     * it is frozen, unless the vfork failed.
+     */
+    if (!is_vforking || child_pid == -1) {
+        waitpid(c->pid, &status, 0);
+
+        PTRACE_CHECK(PTRACE_GETREGS, c->pid, 0, &args_ret, -1);
+
+        /*
+            printf("The IP is now %p\n", (void*)args_ret.TRACY_IP_REG);
+            puts("POST");
+        */
+
+        /*PTRACE_CHECK(PTRACE_GETREGS, c->pid, 0, &args_ret, -1);*/
+
+        /* FIXME: We don't check if the fork failed
+         * which we really should since there is no point in
+         * attaching to a failed fork.
+         */
+        child_pid = args_ret.TRACY_RETURN_CODE;
+
+        /* Return PID to caller if they're interested. */
+        if (new_child)
+            *new_child = child_pid;
+
+        printf("Fork return value: %d\n", child_pid);
+
+        /* Now point the parent process after the original fork
+         * syscall instruction.
+         */
+        args_ret.TRACY_IP_REG = ip;
+        args_ret.TRACY_RETURN_CODE = child_pid;
+
+        PTRACE_CHECK(PTRACE_SETREGS, c->pid, 0, &args_ret, -1);
+        printf("Return code set to %d\n", child_pid);
+
+        c->pre_syscall = 0;
+
+        /* TODO Handle possible kill signal from child that might be waiting
+         * in the singal set
+         */
+
+    } /* End of non-vfork block */
 
     /* Attach to the new child */
     printf("Attaching to %d...\n", child_pid);
@@ -1523,7 +1689,7 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
         perror("SETREGS");
 */
 
-    /* Restore the new child as well*/
+    /* Restore the new child to its original position */
     args.TRACY_IP_REG = ip;
     args.TRACY_RETURN_CODE = 0;
 
@@ -1534,6 +1700,21 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     /* Continue the new child */
 
     /* PTRACE_CHECK(PTRACE_SYSCALL, child_pid, 0, 0, -1); */
+
+    /* Poll for any remaining SIGUSR1 so this cannot kill us in the
+     * original process signal mode.
+     */
+    timeout.tv_sec = 0;
+    timeout.tv_nsec = 0;
+    sigdelset(&set, SIGCHLD);
+    sigtimedwait(&set, &info, &timeout);
+
+    /* Restore the original signal handlers */
+    sigaction(SIGUSR1, &old_sigusr1, NULL);
+    sigaction(SIGCHLD, &old_sigchld, NULL);
+
+    /* Restore signal mask settings */
+    pthread_sigmask(SIG_SETMASK, &old_set, NULL);
 
     /* TODO: We should now munmap the pages in both the parent and the child.
      * Unless ofc. we created a thread which shares VM in which case we should

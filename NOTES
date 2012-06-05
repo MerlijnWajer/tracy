@@ -1,1 +1,2 @@
 -   ARM OABI can be disabled. (OABI_COMPAT)
+-   Mind the unshare(2) syscall which can reverse parts of the clone syscall.
