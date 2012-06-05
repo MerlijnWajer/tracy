@@ -40,6 +40,9 @@
          * the syscall number is stored within the RAX register
          */
         #define SET_SYSCALL "rax"
+        #define INLINE_ARG0 "rdi"
+        #define INLINE_ARG1 "rcx"
+        #define LOAD_TRACER_PID "mov %%r8, %%rdi\n"
         #define ENTER_KERNEL "syscall\n"
         #define TRACY_SYSCALL_BASE (0x0)
 

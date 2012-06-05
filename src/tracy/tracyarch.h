@@ -103,5 +103,9 @@
 
 #define TRACY_NR_MMAP __NR_mmap
 
+/* Register used to pass trampy code the tracer PID */
+#define TRAMPY_PID_REG r8
+#define TRAMPY_PID_ARG a4
+
 #endif
 

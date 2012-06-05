@@ -29,12 +29,22 @@ int main()
     s.sa_flags = SA_SIGINFO;
     sigaction(SIGUSR1, &s, NULL);
 
+    #ifdef __i386__
     __asm__(
         "call *%%eax"
         ::
         "a"(safe_entry),
         "D"(pid)
     );
+    #elif defined(__x86_64__)
+    __asm__(
+        "mov %%rdx, %%r8\n"
+        "call *%%rax"
+        ::
+        "a"(safe_entry),
+        "rdx"(pid)
+    );
+    #endif
 
     return 0;
 }
