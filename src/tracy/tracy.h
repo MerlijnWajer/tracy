@@ -104,8 +104,13 @@ struct tracy_child {
     /* Asynchronous syscall injection info */
     struct tracy_inject_data inj;
 
-    /* Child in vfork parent state (frozen until child execve, etc.) */
+    /* Child in vfork parent-role (frozen until child execve, etc.) */
     int frozen_by_vfork;
+
+    /* vfork restoration values */
+    long orig_pc;
+    long orig_trampy_pid_reg;
+    long orig_return_code;
 
     /* Last event that occurred */
     struct tracy_event event;

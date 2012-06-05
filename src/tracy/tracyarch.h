@@ -58,6 +58,7 @@
 
 /* Register used to pass trampy code the tracer PID */
 #define TRAMPY_PID_REG edi
+#define TRAMPY_PID_ARG a4
 
 #endif
 
