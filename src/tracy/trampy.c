@@ -75,7 +75,7 @@
          * number during the LOAD_TRACER_PID command.
          */
         #define LOAD_TRACER_PID \
-            "mov r4, r0\n" \
+            "mov r0, r4\n" \
             "mov r1, %1\n"
         #define ENTER_KERNEL "swi %0\n"
         /* EABI SWI_BASE */
@@ -184,7 +184,11 @@ void __trampy_container_func() {
 
 #if 0
     /* Break stuff for libSegFault */
+    #ifdef __arm__
+    __asm__("mov pc, #0\n");
+    #elif defined(__i386__)
     __asm__("hlt\n");
+    #endif
 #endif
 
     /* Now the child keeps making sched_yield syscalls until
