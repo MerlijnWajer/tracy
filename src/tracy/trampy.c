@@ -39,11 +39,15 @@
         /* x86_64 performs syscalls using the syscall instruction,
          * the syscall number is stored within the RAX register
          */
-        #define SET_SYSCALL "rax"
-        #define INLINE_ARG0 "rdi"
-        #define INLINE_ARG1 "rcx"
-        #define LOAD_TRACER_PID "mov %%r8, %%rdi\n"
-        #define ENTER_KERNEL "syscall\n"
+        #define SET_SYSCALL "i"
+        #define INLINE_ARG0 "i"
+        #define INLINE_ARG1 "i"
+        #define LOAD_TRACER_PID \
+            "mov %1, %%rsi\n" \
+            "mov %%r8, %%rdi\n"
+        #define ENTER_KERNEL \
+            "mov %0, %%rax\n" \
+            "syscall\n"
 
     #elif defined(__i386__)
         /* x86 performs syscalls using the 0x80 interrupt,
