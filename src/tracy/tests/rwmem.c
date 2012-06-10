@@ -103,7 +103,8 @@ int foo(struct tracy_event *e) {
     str = malloc(sizeof(char) * 4096);
 
     /* Read memory */
-    printf("Requested %d bytes to read.\n", sizeof(char) * len);
+    printf("Requested %lu bytes to read.\n", (unsigned long)(sizeof(char)
+        * len));
     if ((i = read_mem(e->child, str, (void*)e->args.a1, sizeof(char) * len)) < 0)
         perror("read_mem");
     printf("Read %d bytes.\n", i);
@@ -131,7 +132,8 @@ int foo(struct tracy_event *e) {
     printf("Data by peek word: %p, '%s'\n", (void*)word, wstr);
 
     strfry(str);
-    printf("Requested %d bytes to write.\n", sizeof(char) * len);
+    printf("Requested %lu bytes to write.\n", (unsigned long)(sizeof(char)
+        * len));
     if ((i = write_mem(e->child, (void*)e->args.a1, str, sizeof(char) * len)) < 0)
         perror("write_mem");
     printf("Wrote %d bytes.\n", i);
