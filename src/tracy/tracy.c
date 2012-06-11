@@ -233,7 +233,8 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     if (pid == 0) {
         r = ptrace(PTRACE_TRACEME, 0, NULL, NULL);
         if (r) {
-            /* TODO: Failure */
+            fprintf(stderr, "PTRACE_TRACEME failed.\n");
+            _exit(1);
         }
 
         /* Give the parent to chance to set some extra tracing options before we
@@ -246,8 +247,10 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
             execv(argv[0], argv);
         }
 
-        if (errno == -1) {
-            /* TODO: Failure */
+        if (errno) {
+            perror("fork_trace_exec");
+            fprintf(stderr, "execv failed.\n");
+            _exit(1);
         }
     }
 
