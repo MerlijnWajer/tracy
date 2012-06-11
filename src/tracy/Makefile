@@ -22,8 +22,6 @@ tests/base: tests/base.o tracy.o ll.o trampy.o
 tests/bash: tests/bash.o tracy.o ll.o trampy.o
 tests/inject-simple: tests/inject-simple.o tracy.o ll.o trampy.o
 tests/thread-simple: tests/thread-simple.o tracy.o ll.o trampy.o
-tests/thread-simple-prog: CFLAGS+=-pthread
-tests/thread-simple-prog: LDFLAGS+=-pthread
 tests/thread-simple-prog: tests/thread-simple-prog.o
 tests/fork: tests/fork.o tracy.o ll.o trampy.o
 tests/bounce: tests/bounce.o trampy.o
