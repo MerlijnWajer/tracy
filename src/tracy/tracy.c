@@ -135,24 +135,11 @@ static void free_children(struct soxy_ll *children)
             /* TODO: Check return value? */
 
         } else {
-            /* This works because PTRACE_KILL is the only call that allows a
-             * child not to be stopped at the time of the ptrace call:
-             *
-             *   The  above  request is used only by the child process; the
-             *   rest are used only by the parent.  In the following requests,
-             *   pid specifies the child process to be acted on.
-             *   For requests other than PTRACE_KILL,
-             *   the child process must be stopped.
-             */
             fprintf(stderr, _b("Killing child %d")"\n", tc->pid);
-            ptrace(PTRACE_KILL, tc->pid, NULL, NULL);
-            /* TODO: Check value
-             * TODO: PTRACE_KILL is deprecated, use tracy_kill_child instead?
-             */
+            tracy_kill_child(tc);
         }
 
         /* Free data and fetch next item */
-        free(tc);
         cur = cur->next;
     }
 
@@ -761,23 +748,12 @@ int tracy_continue(struct tracy_event *s, int sigoverride) {
 int tracy_kill_child(struct tracy_child *c) {
     int garbage;
 
-    printf("tracy_kill_child: %d\n", c->pid);
-    /*
-     * PTRACE_KILL is deprecated
-     * if (ptrace(PTRACE_KILL, c->pid)) {
-    */
+    if (c->tracy->opt & TRACY_VERBOSE)
+        printf("tracy_kill_child: %d\n", c->pid);
 
     kill(c->pid, SIGKILL);
 
-    if (c->pre_syscall) {
-        puts("Kill in pre");
-        tracy_deny_syscall(c);
-        ptrace(PTRACE_SYSCALL, c->pid, NULL, NULL);
-    }
-
     waitpid(c->pid, &garbage, 0);
-
-    PTRACE_CHECK(PTRACE_SYSCALL, c->pid, NULL, SIGKILL, -1);
 
     if (tracy_remove_child(c)) {
         puts("Could not remove child");
@@ -1476,6 +1452,10 @@ int tracy_main(struct tracy *tracy) {
                             break;
                         case TRACY_HOOK_NOHOOK:
                             break;
+                        default:
+                            fprintf(stderr, "Invalid hook return: %d. Stopping.\n", hook_ret);
+                            tracy_quit(tracy, 1);
+                            break;
                     }
                 }
             } else {
@@ -1494,6 +1474,10 @@ int tracy_main(struct tracy *tracy) {
                             tracy_quit(tracy, 1);
                             break;
                         case TRACY_HOOK_NOHOOK:
+                            break;
+                        default:
+                            fprintf(stderr, "Invalid hook return: %d. Stopping.\n", hook_ret);
+                            tracy_quit(tracy, 1);
                             break;
                     }
                 }

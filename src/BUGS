@@ -1,12 +1,12 @@
 Tracy:
-    -   [     ] setpgid (bash werkt niet)
+    -   [FIXED] bash werkt niet
     -   [FIXED] problemen met injectie
     -   [     ] attached & detach (repeatedly)
     -   [     ] Interrupt handler moet niet zomaar SIGINT afvangen; denk aan
     interactieve processen zoals Python.
 
 -   [     ] Onthou om te kijken SIGTRAP ook gedaan wordt op BSD bij exec, clone, etc
--   [     ] Error on invalid hook return values.
+-   [FIXED] Error on invalid hook return values.
 -   [     ] Sanitise syscall arguments. OF string, OF __NR_foo (of SYS_foo), maar niet
             mixed.
 -   [     ] Goede API support voor threaded tracees. (Als ze threaded zijn,
