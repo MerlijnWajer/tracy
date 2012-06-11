@@ -558,9 +558,9 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
     struct tracy_child *tc;
     struct tracy_event *s;
     struct soxy_ll_item *item;
-    int new;
+    int new_child;
 
-    new = 0;
+    new_child = 0;
 
     s = NULL;
 
@@ -591,7 +591,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
             s = &tc->event;
             s->child = tc;
-            new = 1;
+            new_child = 1;
         } else {
             s = &(((struct tracy_child*)(item->data))->event);
             s->child = item->data;
@@ -717,9 +717,9 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         /* TODO: Replace this with goto or loop */
         return tracy_wait_event(t, c_pid);
 
-    } else if (signal_id == SIGSTOP && new == 1) {
-        printf("SIGSTOP ignored: pid = %d, new = %d\n", pid, new);
-        new = 0;
+    } else if (signal_id == SIGSTOP && new_child == 1) {
+        printf("SIGSTOP ignored: pid = %d\n", pid);
+        new_child = 0;
         tracy_continue(s, 1);
         return tracy_wait_event(t, c_pid);
     } else {
