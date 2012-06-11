@@ -39,12 +39,15 @@
         /* x86_64 performs syscalls using the syscall instruction,
          * the syscall number is stored within the RAX register
          */
-        #define SET_SYSCALL "rax"
-        #define INLINE_ARG0 "rdi"
-        #define INLINE_ARG1 "rcx"
-        #define LOAD_TRACER_PID "mov %%r8, %%rdi\n"
-        #define ENTER_KERNEL "syscall\n"
-        #define TRACY_SYSCALL_BASE (0x0)
+        #define SET_SYSCALL "i"
+        #define INLINE_ARG0 "i"
+        #define INLINE_ARG1 "i"
+        #define LOAD_TRACER_PID \
+            "mov %1, %%rsi\n" \
+            "mov %%r8, %%rdi\n"
+        #define ENTER_KERNEL \
+            "mov %0, %%rax\n" \
+            "syscall\n"
 
     #elif defined(__i386__)
         /* x86 performs syscalls using the 0x80 interrupt,
@@ -57,17 +60,27 @@
         #define INLINE_ARG1 "c"
         #define LOAD_TRACER_PID "mov %%edi, %%ebx\n"
         #define ENTER_KERNEL "int $0x80\n"
-        #define TRACY_SYSCALL_BASE (0x0)
 
     #elif defined(__arm__)
         /* ARM performs syscalls using the SWI instruction,
-         * the syscall number is stored as part of the instruction.
+         * on ARM there are to ABIs the old (OABI), and the new
+         * (EABI), in the OABI the syscall number is stored as part
+         * of the instruction. In EABI the instruction part is set
+         * to 0, aka "restart_syscall", and the actual syscall number
+         * is stored in register 'r7'.
          *
-         * EABI defines a base to which the syscall number is added.
-         * This base is statically defined in the ARM-GLibc source
+         * Furthermore OABI defines a base to which the syscall number
+         * is added. This base is statically defined in the ARM-GLibc source
          * so we should be fine.
+         *
+         * Trampy kills two birds with one stone by setting the instruction
+         * part to the correct OABI value and storing the EABI syscall
+         * value in r7, theoretically Trampy should work without change
+         * on OABI and EABI.
          */
-        #define SET_SYSCALL "n"
+        #define SET_SYSCALL(VAL) \
+            "n"(VAL + TRACY_SWI_BASE), \
+            "n"(VAL)
         #define INLINE_ARG0 "b"
         #define INLINE_ARG1 "i"
         /* On ARM, since we cannot load into specific registers,
@@ -75,11 +88,13 @@
          * number during the LOAD_TRACER_PID command.
          */
         #define LOAD_TRACER_PID \
-            "mov r4, r0\n" \
-            "mov r1, %1\n"
-        #define ENTER_KERNEL "swi %0\n"
-        /* EABI SWI_BASE */
-        #define TRACY_SYSCALL_BASE (0x900000)
+            "mov r0, r4\n" \
+            "mov r1, %2\n"
+        #define ENTER_KERNEL \
+            "mov r7, %1\n" \
+            "swi %0\n"
+        /* OABI SWI_BASE */
+        #define TRACY_SWI_BASE (0x900000)
 
     #else
         #error Architecture not supported by Trampy on Linux
@@ -95,9 +110,7 @@
 #define MAKE_SYSCALL(CALL_NR) \
     __asm__( \
         ENTER_KERNEL \
-        ::SET_SYSCALL( \
-            TRACY_SYSCALL_BASE + CALL_NR \
-        ) \
+        ::SET_SYSCALL(CALL_NR) \
     )
 
 /* This macro inlines a kill(2) syscall that will inform the
@@ -114,9 +127,7 @@
     __asm__( \
         LOAD_TRACER_PID \
         ENTER_KERNEL \
-        ::SET_SYSCALL( \
-            TRACY_SYSCALL_BASE + SYS_kill \
-        ), \
+        ::SET_SYSCALL(SYS_kill), \
         INLINE_ARG1(SIGUSR1) \
     )
 
@@ -184,7 +195,11 @@ void __trampy_container_func() {
 
 #if 0
     /* Break stuff for libSegFault */
+    #ifdef __arm__
+    __asm__("mov pc, #0\n");
+    #elif defined(__i386__) || defined(__x86_64__)
     __asm__("hlt\n");
+    #endif
 #endif
 
     /* Now the child keeps making sched_yield syscalls until
