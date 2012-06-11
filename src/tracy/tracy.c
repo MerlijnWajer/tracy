@@ -268,16 +268,18 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
 
     signal_id = WSTOPSIG(status);
     if (signal_id != SIGTRAP) {
-        /* TODO: Failure */
-        ptrace(PTRACE_KILL, pid, NULL, NULL);
-        /* TODO: PTRACE_KILL is deprecated, use tracy_kill_child? */
+        fprintf(stderr, "fork_trace_exec: child signal was not SIGTRAP.\n");
+        kill(pid, SIGKILL);
+        waitpid(pid, &status, 0);
+        return NULL;
     }
 
     r = ptrace(PTRACE_SETOPTIONS, pid, NULL, (void*)ptrace_options);
     if (r) {
-        ptrace(PTRACE_KILL, pid, NULL, NULL);
-        /* TODO: PTRACE_KILL is deprecated, use tracy_kill_child? */
-        /* TODO: Options may not be supported... Linux 2.4? */
+        fprintf(stderr, "fork_trace_exec: ptrace(PTRACE_SETOPTIONS) failed.\n");
+        kill(pid, SIGKILL);
+        waitpid(pid, &status, 0);
+        return NULL;
     }
 
     /* We have made sure we will trace each system call of the child, including
@@ -285,15 +287,17 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
      * resume. */
     r = ptrace(PTRACE_SYSCALL, pid, NULL, 0);
     if (r) {
-        ptrace(PTRACE_KILL, pid, NULL, NULL);
-        /* TODO: PTRACE_KILL is deprecated, use tracy_kill_child? */
+        fprintf(stderr, "fork_trace_exec: ptrace(PTRACE_SYSCALL) failed.\n");
+        kill(pid, SIGKILL);
+        waitpid(pid, &status, 0);
         return NULL;
     }
 
     tc = malloc_tracy_child(t, pid);
     if (!tc) {
-        ptrace(PTRACE_KILL, pid, NULL, NULL);
-        /* TODO: PTRACE_KILL is deprecated, use tracy_kill_child? */
+        fprintf(stderr, "fork_trace_exec: malloc_tracy_child failed.\n");
+        kill(pid, SIGKILL);
+        waitpid(pid, &status, 0);
         return NULL;
     }
 
