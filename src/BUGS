@@ -28,8 +28,7 @@ veranderd pointers van syscall) (Kan al met current api)
 -   [     ] Safe fork is helemaal niet netjes wrt events naar de user:
         -   Niet alle fork, vfork en clone worden doorgegeven.
         -   Userspace kan het atm niet eens denyen. (Event loop herschrijven)
--   [     ] Optioneel alle overgebleven children killen wanneer tracy_main verlaten wordt.
--   [     ] Optioneel peek/poke voor read/write mem als fallback.
+-   [FIXED] Optioneel peek/poke voor read/write mem als fallback.
 -   [     ] tracy_wait_event niet recursief.
 
 Niet nodig:
