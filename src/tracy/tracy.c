@@ -131,7 +131,7 @@ static void free_children(struct soxy_ll *children)
         /* Detach or kill */
         if (tc->attached) {
             fprintf(stderr, _b("Detaching from child %d")"\n", tc->pid);
-            PTRACE_CHECK(PTRACE_DETACH, tc->pid, NULL, NULL);
+            PTRACE_CHECK_NORETURN(PTRACE_DETACH, tc->pid, NULL, NULL);
             /* TODO: What can we do in case of failure? */
         } else {
             fprintf(stderr, _b("Killing child %d")"\n", tc->pid);

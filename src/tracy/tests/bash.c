@@ -24,15 +24,6 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-int _setpgid(struct tracy_event *e) {
-    (void)e;
-
-    if (!e->child->pre_syscall)
-        printf("setpgid result: %ld\n", e->args.return_code);
-
-    return TRACY_HOOK_CONTINUE;
-}
-
 int main(int argc, char** argv) {
     struct tracy *tracy;
 
@@ -46,11 +37,6 @@ int main(int argc, char** argv) {
     }
 
     argv++; argc--;
-
-    if (tracy_set_hook(tracy, "setpgid", _setpgid)) {
-        printf("Failed to hook setpgid syscall.\n");
-        return EXIT_FAILURE;
-    }
 
     /* Start child */
     if (!fork_trace_exec(tracy, argc, argv)) {
