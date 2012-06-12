@@ -1637,8 +1637,16 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
 
     /* XXX: TODO: Should we place an ARM PTRACE_SET_SYSCALL here? */
 
+    /* XXX: The IP we store here is the IP in the PRE phase of the parent process.
+     * At that moment the IP points to the instruction following de syscall.
+     */
     ip = args.TRACY_IP_REG;
     args.TRACY_IP_REG = (long)mmap_ret;
+
+    /*
+    printf(_b("Pointer data @ IP 0x%lx: 0x%lx")"\n", ip,  ptrace(PTRACE_PEEKDATA, c->pid, ip, NULL));
+    printf(_b("Pointer data @ IP-4 0x%lx: 0x%lx")"\n", ip - 4,  ptrace(PTRACE_PEEKDATA, c->pid, ip - 4, NULL));
+    */
 
     PTRACE_CHECK(PTRACE_SETREGS, c->pid, 0, &args, -1);
 
@@ -1736,6 +1744,7 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
                  */
                 printf(_r("tracy: During vfork(), failure in parent.")"\n");
                 child_pid = -1;
+                break;
             } else {
                 printf(_b("tracy: During fork(), parent returned first.")"\n");
                 break;
@@ -1783,8 +1792,6 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
             printf("The IP is now %p\n", (void*)args_ret.TRACY_IP_REG);
             puts("POST");
         */
-
-        /*PTRACE_CHECK(PTRACE_GETREGS, c->pid, 0, &args_ret, -1);*/
 
         /* FIXME: We don't check if the fork failed
          * which we really should since there is no point in
