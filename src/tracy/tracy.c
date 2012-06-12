@@ -41,6 +41,7 @@
 #include <string.h>
 
 #include <sys/syscall.h>
+#include <sched.h>
 
 #include <sys/mman.h>
 
@@ -63,14 +64,14 @@
 #endif
 
 /* Macro's */
-#define _PTRACE_CHECK(A1, A2, A3, A4, A5) \
+#define _PTRACE_CHECK(A1, S1, A2, A3, A4, A5) \
     { \
         if (ptrace(A1, A2, A3, A4)) { \
             printf("\n-------------------------------" \
                     "-------------------------------------------------\n"); \
             perror("Whoops"); \
             printf("Function: %s, Line: %d\n", __FUNCTION__, __LINE__); \
-            printf("Arguments: %s, %s (%d), %s, %s\n", #A1, #A2, A2, #A3, #A4); \
+            printf("Arguments: %s, %s (%d), %s, %s\n", S1, #A2, A2, #A3, #A4); \
             printf("-------------------------------" \
                     "-------------------------------------------------\n"); \
             tracy_backtrace(); \
@@ -78,9 +79,9 @@
         } \
     }
 
-#define PTRACE_CHECK(A1, A2, A3, A4, A5) _PTRACE_CHECK(A1, A2, A3, A4, return A5;)
+#define PTRACE_CHECK(A1, A2, A3, A4, A5) _PTRACE_CHECK(A1, #A1, A2, A3, A4, return A5;)
 
-#define PTRACE_CHECK_NORETURN(A1, A2, A3, A4) _PTRACE_CHECK(A1, A2, A3, A4, ;)
+#define PTRACE_CHECK_NORETURN(A1, A2, A3, A4) _PTRACE_CHECK(A1, #A1, A2, A3, A4, ;)
 
 /* Foreground PID, used by tracy main's interrupt handler */
 static pid_t global_fpid;
@@ -277,7 +278,7 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     }
 
     /* Wait for SIGTRAP from the child */
-    waitpid(pid, &status, 0);
+    waitpid(pid, &status, __WALL);
 
     signal_id = WSTOPSIG(status);
     if (signal_id != SIGTRAP) {
@@ -351,7 +352,7 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid)
         t->fpid = pid;
 
     /* Wait for SIGSTOP from the child */
-    waitpid(pid, &status, 0);
+    waitpid(pid, &status, __WALL);
 
     signal_id = WSTOPSIG(status);
     if (signal_id != SIGSTOP && signal_id != SIGTRAP) {
@@ -466,7 +467,7 @@ static int tracy_internal_syscall(struct tracy_event *s) {
         case SYS_fork:
             printf("Internal Syscall %s\n", get_syscall_name(s->syscall_num));
             if (tracy_safe_fork(s->child, &child)) {
-                printf("tracy_safe_fork failed\n!");
+                printf("tracy_safe_fork failed!\n");
                 tracy_debug_current(s->child);
                 /* Probably kill child, or at least make sure it can't fork */
                 return -1;
@@ -488,8 +489,10 @@ static int tracy_internal_syscall(struct tracy_event *s) {
         case SYS_clone:
             printf("Internal Syscall %s\n", get_syscall_name(s->syscall_num));
             if (tracy_safe_fork(s->child, &child)) {
-                printf("tracy_safe_fork failed\n!");
+                printf("tracy_safe_fork failed!\n");
                 tracy_debug_current(s->child);
+                /* XXX REMOVE ME*/
+                /*abort();*/
                 /* Probably kill child, or at least make sure it can't fork */
                 return -1;
             }
@@ -510,7 +513,7 @@ static int tracy_internal_syscall(struct tracy_event *s) {
         case SYS_vfork:
             printf("Internal Syscall %s\n", get_syscall_name(s->syscall_num));
             if (tracy_safe_fork(s->child, &child)) {
-                printf("tracy_safe_fork failed\n!");
+                printf("tracy_safe_fork failed!\n");
                 tracy_debug_current(s->child);
                 /* Probably kill child, or at least make sure it can't fork */
                 return -1;
@@ -750,8 +753,6 @@ int tracy_continue(struct tracy_event *s, int sigoverride) {
 }
 
 int tracy_kill_child(struct tracy_child *c) {
-    int garbage;
-
     printf("tracy_kill_child: %d\n", c->pid);
     /*
      * PTRACE_KILL is deprecated
@@ -766,7 +767,7 @@ int tracy_kill_child(struct tracy_child *c) {
         ptrace(PTRACE_SYSCALL, c->pid, NULL, NULL);
     }
 
-    waitpid(c->pid, &garbage, 0);
+    waitpid(c->pid, NULL, __WALL);
 
     PTRACE_CHECK(PTRACE_SYSCALL, c->pid, NULL, SIGKILL, -1);
 
@@ -1242,7 +1243,10 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         child->inj.injecting = 0;
         tracy_continue(&child->event, 1);
 
-        waitpid(child->pid, &garbage, 0);
+        /* XXX waitpid does not need a valid pointer for its second argument
+         * switch to NULL?
+         */
+        waitpid(child->pid, &garbage, __WALL);
 
         return tracy_inject_syscall_pre_end(child, return_code);
     } else {
@@ -1253,7 +1257,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
         tracy_continue(&child->event, 1);
 
-        waitpid(child->pid, &garbage, 0);
+        waitpid(child->pid, &garbage, __WALL);
 
         return tracy_inject_syscall_post_end(child, return_code);
     }
@@ -1296,7 +1300,7 @@ int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code) {
     /* Wait for PRE, this shouldn't take long as we literally only wait for
      * the OS to notice that we set the PC back it should give us control back
      * on PRE-syscall. */
-    waitpid(child->pid, &garbage, 0);
+    waitpid(child->pid, &garbage, __WALL);
 
     return 0;
 }
@@ -1326,7 +1330,7 @@ int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_numb
     /* Wait for PRE, this shouldn't take long as we literally only wait for
      * the OS to notice that we set the PC back; it should give us control back
      * on PRE-syscall*/
-    waitpid(child->pid, &garbage, 0);
+    waitpid(child->pid, &garbage, __WALL);
 
     return tracy_modify_syscall(child, syscall_number, a);
 }
@@ -1610,7 +1614,7 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
 /*
     puts("DENIED, in PRE");
 */
-    waitpid(c->pid, &status, 0);
+    waitpid(c->pid, &status, __WALL);
 /*
     puts("AFTER DENIED, entered POST");
 */
@@ -1631,9 +1635,15 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
 
     printf(_r("Safe forking syscall:")" "_g("%s")"\n", get_syscall_name(args.TRACY_SYSCALL_REGISTER));
 
-    /* TODO: We need to add a check for the CLONE_VFORK flag here */
+    /* Check if this is a vfork-type syscall */
     if (orig_syscall == __NR_vfork)
         is_vforking = 1;
+
+    /* Clone can also cause vfork behaviour */
+    if (orig_syscall == __NR_clone && args.TRACY_ARG_0 & CLONE_VFORK) {
+        puts(_b("clone with CLONE_VFORK detected, treating as vfork call"));
+        is_vforking = 1;
+    }
 
     /* XXX: TODO: Should we place an ARM PTRACE_SET_SYSCALL here? */
 
@@ -1657,7 +1667,7 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
 */
 
     PTRACE_CHECK(PTRACE_SYSCALL, c->pid, 0, 0, -1);
-    waitpid(c->pid, &status, 0);
+    waitpid(c->pid, &status, __WALL);
 
     /* At this moment the child is in PRE mode in the trampy code,
      * trying to execute a sched_yield, which we shall now make
@@ -1753,8 +1763,9 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
 
         /* This is the new child */
         if (info.si_signo == SIGUSR1) {
-            printf(_b("Handling SIGUSR1 from process %d and continue")"\n",
-                info.si_pid);
+            printf(_b("Handling SIGUSR1 from process %d, completing safe-fork")
+                "\n", info.si_pid);
+
             /* If we're vforking the parent is now marked frozen */
             if (is_vforking) {
                 c->frozen_by_vfork = 1;
@@ -1784,7 +1795,7 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
      * it is frozen, unless the vfork failed.
      */
     if (!is_vforking || child_pid == -1) {
-        waitpid(c->pid, &status, 0);
+        waitpid(c->pid, &status, __WALL);
 
         PTRACE_CHECK(PTRACE_GETREGS, c->pid, 0, &args_ret, -1);
 
@@ -1827,7 +1838,9 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
 
     /* Ptrace guarantees PRE state (? XXX TODO FIXME)*/
     PTRACE_CHECK(PTRACE_ATTACH, child_pid, 0, 0, -1);
-    waitpid(child_pid, &status, 0);
+    if (waitpid(child_pid, &status, __WALL) == -1) {
+        perror("Failure waiting for new child");
+    }
 
 /*
     if (ptrace(PTRACE_SETREGS, child_pid, 0, &args))
