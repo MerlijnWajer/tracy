@@ -132,28 +132,14 @@ static void free_children(struct soxy_ll *children)
         /* Detach or kill */
         if (tc->attached) {
             fprintf(stderr, _b("Detaching from child %d")"\n", tc->pid);
-            ptrace(PTRACE_DETACH, tc->pid, NULL, NULL);
-            /* TODO: Check return value? */
-
+            PTRACE_CHECK_NORETURN(PTRACE_DETACH, tc->pid, NULL, NULL);
+            /* TODO: What can we do in case of failure? */
         } else {
-            /* This works because PTRACE_KILL is the only call that allows a
-             * child not to be stopped at the time of the ptrace call:
-             *
-             *   The  above  request is used only by the child process; the
-             *   rest are used only by the parent.  In the following requests,
-             *   pid specifies the child process to be acted on.
-             *   For requests other than PTRACE_KILL,
-             *   the child process must be stopped.
-             */
             fprintf(stderr, _b("Killing child %d")"\n", tc->pid);
-            ptrace(PTRACE_KILL, tc->pid, NULL, NULL);
-            /* TODO: Check value
-             * TODO: PTRACE_KILL is deprecated, use tracy_kill_child instead?
-             */
+            tracy_kill_child(tc);
         }
 
         /* Free data and fetch next item */
-        free(tc);
         cur = cur->next;
     }
 
@@ -248,7 +234,8 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
     if (pid == 0) {
         r = ptrace(PTRACE_TRACEME, 0, NULL, NULL);
         if (r) {
-            /* TODO: Failure */
+            fprintf(stderr, "PTRACE_TRACEME failed.\n");
+            _exit(1);
         }
 
         /* Give the parent to chance to set some extra tracing options before we
@@ -261,8 +248,10 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
             execv(argv[0], argv);
         }
 
-        if (errno == -1) {
-            /* TODO: Failure */
+        if (errno) {
+            perror("fork_trace_exec");
+            fprintf(stderr, "execv failed.\n");
+            _exit(1);
         }
     }
 
@@ -282,16 +271,18 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
 
     signal_id = WSTOPSIG(status);
     if (signal_id != SIGTRAP) {
-        /* TODO: Failure */
-        ptrace(PTRACE_KILL, pid, NULL, NULL);
-        /* TODO: PTRACE_KILL is deprecated, use tracy_kill_child? */
+        fprintf(stderr, "fork_trace_exec: child signal was not SIGTRAP.\n");
+        kill(pid, SIGKILL);
+        waitpid(pid, &status, 0);
+        return NULL;
     }
 
     r = ptrace(PTRACE_SETOPTIONS, pid, NULL, (void*)ptrace_options);
     if (r) {
-        ptrace(PTRACE_KILL, pid, NULL, NULL);
-        /* TODO: PTRACE_KILL is deprecated, use tracy_kill_child? */
-        /* TODO: Options may not be supported... Linux 2.4? */
+        fprintf(stderr, "fork_trace_exec: ptrace(PTRACE_SETOPTIONS) failed.\n");
+        kill(pid, SIGKILL);
+        waitpid(pid, &status, 0);
+        return NULL;
     }
 
     /* We have made sure we will trace each system call of the child, including
@@ -299,15 +290,17 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
      * resume. */
     r = ptrace(PTRACE_SYSCALL, pid, NULL, 0);
     if (r) {
-        ptrace(PTRACE_KILL, pid, NULL, NULL);
-        /* TODO: PTRACE_KILL is deprecated, use tracy_kill_child? */
+        fprintf(stderr, "fork_trace_exec: ptrace(PTRACE_SYSCALL) failed.\n");
+        kill(pid, SIGKILL);
+        waitpid(pid, &status, 0);
         return NULL;
     }
 
     tc = malloc_tracy_child(t, pid);
     if (!tc) {
-        ptrace(PTRACE_KILL, pid, NULL, NULL);
-        /* TODO: PTRACE_KILL is deprecated, use tracy_kill_child? */
+        fprintf(stderr, "fork_trace_exec: malloc_tracy_child failed.\n");
+        kill(pid, SIGKILL);
+        waitpid(pid, &status, 0);
         return NULL;
     }
 
@@ -561,6 +554,9 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
     struct tracy_child *tc;
     struct tracy_event *s;
     struct soxy_ll_item *item;
+    int new_child;
+
+    new_child = 0;
 
     s = NULL;
 
@@ -591,6 +587,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
             s = &tc->event;
             s->child = tc;
+            new_child = 1;
         } else {
             s = &(((struct tracy_child*)(item->data))->event);
             s->child = item->data;
@@ -716,6 +713,11 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         /* TODO: Replace this with goto or loop */
         return tracy_wait_event(t, c_pid);
 
+    } else if (signal_id == SIGSTOP && new_child == 1) {
+        printf("SIGSTOP ignored: pid = %d\n", pid);
+        new_child = 0;
+        tracy_continue(s, 1);
+        return tracy_wait_event(t, c_pid);
     } else {
         if (t->opt & TRACY_VERBOSE)
             puts(_y("Signal for the child"));
@@ -753,23 +755,12 @@ int tracy_continue(struct tracy_event *s, int sigoverride) {
 }
 
 int tracy_kill_child(struct tracy_child *c) {
-    printf("tracy_kill_child: %d\n", c->pid);
-    /*
-     * PTRACE_KILL is deprecated
-     * if (ptrace(PTRACE_KILL, c->pid)) {
-    */
+    if (c->tracy->opt & TRACY_VERBOSE)
+        printf("tracy_kill_child: %d\n", c->pid);
 
     kill(c->pid, SIGKILL);
 
-    if (c->pre_syscall) {
-        puts("Kill in pre");
-        tracy_deny_syscall(c);
-        ptrace(PTRACE_SYSCALL, c->pid, NULL, NULL);
-    }
-
     waitpid(c->pid, NULL, __WALL);
-
-    PTRACE_CHECK(PTRACE_SYSCALL, c->pid, NULL, SIGKILL, -1);
 
     if (tracy_remove_child(c)) {
         puts("Could not remove child");
@@ -1471,6 +1462,10 @@ int tracy_main(struct tracy *tracy) {
                             break;
                         case TRACY_HOOK_NOHOOK:
                             break;
+                        default:
+                            fprintf(stderr, "Invalid hook return: %d. Stopping.\n", hook_ret);
+                            tracy_quit(tracy, 1);
+                            break;
                     }
                 }
             } else {
@@ -1489,6 +1484,10 @@ int tracy_main(struct tracy *tracy) {
                             tracy_quit(tracy, 1);
                             break;
                         case TRACY_HOOK_NOHOOK:
+                            break;
+                        default:
+                            fprintf(stderr, "Invalid hook return: %d. Stopping.\n", hook_ret);
+                            tracy_quit(tracy, 1);
                             break;
                     }
                 }
