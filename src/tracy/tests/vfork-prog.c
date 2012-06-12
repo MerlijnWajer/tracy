@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sched.h>
+#include <signal.h>
 
 static int dat_shared_mem = 0;
 static int child_func(void *parg);
@@ -26,7 +27,11 @@ int main (int argc, char *argv[]) {
 
         /* vfork by means of clone */
         puts("Using clone(2) to vfork");
+#if 0
+        child = clone(child_func, stack + 64 * 1024, CLONE_VFORK | SIGCHLD, NULL);
+#else
         child = clone(child_func, stack + 64 * 1024, CLONE_VFORK, NULL);
+#endif
     } else {
         /* vfork by vfork */
         puts("Using vfork(2)");

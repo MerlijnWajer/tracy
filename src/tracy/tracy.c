@@ -496,8 +496,12 @@ static int tracy_internal_syscall(struct tracy_event *s) {
             printf("Added and resuming child\n");
             tracy_continue(&new_child->event, 1);
 
-            printf("Continue parent\n");
-            tracy_continue(s, 1);
+            if (!s->child->frozen_by_vfork) {
+                printf("Continue parent\n");
+                tracy_continue(s, 1);
+            } else {
+                printf("Not continuing parent\n");
+            }
 
             printf("Done!\n");
             return 0;
