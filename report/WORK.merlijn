@@ -28,6 +28,8 @@ Code: (Time spent writing only)
     -   Tracy debug functions: 4 hours. (15 May)
     -   Fix POST-inject bug: 8 hours - yes, really. (15 May)
     -   Signals: A study in man ptrace: 4 hours. (18 May)
+    -   Bash bug: 2 hours. (11 June)
+    -   safe-fork-fix-1: clone quirks: 4 hours. (13 June)
 
 Tracy tests:
     -   Loggy: 3 hours. (11 March)
