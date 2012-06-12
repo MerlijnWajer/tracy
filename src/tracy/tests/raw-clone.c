@@ -15,6 +15,9 @@ static pid_t no_cache_getpid()
 {
     pid_t pid;
 
+#if defined(__x86_64__)
+    pid = syscall(__NR_getpid);
+#elif defined(__i386__)
     __asm__(
         "int $0x80"
         :
@@ -22,6 +25,7 @@ static pid_t no_cache_getpid()
         :
             "a"(__NR_getpid)
         );
+#endif
 
     return pid;
 }
@@ -38,6 +42,9 @@ int main()
 
     printf("Test initial PID (and TID) is %d\n", tid);
 
+#if defined(__x86_64__)
+    rval = syscall(__NR_clone, CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, 0, &tid);
+#elif defined(__i386__)
     __asm__(
         "int $0x80"
         :
@@ -49,6 +56,7 @@ int main()
             "c"(0),     /* Child stack (not necessary for fork) */
             "d"(&tid)   /* Child thread ID pointer */
         );
+#endif
 
     pid = no_cache_getpid();
     printf("In %d return value is: %d\n", pid, rval);
