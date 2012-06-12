@@ -493,6 +493,8 @@ static int tracy_internal_syscall(struct tracy_event *s) {
 
             new_child = tracy_add_child(s->child->tracy, child);
 
+            tracy_debug_current(new_child);
+
             printf("Added and resuming child\n");
             tracy_continue(&new_child->event, 1);
 
@@ -1199,12 +1201,16 @@ int tracy_munmap(struct tracy_child *child, long *ret,
  *
  */
 int tracy_debug_current(struct tracy_child *child) {
+    return tracy_debug_current_pid(child->pid);
+}
+
+int tracy_debug_current_pid(pid_t pid) {
     struct TRACY_REGS_NAME a;
 
-    PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &a, -1);
+    PTRACE_CHECK(PTRACE_GETREGS, pid, 0, &a, -1);
 
     printf("DEBUG: 0: %ld 1: %ld 2: %ld 3: %ld 4: %ld 5: %ld"
-            "r: %ld, R: %ld, IP: %ld SP: %ld\n",
+            " s: %ld, R: %ld, PC: %ld SP: %ld\n",
             a.TRACY_ARG_0, a.TRACY_ARG_1,
             a.TRACY_ARG_2, a.TRACY_ARG_3,
             a.TRACY_ARG_4, a.TRACY_ARG_5,
@@ -1212,7 +1218,16 @@ int tracy_debug_current(struct tracy_child *child) {
             a.TRACY_IP_REG, a.TRACY_STACK_POINTER
             );
 
-    tracy_backtrace();
+    printf("DEBUG: 0: %lx 1: %lx 2: %lx 3: %lx 4: %lx 5: %lx"
+            " s: %lx, R: %lx, PC: %lx SP: %lx\n",
+            a.TRACY_ARG_0, a.TRACY_ARG_1,
+            a.TRACY_ARG_2, a.TRACY_ARG_3,
+            a.TRACY_ARG_4, a.TRACY_ARG_5,
+            a.TRACY_SYSCALL_REGISTER, a.TRACY_RETURN_CODE,
+            a.TRACY_IP_REG, a.TRACY_STACK_POINTER
+            );
+
+    /*tracy_backtrace();*/
 
     return 0;
 }
@@ -1222,6 +1237,10 @@ void tracy_backtrace(void) {
     size_t size;
 
     size = backtrace(array, 40);
+    if (size) {
+        fprintf(stderr, "Backtrace failed!\n");
+        return;
+    }
     backtrace_symbols_fd(array, 10, 2);
 
     return;
@@ -1564,6 +1583,8 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     struct timespec timeout;
     siginfo_t info;
     int is_vforking = 0;
+
+    tracy_debug_current(c);
 
 /*
     puts("SAFE_FORKING!");

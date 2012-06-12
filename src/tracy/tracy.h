@@ -349,14 +349,9 @@ int tracy_mmap(struct tracy_child *child, tracy_child_addr_t *ret,
 int tracy_munmap(struct tracy_child *child, long *ret,
        tracy_child_addr_t addr, size_t length);
 
-
 /* -- Debug functions -- */
 int tracy_debug_current(struct tracy_child *child);
-void tracy_backtrace(void);
-
-
-/* -- Debug functions -- */
-int tracy_debug_current(struct tracy_child *child);
+int tracy_debug_current_pid(pid_t pid);
 void tracy_backtrace(void);
 
 /* Synchronous injection */
