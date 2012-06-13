@@ -58,7 +58,7 @@
         #define SET_SYSCALL "a"
         #define INLINE_ARG0 "b"
         #define INLINE_ARG1 "c"
-        #define LOAD_TRACER_PID "mov %%edi, %%ebx\n"
+        #define LOAD_TRACER_PID "mov %%ebp, %%ebx\n"
         #define ENTER_KERNEL "int $0x80\n"
 
     #elif defined(__arm__)
@@ -66,7 +66,7 @@
          * on ARM there are to ABIs the old (OABI), and the new
          * (EABI), in the OABI the syscall number is stored as part
          * of the instruction. In EABI the instruction part is set
-         * to 0, aka "restart_syscall", and the actual syscall number
+         * to 1, aka "restart_syscall", and the actual syscall number
          * is stored in register 'r7'.
          *
          * Furthermore OABI defines a base to which the syscall number

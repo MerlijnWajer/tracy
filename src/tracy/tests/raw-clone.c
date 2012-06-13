@@ -46,7 +46,13 @@ int main()
     rval = syscall(__NR_clone, CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, 0, &tid);
 #elif defined(__i386__)
     __asm__(
-        "int $0x80"
+		"push %%esi\n"
+		"push %%edi\n"
+		"xor %%esi, %%esi\n"
+		"mov %5, %%edi\n"
+        "int $0x80\n"
+		"pop %%edi\n"
+		"pop %%esi\n"
         :
             "=a"(rval)
         :
@@ -54,7 +60,8 @@ int main()
             /* Same clone arguments as glibc's fork() */
             "b"(CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD),
             "c"(0),     /* Child stack (not necessary for fork) */
-            "d"(&tid)   /* Child thread ID pointer */
+			"d"(0),
+            "i"(&tid)   /* Child thread ID pointer */
         );
 #endif
 
