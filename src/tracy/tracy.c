@@ -726,7 +726,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         return tracy_wait_event(t, c_pid);
     } else {
         if (t->opt & TRACY_VERBOSE)
-            puts(_y("Signal for the child"));
+            printf(_y("Signal for child: %d")"\n", pid);
         /* Signal for the child, pass it along. */
         s->signal_num = signal_id;
         s->type = TRACY_EVENT_SIGNAL;
