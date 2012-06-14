@@ -2,11 +2,12 @@
 
 CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror -pipe
 CFLAGS+=-D_POSIX_SOURCE -D_GNU_SOURCE
-CFLAGS+=-ggdb
+CFLAGS+=-ggdb -pthread
 
 LDFLAGS+=-rdynamic -pthread
 #CFLAGS+=-O2
 #CFLAGS+=-m32
+#LDFLAGS+=-m32
 
 OBJECTS=tracy.o ll.o trampy.o
 
