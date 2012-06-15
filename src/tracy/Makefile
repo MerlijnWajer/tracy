@@ -15,8 +15,7 @@ default: $(OBJECTS) tests
 
 test_binaries=tests/hello tests/rwmem tests/base tests/inject-simple \
 	tests/thread-simple tests/thread-simple-prog tests/fork \
-	tests/fork-prog tests/vfork-prog tests/bounce tests/bash \
-	tests/raw-clone
+	tests/fork-prog tests/vfork-prog tests/bounce tests/bash
 
 tests: $(test_binaries)
 tests/rwmem: tests/rwmem.o tracy.o ll.o trampy.o
