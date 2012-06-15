@@ -15,15 +15,8 @@
     along with Tracy.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* XXX: Perhaps a DIA plugin? */
-
-/* Dotty.
- *
- * Generate .dot files from system calls made by processes.
- *
- * Dotty is: very incomplete, has quite as few bugs, doesn't trace fork(2) and
- * vfork(2), at least not in the graph, and the .dot output becomes quite
- * useless after the .dot file grows to extreme proportions.
+/*
+ * County.
  *
  */
 
