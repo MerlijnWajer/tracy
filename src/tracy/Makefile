@@ -9,12 +9,14 @@ LDFLAGS+=-rdynamic -pthread
 #CFLAGS+=-m32
 
 OBJECTS=tracy.o ll.o trampy.o
+TRACY_HS=tracy.h ll.h tracyarch.h
 
 default: $(OBJECTS) tests
 
 test_binaries=tests/hello tests/rwmem tests/base tests/inject-simple \
 	tests/thread-simple tests/thread-simple-prog tests/fork \
-	tests/fork-prog tests/vfork-prog tests/bounce tests/bash
+	tests/fork-prog tests/vfork-prog tests/bounce tests/bash \
+	tests/raw-clone
 
 tests: $(test_binaries)
 tests/rwmem: tests/rwmem.o tracy.o ll.o trampy.o
@@ -29,7 +31,19 @@ tests/bounce: tests/bounce.o trampy.o
 check-rwmem: tests/rwmem tests/hello
 	tests/rwmem tests/hello
 
-tracy.o: def_syscalls.h
+# Tracy core
+tracy.o: def_syscalls.h def_signals.h trampy.h $(TRACY_HS)
+ll.o: ll.h
+
+# Tracy dependent test files.
+tests/bash.o: $(TRACY_HS)
+tests/base.o: $(TRACY_HS)
+tests/inject-simple.o: $(TRACY_HS)
+tests/thread-simple.o: $(TRACY_HS)
+tests/fork.o: $(TRACY_HS)
+tests/rwmem.o: $(TRACY_HS)
+tests/bouce.o: trampy.h
+
 
 def_syscalls.h:
 	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E -dM \
