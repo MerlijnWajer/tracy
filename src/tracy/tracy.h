@@ -136,6 +136,9 @@ struct tracy_child {
     /* Child in vfork parent-role (frozen until child execve, etc.) */
     int frozen_by_vfork;
 
+    /* If the child has recieved the first SIGSTOP (that we will block) */
+    int received_first_sigstop;
+
     /* vfork restoration values */
     long orig_pc;
     long orig_trampy_pid_reg;

@@ -183,6 +183,7 @@ static struct tracy_child *malloc_tracy_child(struct tracy *t, pid_t pid)
     tc->inj.injecting = 0;
     tc->inj.cb = NULL;
     tc->frozen_by_vfork = 0;
+    tc->received_first_sigstop = 0;
     tc->denied_nr = 0;
     tc->tracy = t;
     tc->custom = NULL;
@@ -303,6 +304,10 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
         return NULL;
     }
 
+    /* This child has been created by us - I doesn't get a SIGSTOP that we want
+     * to ignore. */
+    tc->received_first_sigstop = 1;
+
     ll_add(t->childs, tc->pid, tc);
     if (t->se.child_create)
         (t->se.child_create)(tc);
@@ -380,6 +385,7 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid)
 
     /* This is an attached child */
     tc->attached = 1;
+    tc->received_first_sigstop = 1;
 
     ll_add(t->childs, tc->pid, tc);
 
@@ -551,9 +557,6 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
     struct tracy_child *tc;
     struct tracy_event *s;
     struct soxy_ll_item *item;
-    int new_child;
-
-    new_child = 0;
 
     s = NULL;
 
@@ -584,7 +587,6 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
             s = &tc->event;
             s->child = tc;
-            new_child = 1;
         } else {
             s = &(((struct tracy_child*)(item->data))->event);
             s->child = item->data;
@@ -711,10 +713,11 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         /* TODO: Replace this with goto or loop */
         return tracy_wait_event(t, c_pid);
 
-    } else if (signal_id == SIGSTOP && new_child == 1) {
+    } else if (signal_id == SIGSTOP && !s->child->received_first_sigstop) {
         if (TRACY_PRINT_SIGNALS(t))
             printf("SIGSTOP ignored: pid = %d\n", pid);
-        new_child = 0;
+
+        s->child->received_first_sigstop = 1;
         tracy_continue(s, 1);
         return tracy_wait_event(t, c_pid);
     } else {
