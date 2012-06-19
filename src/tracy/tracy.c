@@ -1430,6 +1430,10 @@ int tracy_main(struct tracy *tracy) {
     while (main_loop_go_on) {
         start:
         e = tracy_wait_event(tracy, -1);
+        if (!e) {
+            fprintf(stderr, "tracy_main: tracy_wait_Event returned NULL\n");
+            continue;
+        }
 
         if (e->type == TRACY_EVENT_NONE) {
             break;
