@@ -62,6 +62,10 @@
 #define _b(s) s
 #endif
 
+#define PTRACE_SETSYSCALLMASK 42
+#define PTRACE_GETSYSCALLMASK 43
+#define PTRACE_SYSCALLWHITELIST 44
+
 /* Macro's */
 #define _PTRACE_CHECK(A1, A2, A3, A4, A5) \
     { \
@@ -284,6 +288,19 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
         waitpid(pid, &status, 0);
         return NULL;
     }
+
+    /*
+    r = ptrace(PTRACE_SETSYSCALLMASK, pid, 1, __NR_read);
+    r = ptrace(PTRACE_SETSYSCALLMASK, pid, 1, __NR_write);
+    */
+    r = ptrace(PTRACE_SYSCALLWHITELIST, pid, NULL, 0);
+    if (r) {
+        fprintf(stderr, "New API failed... :-( .\n");
+        kill(pid, SIGKILL);
+        waitpid(pid, &status, 0);
+        return NULL;
+    }
+    printf("Set the PTRACE_SETSYSCALLMASK\n");
 
     /* We have made sure we will trace each system call of the child, including
      * the system calls of the children of the child, so the child can now

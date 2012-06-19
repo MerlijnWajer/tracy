@@ -27,6 +27,8 @@
 #include <asm/ptrace.h>
 #include "tracyarch.h"
 
+#define likely(x)       __builtin_expect((x),1)
+#define unlikely(x)     __builtin_expect((x),0)
 
 /* Tracy options, pass them to tracy_init(). */
 #define TRACY_TRACE_CHILDREN 1 << 0
