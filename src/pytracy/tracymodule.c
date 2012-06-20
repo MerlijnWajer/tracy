@@ -100,74 +100,50 @@ typedef struct {
 
 static PyMemberDef tracy_event_members[] = {
     {"typ", T_INT, offsetof(tracy_event_object, event.type), 0, "type"},
-    {"syscall", T_LONG, offsetof(tracy_event_object, event.syscall_num), 0,
-        "syscall number"},
-    {"signal", T_LONG, offsetof(tracy_event_object, event.signal_num), 0,
+    {"syscall_num", T_LONG, offsetof(tracy_event_object, event.syscall_num),
+        0, "syscall number"},
+    {"signal_num", T_LONG, offsetof(tracy_event_object, event.signal_num), 0,
         "signal number"},
     {NULL},
 };
 
+static int tracy_event_init(tracy_event_object *self, PyObject *args,
+    PyObject *kwargs)
+{
+    static char *kwlist[] = {"typ", "child", "syscall_num", "signal_num",
+        "args", NULL};
+
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "iO!llO!", kwlist,
+            &self->event.type, &tracy_child_type, &self->child,
+            &self->event.syscall_num, &self->event.signal_num,
+            &tracy_sc_args_type, &self->args)) {
+        return -1;
+    }
+
+    // copy the child and args into the event object
+    // TODO: make tracy_sc_args init once, not writable for this object
+    self->event.child = ((tracy_child_object *) self->child)->child;
+    memcpy(&self->event.args, &((tracy_sc_args_object *) self->args)->sc,
+        sizeof(struct tracy_sc_args));
+    return 0;
+}
+
 static PyObject *tracy_event_getchild(tracy_event_object *self, void *closure)
 {
-    // return existing object
-    if(self->child != NULL) {
-        Py_INCREF(self->child);
-        return self->child;
-    }
-
-    // return None if not set
-    if(self->event.child == NULL) {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-
-    self->child = tracy_child_new(self->event.child);
-
     Py_INCREF(self->child);
     return self->child;
 }
 
 static PyObject *tracy_event_getargs(tracy_event_object *self, void *closure)
 {
-    // return existing object
-    if(self->args != NULL) {
-        return self->args;
-    }
-
-    PyObject *obj = _PyObject_New(&tracy_sc_args_type);
-
-    memcpy(&((tracy_sc_args_object *) obj)->sc, &self->event.args,
-        sizeof(struct tracy_sc_args));
-
-    self->args = obj;
-
-    Py_INCREF(obj);
-    return obj;
-}
-
-static int tracy_event_setchild(tracy_event_object *self,
-    PyObject *value, void *closure)
-{
-    Py_XDECREF(self->child);
-    Py_XINCREF(value);
-    self->child = value;
-    return 0;
-}
-
-static int tracy_event_setargs(tracy_event_object *self,
-    PyObject *value, void *closure)
-{
-    Py_XDECREF(self->args);
-    Py_XINCREF(value);
-    self->args = value;
-    return 0;
+    Py_INCREF(self->args);
+    return self->args;
 }
 
 static PyGetSetDef tracy_event_getset[] = {
-    {"child", (getter) tracy_event_getchild, (setter) tracy_event_setchild,
-        "child process", NULL},
-    {"args", (getter) tracy_event_getargs, (setter) tracy_event_setargs,
-        "system call arguments", NULL},
+    {"child", (getter) tracy_event_getchild, NULL, "child process", NULL},
+    {"args", (getter) tracy_event_getargs, NULL, "system call arguments",
+        NULL},
     {NULL},
 };
 
@@ -180,6 +156,7 @@ static PyTypeObject tracy_event_type = {
     .tp_new = PyType_GenericNew,
     .tp_members = tracy_event_members,
     .tp_getset = tracy_event_getset,
+    .tp_init = (initproc) tracy_event_init,
 };
 
 //
