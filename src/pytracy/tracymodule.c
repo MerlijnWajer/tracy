@@ -2,6 +2,10 @@
 #include <structmember.h>
 #include "tracy.h"
 
+//
+// Tracy System Call Arguments Object
+//
+
 typedef struct {
     PyObject_HEAD
     struct tracy_sc_args sc;
@@ -56,9 +60,13 @@ static PyTypeObject tracy_sc_args_type = {
     .tp_init = (initproc) &tracy_sc_args_init,
 };
 
+//
+// Tracy Child Object
+//
+
 typedef struct {
     PyObject_HEAD
-    struct tracy_child child;
+    struct tracy_child *child;
 } tracy_child_object;
 
 static PyTypeObject tracy_child_type = {
@@ -69,6 +77,114 @@ static PyTypeObject tracy_child_type = {
     .tp_doc = "Tracy Child Process Object",
     .tp_new = PyType_GenericNew,
 };
+
+PyObject *tracy_child_new(struct tracy_child *child)
+{
+    PyObject *ret = _PyObject_New(&tracy_child_type);
+    ((tracy_child_object *) ret)->child = child;
+    return ret;
+}
+
+//
+// Tracy Event Object
+//
+
+typedef struct {
+    PyObject_HEAD
+    struct tracy_event event;
+
+    // python objects of child and args in the event object
+    PyObject *child;
+    PyObject *args;
+} tracy_event_object;
+
+static PyMemberDef tracy_event_members[] = {
+    {"typ", T_INT, offsetof(tracy_event_object, event.type), 0, "type"},
+    {"syscall", T_LONG, offsetof(tracy_event_object, event.syscall_num), 0,
+        "syscall number"},
+    {"signal", T_LONG, offsetof(tracy_event_object, event.signal_num), 0,
+        "signal number"},
+    {NULL},
+};
+
+static PyObject *tracy_event_getchild(tracy_event_object *self, void *closure)
+{
+    // return existing object
+    if(self->child != NULL) {
+        Py_INCREF(self->child);
+        return self->child;
+    }
+
+    // return None if not set
+    if(self->event.child == NULL) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+
+    self->child = tracy_child_new(self->event.child);
+
+    Py_INCREF(self->child);
+    return self->child;
+}
+
+static PyObject *tracy_event_getargs(tracy_event_object *self, void *closure)
+{
+    // return existing object
+    if(self->args != NULL) {
+        return self->args;
+    }
+
+    PyObject *obj = _PyObject_New(&tracy_sc_args_type);
+
+    memcpy(&((tracy_sc_args_object *) obj)->sc, &self->event.args,
+        sizeof(struct tracy_sc_args));
+
+    self->args = obj;
+
+    Py_INCREF(obj);
+    return obj;
+}
+
+static int tracy_event_setchild(tracy_event_object *self,
+    PyObject *value, void *closure)
+{
+    Py_XDECREF(self->child);
+    Py_XINCREF(value);
+    self->child = value;
+    return 0;
+}
+
+static int tracy_event_setargs(tracy_event_object *self,
+    PyObject *value, void *closure)
+{
+    Py_XDECREF(self->args);
+    Py_XINCREF(value);
+    self->args = value;
+    return 0;
+}
+
+static PyGetSetDef tracy_event_getset[] = {
+    {"child", (getter) tracy_event_getchild, (setter) tracy_event_setchild,
+        "child process", NULL},
+    {"args", (getter) tracy_event_getargs, (setter) tracy_event_setargs,
+        "system call arguments", NULL},
+    {NULL},
+};
+
+static PyTypeObject tracy_event_type = {
+    PyObject_HEAD_INIT(NULL)
+    .tp_name = "tracy.Event",
+    .tp_basicsize = sizeof(tracy_event_object),
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "Tracy Event Object",
+    .tp_new = PyType_GenericNew,
+    .tp_members = tracy_event_members,
+    .tp_getset = tracy_event_getset,
+};
+
+//
+// Tracy Object
+//
 
 typedef struct {
     PyObject_HEAD
@@ -113,16 +229,12 @@ static PyObject *_tracy_attach(tracy_object *self, PyObject *args)
         return Py_None;
     }
 
-    //struct tracy_child *child = tracy_attach(self->tracy, pid);
-    //if(child == NULL) {
-        // ...
-    //}
+    struct tracy_child *child = NULL; //tracy_attach(self->tracy, pid);
+    if(child == NULL) {
+        return NULL;
+    }
 
-    // create tracy_child_object instance
-    // ...
-
-    Py_INCREF(Py_None);
-    return Py_None;
+    return tracy_child_new(child);
 }
 
 static PyObject *_tracy_execv(tracy_object *self, PyObject *args)
@@ -133,16 +245,16 @@ static PyObject *_tracy_execv(tracy_object *self, PyObject *args)
         argv[i] = PyString_AsString(arg);
     }
 
-    //struct tracy_child *child = fork_trace_exec(self->tracy,
+    struct tracy_child *child = NULL; // fork_trace_exec(self->tracy,
         //PyTuple_Size(args), argv);
 
     free(argv);
 
-    // create tracy_child_object instance
-    // ...
+    if(child == NULL) {
+        return NULL;
+    }
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    return tracy_child_new(child);
 }
 
 static PyMethodDef tracy_methods[] = {
@@ -166,6 +278,10 @@ static PyTypeObject tracy_type = {
     .tp_methods = tracy_methods,
 };
 
+//
+// Module Methods
+//
+
 static PyMethodDef module_methods[] = {
     {NULL},
 };
@@ -177,7 +293,8 @@ PyMODINIT_FUNC inittracy(void)
 
     if(PyType_Ready(&tracy_type) < 0 ||
             PyType_Ready(&tracy_sc_args_type) < 0 ||
-            PyType_Ready(&tracy_child_type) < 0) {
+            PyType_Ready(&tracy_child_type) < 0 ||
+            PyType_Ready(&tracy_event_type) < 0) {
         return;
     }
 
@@ -190,4 +307,7 @@ PyMODINIT_FUNC inittracy(void)
     Py_INCREF(&tracy_sc_args_type);
     PyModule_AddObject(m, "SyscallArguments",
         (PyObject *) &tracy_sc_args_type);
+
+    Py_INCREF(&tracy_event_type);
+    PyModule_AddObject(m, "Event", (PyObject *) &tracy_event_type);
 }
