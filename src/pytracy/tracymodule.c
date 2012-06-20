@@ -234,12 +234,46 @@ static PyObject *_tracy_execv(tracy_object *self, PyObject *args)
     return tracy_child_new(child);
 }
 
+static PyObject *_tracy_children(tracy_object *self)
+{
+    PyObject *ret = PyList_New(0);
+
+    if(self->tracy->childs == NULL) {
+        return ret;
+    }
+
+    for (struct soxy_ll_item *p = self->tracy->childs->head; p != NULL;
+            p = p->next) {
+        PyList_Append(ret, tracy_child_new(p->data));
+    }
+
+    return ret;
+}
+
 static PyMethodDef tracy_methods[] = {
     {"loop", (PyCFunction) &_tracy_loop, METH_NOARGS, "see tracy_main"},
     {"attach", (PyCFunction) &_tracy_attach, METH_VARARGS,
         "attach to a process"},
     {"execv", (PyCFunction) &_tracy_execv, METH_VARARGS,
         "exec(2) a new process"},
+    {"children", (PyCFunction) &_tracy_children, METH_NOARGS,
+        "children of this tracy object"},
+    {NULL},
+};
+
+static PyObject *_tracy_getfpid(tracy_object *self, void *closure)
+{
+    return PyLong_FromLong(self->tracy->fpid);
+}
+
+static PyObject *_tracy_getopt(tracy_object *self, void *closure)
+{
+    return PyLong_FromLong(self->tracy->opt);
+}
+
+static PyGetSetDef tracy_getset[] = {
+    {"fpid", (getter) _tracy_getfpid, NULL, "foreground pid", NULL},
+    {"opt", (getter) _tracy_getopt, NULL, "tracy flags", NULL},
     {NULL},
 };
 
@@ -253,6 +287,7 @@ static PyTypeObject tracy_type = {
     .tp_init = (initproc) &_tracy_init,
     .tp_dealloc = (destructor) &_tracy_free,
     .tp_methods = tracy_methods,
+    .tp_getset = tracy_getset,
 };
 
 //
