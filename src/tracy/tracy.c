@@ -449,6 +449,7 @@ static int tracy_internal_syscall(struct tracy_event *s) {
         s->args.ip = s->child->orig_pc;
 
         /* Finally update child registers */
+        /* TODO: Check return value? */
         tracy_modify_syscall(s->child, s->args.syscall, &s->args);
     }
 
@@ -641,15 +642,21 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
                     get_syscall_name(regs.TRACY_SYSCALL_REGISTER),
                     get_syscall_name(s->child->denied_nr));
             */
+
             s->syscall_num = s->child->denied_nr;
             s->args.syscall = s->child->denied_nr;
-            s->child->denied_nr = 0;
 
             /* Args don't matter with denied syscalls */
             s->args.ip = regs.TRACY_IP_REG;
             s->type = TRACY_EVENT_SYSCALL;
-            s->args.return_code = regs.TRACY_RETURN_CODE;
+
+            /* Set return code to -EPERM to indicate a denied system call. */
+            s->args.return_code = -EPERM;
             s->args.sp = regs.TRACY_STACK_POINTER;
+
+            /* TODO: Check return value? */
+            tracy_modify_syscall(s->child, s->child->denied_nr, &(s->args));
+            s->child->denied_nr = 0;
 
             check_syscall(s);
             return s;
@@ -1237,7 +1244,7 @@ void tracy_backtrace(void) {
     size_t size;
 
     size = backtrace(array, 40);
-    if (size) {
+    if (!size) {
         fprintf(stderr, "Backtrace failed!\n");
         return;
     }
