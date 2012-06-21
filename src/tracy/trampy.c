@@ -184,9 +184,9 @@ void __trampy_container_func() {
      * position.
      *
      * The child can obtain the PID of the tracing process
-     * by reading the 4 bytes after the trampy code, that is
-     * at the '__trampy_size_sym' address. The tracer will have
-     * written its PID there.
+     * by reading a specific register. The tracer will have
+     * written its PID there. To find out which register, see
+     * the macro's at the start of the Trampy file.
      *
      * XXX: We do not do any error handling in case the kill
      * fails.
@@ -211,12 +211,6 @@ void __trampy_container_func() {
 
     return;
 }
-
-/* Force alignment to 8 byte boundary to make sure
- * the reading of the PID (see comment before SYS_kill)
- * succeeds on (nearly) every architecture
- */
-__asm__(".align 8");
 
 /* This function (symbol) is used to compute
  * the size of the injected assembly */

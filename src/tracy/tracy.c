@@ -1875,8 +1875,18 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     args.TRACY_IP_REG = ip;
     args.TRACY_RETURN_CODE = 0;
 
+    /* Retrieve stack pointer first.
+     * 
+     * clone can modify the stack pointer, so the stack pointer
+     * needs to be left untouched.
+     */
+    PTRACE_CHECK(PTRACE_GETREGS, child_pid, 0, &args_ret, -1);
+    args.TRACY_STACK_POINTER = args_ret.TRACY_STACK_POINTER;
+
+    /* Now update child registers */
     PTRACE_CHECK(PTRACE_SETREGS, child_pid, 0, &args, -1);
 
+    /* Set enhanced syscall tracing */
     PTRACE_CHECK(PTRACE_SETOPTIONS, child_pid, 0, PTRACE_O_TRACESYSGOOD, -1);
 
     /* Continue the new child */
