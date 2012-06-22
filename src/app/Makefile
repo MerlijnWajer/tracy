@@ -3,11 +3,12 @@
 CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror
 CFLAGS+=-D_POSIX_SOURCE
 CFLAGS+=-ggdb
+CFLAGS+=-pthread
 CFLAGS+=-I ../tracy
 #CFLAGS+=-O2
 #CFLAGS+=-m32
 
-TESTS=ll_test loggy dotty
+TESTS=ll_test loggy dotty county
 
 default: $(TESTS)
 
@@ -20,6 +21,9 @@ loggy: loggy.c
 dotty: dotty.c
 	$(CC) dotty.c ../tracy/ll.o ../tracy/tracy.o ../tracy/trampy.o $(CFLAGS) $(LDFLAGS) -o dotty
 
+county: county.c
+	$(CC) county.c ../tracy/ll.o ../tracy/tracy.o ../tracy/trampy.o $(CFLAGS) $(LDFLAGS) -o county
+
 
 clean:
-	rm *.o ll_test loggy dotty -f
+	rm *.o ll_test loggy dotty county -f

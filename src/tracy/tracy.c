@@ -184,6 +184,7 @@ static struct tracy_child *malloc_tracy_child(struct tracy *t, pid_t pid)
     tc->inj.injecting = 0;
     tc->inj.cb = NULL;
     tc->frozen_by_vfork = 0;
+    tc->received_first_sigstop = 0;
     tc->denied_nr = 0;
     tc->tracy = t;
     tc->custom = NULL;
@@ -304,6 +305,10 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
         return NULL;
     }
 
+    /* This child has been created by us - I doesn't get a SIGSTOP that we want
+     * to ignore. */
+    tc->received_first_sigstop = 1;
+
     ll_add(t->childs, tc->pid, tc);
     if (t->se.child_create)
         (t->se.child_create)(tc);
@@ -381,6 +386,7 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid)
 
     /* This is an attached child */
     tc->attached = 1;
+    tc->received_first_sigstop = 1;
 
     ll_add(t->childs, tc->pid, tc);
 
@@ -561,9 +567,6 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
     struct tracy_child *tc;
     struct tracy_event *s;
     struct soxy_ll_item *item;
-    int new_child;
-
-    new_child = 0;
 
     s = NULL;
 
@@ -594,7 +597,6 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
             s = &tc->event;
             s->child = tc;
-            new_child = 1;
         } else {
             s = &(((struct tracy_child*)(item->data))->event);
             s->child = item->data;
@@ -664,7 +666,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             s->args.syscall = regs.TRACY_SYSCALL_REGISTER;
             s->syscall_num = regs.TRACY_SYSCALL_REGISTER;
 
-            if (t->opt & TRACY_VERBOSE)
+            if (TRACY_PRINT_SYSCALLS(t))
                 printf(_y("%04d System call: %s (%ld) Pre: %d")"\n",
                         s->child->pid, get_syscall_name(s->syscall_num),
                         s->syscall_num, !s->child->pre_syscall);
@@ -720,19 +722,22 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             }
         }
 
-        /* Resume, set signal to 0; we don't want to pass SIGTRAP. */
+        /* Resume, set signal to 0; we don't want to pass SIGTRAP.
+         * TODO: Unless it is sent by userspace? */
         tracy_continue(s, 1);
 
         /* TODO: Replace this with goto or loop */
         return tracy_wait_event(t, c_pid);
 
-    } else if (signal_id == SIGSTOP && new_child == 1) {
-        printf("SIGSTOP ignored: pid = %d\n", pid);
-        new_child = 0;
+    } else if (signal_id == SIGSTOP && !s->child->received_first_sigstop) {
+        if (TRACY_PRINT_SIGNALS(t))
+            printf("SIGSTOP ignored: pid = %d\n", pid);
+
+        s->child->received_first_sigstop = 1;
         tracy_continue(s, 1);
         return tracy_wait_event(t, c_pid);
     } else {
-        if (t->opt & TRACY_VERBOSE)
+        if (TRACY_PRINT_SIGNALS(t))
             printf(_y("Signal for child: %d")"\n", pid);
         /* Signal for the child, pass it along. */
         s->signal_num = signal_id;
@@ -754,7 +759,7 @@ int tracy_continue(struct tracy_event *s, int sigoverride) {
         sig = s->signal_num;
 
         s->signal_num = 0; /* Clear signal */
-        if (s->child->tracy->opt & TRACY_VERBOSE)
+        if (TRACY_PRINT_SIGNALS(s->child->tracy))
             printf(_y("Passing along signal %s (%d) to child %d")"\n",
                 get_signal_name(sig), sig, s->child->pid);
     }
@@ -1459,6 +1464,10 @@ int tracy_main(struct tracy *tracy) {
     while (main_loop_go_on) {
         start:
         e = tracy_wait_event(tracy, -1);
+        if (!e) {
+            fprintf(stderr, "tracy_main: tracy_wait_Event returned NULL\n");
+            continue;
+        }
 
         if (e->type == TRACY_EVENT_NONE) {
             break;
@@ -1469,8 +1478,10 @@ int tracy_main(struct tracy *tracy) {
             */
         }
         if (e->type == TRACY_EVENT_SIGNAL) {
-            printf(_y("Signal %s (%ld) for child %d")"\n",
-                get_signal_name(e->signal_num), e->signal_num, e->child->pid);
+            if (TRACY_PRINT_SIGNALS(tracy)) {
+                printf(_y("Signal %s (%ld) for child %d")"\n",
+                    get_signal_name(e->signal_num), e->signal_num, e->child->pid);
+            }
         } else
 
         if (e->type == TRACY_EVENT_SYSCALL) {
