@@ -10,6 +10,9 @@
 \begin{document}
 \maketitle
 
+\nocite{*}
+\bibliographystyle{plain}
+
 \begin{abstract}
     Tracy is a system call tracing framework implemented on top of the UNIX
     ptrace(2) system call.
@@ -129,6 +132,9 @@ traffic through a SOCKS 5 proxy using Tracy.
 
 \section{Existing solutions and their problems}
 
+% TODO: Text here
+
+
 \subsection{LD\_PRELOAD}
 
 \textbf{LD\_PRELOAD} is a way to prioritize loading of certain libraries
@@ -154,7 +160,8 @@ programs have to make use of libraries, it also has several downsides.
 One of these downsides is that LD\_PRELOAD simply doesn't work on all
 applications; some applications do not use the glibc methods and instead
 perform system calls directly. Another way to ``escape'' from LD\_PRELOAD
-is indeed to simply perform system calls in the program rather than using
+is indeed to simply perform system calls in the program (using inline assembly
+or even the \textit{syscall(2)} system call) rather than using
 provided libraries such as glibc.
 
 There are some upcoming languages that do not even use glibc at all - languages
@@ -162,33 +169,34 @@ like Go \footnote{\url{http://golang.org/}} talk to the kernel directly and
 thus perform their own system calls.
 
 LD\_PRELOAD is not a viable solution if one wants to transparently capture all
-(specific) actions of a process, independent on what kind of userspace libraries
-the process uses.
+(specific) system calls of a process, independent on what kind of userspace
+libraries the process uses.
 
 \subsection{The ptrace(2) API}
 
 \textbf{ptrace(2)} allows a process to catch all of the system calls (or even
-every executed instruction, but we have no use for that in tracy)
-made by another process (called the tracee), which makes it completely
-independent of user space helper libraries used by the tracee (in other words,
-ptrace(2) does not suffer from the same problem as LD\_PRELOAD.)
+step through every instruction, but we have no use for that in tracy)
+made by another process (called the \textit{tracee}), which makes it
+completely independent of user space helper libraries used by the tracee.
+In other words, ptrace does not suffer from the same problem as LD\_PRELOAD.
 
-\textbf{ptrace(2)} has platform-specific extensions (to the API) and the
-implementation differs per platform.
+ptrace has platform-specific extensions (to the API) and the
+implementation differs per platform. % FIXME: Wat voor extensions?
 
 % Beetje vreemd, want we willen wel alle system calls afvangen
 To actually catch every single system call made by a process one has to
-perform all sorts of tricks\cite{}, depending on the operating system and
-architecture - this is \textit{currently} not the focus of tracy.
+perform all sorts of tricks\ref{foo}, depending on the operating system and
+architecture. Tracy currently does not implement all of these tricks, but
+support is planned.
  % TODO all kinds of tricks, link to caveats section in our paper.
 
 Aside from functional differences, there are also different ptrace options.
 For example, BSD supports reading or writing a big chuck of the memory
-of the tracee at one, while Linux only allows reading or writing only one
+of the tracee at once, while Linux only allows reading or writing only one
 word at a time. On the other hand, Linux has options to automatically trace
 children created by the tracee where BSD lacks support for
-this particular feature\footnote{Tracy however does support it on BSD}.
-% TODO link to solution ^
+this particular feature\footnote{Tracy will however support it on BSD}.
+% TODO reference to solution ^
 
 Aside from the differences per operating system, there are also differences
 regarding the cpu architecture, because every architecture has it's own
@@ -228,13 +236,14 @@ infeasible for big projects.
 We've tried to design Tracy to be as portable as possible - meaning that code
 for ARM and x86 should be nearly (if not completely) the same. There are some
 caveats \footnote{TODO see caveats section}; but some of these are simply not
-fixable without extending the focus of Tracy to such an extend that it would no
+fixable without extending the focus of Tracy to such an extent that it would no
 longer be simply a library to trace and inject system calls.
 
 Tracy elegantly works around most architecture specific issues and implements
 functionality required to safely and efficiently trace programs on several
-operating systems. (This includes safely tracing children on BSD and fast memory
-read/write on Linux)
+% FIXME: safely? Orly?
+operating systems. (This includes fast memory read/write on Linux
+and in the future safely tracing children on BSD)
 
 Tracy introduces an API that allows a programmers to hook into specific system
 calls, rather than every system call as is the case with ptrace.\footnote{Of
@@ -247,11 +256,14 @@ after a system call is executed.
 
 It is often important to change arguments to a system call in a process that is
 being traced; to safely change these additional hacks are required;
-both changing the value directly as well as validating the value if the child
+both changing the value directly as well as validating the value when the child
 can still change the value are bad ideas.
 The first interferes with the normal execution of the process
 (although this may be exactly what the programmer wants) and the second is
-sensitive to race conditions. Tracy has functionality to allocate memory in the
+sensitive to race conditions. A solution is presented in
+\cite{Noordende_asecure}.
+
+Tracy has functionality to allocate memory in the
 tracee which itself cannot write but only read; thus allowing the controlling
 process to copy arguments to that memory space, validate and change them as
 necessary; finally change the pointer in the arguments to point to the memory
@@ -475,5 +487,7 @@ Applications
 % strace
 % gdb
 % jail?
+
+\bibliography{report}
 
 \end{document}
