@@ -11,7 +11,8 @@ LDFLAGS+=-rdynamic -pthread
 
 OBJECTS=tracy.o ll.o trampy.o
 TRACY_HS=tracy.h ll.h tracyarch.h
-TRACY_OS=tracy.o tracy-mem.o tracy-safe-fork.o tracy-modification.o ll.o trampy.o
+TRACY_OS=tracy.o tracy-mem.o tracy-safe-fork.o tracy-modification.o \
+	tracy-event.o ll.o trampy.o
 
 default: $(OBJECTS) tests
 

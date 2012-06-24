@@ -246,8 +246,6 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid);
  *
  * Returns the structure of the child.
  */
-struct tracy_event *tracy_wait_event(struct tracy *t, pid_t pid);
-
 struct tracy_child * tracy_add_child(struct tracy *t, int pid);
 
 /*
