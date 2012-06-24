@@ -19,7 +19,7 @@ default: soxy
 tracy:
 	$(MAKE) -C tracy
 
-OBJECTS:=tracy/tracy.o tracy/ll.o tracy/trampy.o
+OBJECTS:=tracy/libtracy.a
 TESTS:=tst/fork tst/mmap
 
 tests: $(TESTS)

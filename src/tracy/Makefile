@@ -9,12 +9,14 @@ LDFLAGS+=-rdynamic -pthread
 #CFLAGS+=-m32
 #LDFLAGS+=-m32
 
-OBJECTS=tracy.o ll.o trampy.o
 TRACY_HS=tracy.h ll.h tracyarch.h
 TRACY_OS=tracy.o tracy-mem.o tracy-safe-fork.o tracy-modification.o \
 	tracy-event.o ll.o trampy.o
 
-default: $(OBJECTS) tests
+default: libtracy.a $(TRACY_OS) tests
+
+libtracy.a: $(TRACY_OS)
+	ar cr $@ $^
 
 test_binaries=tests/hello tests/rwmem tests/base tests/inject-simple \
 	tests/thread-simple tests/thread-simple-prog tests/fork \
@@ -59,5 +61,5 @@ def_syscalls.h:
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' > def_syscalls.h
 
 clean:
-	rm *.o def_syscalls.h tests/*.o -f $(test_binaries)
+	rm *.o *.a def_syscalls.h tests/*.o -f $(test_binaries)
 
