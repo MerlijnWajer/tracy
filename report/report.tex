@@ -343,7 +343,7 @@ in a child. Instead, it would be a better idea to allocate a few pages in the
 child and copy the data to those pages, change the argument to point to the new
 pages and continue the system call. After the system call has completed, the
 pages can be freed again. This way the child's original arguments are left
-untouched.
+untouched, and for a reason: the child may re-use the buffers later on.
 
 \section{Tracing children}
 
