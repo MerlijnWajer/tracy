@@ -7,11 +7,11 @@ Tracy:
                 interactieve processen zoals Python.
     -   [FIXED] TRACY_USE_SAFE_TRACE doet nog niets.
     -   [FIXED] Optioneel peek/poke voor read/write mem als fallback.
+    -   [FIXED] Deny API beter maken en documenteren.
 
 
     -   [     ] Sanitise syscall arguments. OF string, OF __NR_foo (of SYS_foo), maar niet
                 mixed.
-    -   [     ] Deny API beter maken en documenteren.
     -   [     ] Tests voor:
                     -   Async syscall injection.
                     -   Deny syscall.
