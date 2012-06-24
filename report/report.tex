@@ -451,22 +451,53 @@ original fork(2) call) and let both processes continue their execution.
 \subsection{Children with threads}
 
 
+% Misschien verkeerde titel; maar dit zijn dingen waar we tegen aan liepen.
+% En dingen waar we op moeten letten.
+\section{Caveats}
+
+%
+
+\subsection{clone(2) on x86}
+
+% Args switched...
+
+\subsubsection{Clone on x64}
+
+% Argument minder dan x86
+
+
+% FIXME title sucks
+\subsection{32 bit ABI on 64 bit}
+
 
 
 \chapter{Soxy}
 
+% socketcall x86 vs native syscalls on x64
+
 \chapter{Future work}
 
-\textit{Netjes uitschrijven.}
-\begin{itemize}
-    \item Securing from mixed ABI using dynamic X\^W protection. (Including
-        picture)
-    \item Support more architectures and OSes.
-    \item Sharing memory between tracer and children using mapped files.
-    \item Instant injection of system calls using signals to stop the process.
-    \item Multithreaded tracing.
-    \item Python bindings
-\end{itemize}
+\section{Threaded tracer}
+
+\section{Secure ABI mixing}
+
+\section{BSD Support}
+
+\section{Memory sharing between tracer and tracee}
+
+\section{Instant injection using signals}
+
+
+%\textit{Netjes uitschrijven.}
+%\begin{itemize}
+%    \item Securing from mixed ABI using dynamic X\^W protection. (Including
+%        picture)
+%    \item Support more architectures and OSes.
+%    \item Sharing memory between tracer and children using mapped files.
+%    \item Instant injection of system calls using signals to stop the process.
+%    \item Multithreaded tracing.
+%    %\item Python bindings
+%\end{itemize}
 
 Applications
 \begin{itemize}
