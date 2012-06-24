@@ -15,12 +15,12 @@ Tracy:
        on *BSD, Solaris.
 [X M ] Finish code that tests for fails. (Do we kill all childs on some
        failures?)
-[/ M ] Implement deny i.c.w. return code -ENOSYS, perhaps
+[X M ] Implement deny i.c.w. return code -ENOSYS, perhaps
        "unimplement_syscall"?
 
 [X  B] Add interrupt handler to tracy_main().
 [/ M ] Documentation for tracy. (in sphinx and code)
-[/ M ] API support for threads. (Not in tracy, but for threaded tracees)
+[/ MB] API support for threads. (Not in tracy, but for threaded tracees)
 
 Optional:
 [    ] System call injection by signal. (Requires some changes to the injection
