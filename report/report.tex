@@ -13,9 +13,9 @@
 \begin{abstract}
     Tracy is a system call tracing framework implemented on top of the UNIX
     ptrace(2) system call.
-    Tracy can trace, modify and inject system calls as well as memory allocation
-    in the child, modifying the memory of children and safely trace all
-    (newly created) children of a process being traced.
+    Tracy can trace, modify and inject system calls as well as perform memory
+    allocation in the child, modifying the memory of children and safely trace
+    all (newly created) children of a process being traced.
 \end{abstract}
 
 \tableofcontents
@@ -57,15 +57,47 @@
 % Add SOCKS5 somewhere. (Probably related work)
 % UDP in the current SOCKS5 protocol
 % UDP over ssh ( :-( )
+% sshfs ergens noemen?
 % ---- STUFF -----
+
 \chapter{Motivation}
 
-% Uitbreiden, rare opening. Begin met een introductie, dan pas motivatie.
+When analysing or debugging programs it is customary to trace system calls made
+a process. This often provides a useful insight in what the program is doing and
+possibly what it is doing wrong.
+
+When tracing a process $A$, another process $B$ is notified when a system call
+is made by process $A$  and then allows process $A$ to continue with its
+execution. An example of a program that traces system calls is
+\textit{strace}\cite{strace}.
+
+Apart from just tracing system calls, it is also possible to change
+(arguments of) system calls before they are executed. This allows for a range
+of other applications such as not allowing specific system calls, denying
+specific system calls, injecting system calls. Typically, the debugging api also
+allows reading and writing to the process being debugged.
+
+Some of the applications that can be realised with this particular feature set
+including jailing programs, performance analysis tools and transparently
+redirecting input and output of a program, such as proxifying network
+traffic or virtualising filesystem access.
+
+The debugger API on most UNIX operating systems is done using the
+\textit{ptrace} system call. A huge downside of ptrace is has not been
+standarised and differs per platform and computer architecture. Other
+shortcomings of ptrace will be discussed later on.
+% FIXME WHERE ^
 
 One of the main reasons we created Tracy was the lack of a proper library
 for system call interception amongst the popular UNIX systems with
-varying CPU architectures. Tracy is built upon a common API supported by most of the
-popular UNIX-es: \textbf{ptrace(2)}.
+varying CPU architectures.
+
+Tracy is a process tracing framework which uses ptrace but tries to have an API
+that is mostly platform and computer architecture independant, allowing for much
+easier creation of tracing applications. While it is not possible to create a
+completely platform independant API while not heavily reducing functionality, we
+strive to create a robust and powerful API to trace processes in a more platform
+independant way.
 
 To demonstrate the system call interception, injection and modification
 we introduce Soxy\ref{chapter:soxy}: an application to route network
@@ -94,40 +126,6 @@ traffic through a SOCKS 5 proxy using Tracy.
 % een inleiding.
 % LD_PRELOAD is niet zo boeiend.
 %
-\textbf{OMSCHRIJVEN NAAR ENGELS}
-Als men programmas wil analyseren is het vaak heel nuttig om alle system calls
-die een process maakt de ``tracen''. Dit houdt in dat bij elke system call die
-een process maakt, men een bericht krijgt en vervolgens het programma kan
-inspecteren en verder kan laten lopen. Een voorbeeld van een programma dat dat
-doet is ``strace''.
-
-Het tracen van system calls wordt ook veel gebruikt in debuggers, onder andere
-valgrind(?). Zo kan men bijvoorbeeld kijken waar en of er veel system calls
-gebruikt worden.
-
-Omdat het tracen van programmas ook toestaat om het proces aan te passen, zijn
-er nog legio andere mogelijkheden voor process tracing. Het is bijvoorbeeld
-mogelijk om system calls aan te passen, system calls niet toe te staan en
-system calls te injecteren en zelfs om het geheugen van een ander proces te
-lezen en te schrijven. Denk hierbij aan het toelaten van een specifieke set van
-system calls, gecombineerd met het bekijken en aanpassen van system call
-argumenten - jailing, ook wel sandboxing genoemt. Er liggen ook veel
-mogelijkheden in het ``virtualiseren'' van input en output, denk aan het
-transparent doorsturen van internet pakketen of het transparant implementeren
-van een extra ``filesystem'' over bijvoorbeeld ssh. (Er bestaat al zoiets -
-sshfs, maar dat heeft een kernel module nodig en access naar /dev/fuse)
-
-De standaard manier om processen te tracen op UNIX is met de ptrace system
-call. Het grote nadeel aan ptrace is dat de API niet gestandariseerd is en
-verschilt per UNIX platform en computer architectuur. (Linux, BSD, etc).
-Andere tekortkomingen van ptrace worden in FOO behandeld.
-
-Tracy is process tracing implementatie die ``under the hood'' gebruikt maakt
-van ptrace, maar een zo goed mogelijk platform en computer architectuur
-agnostische implementatie te bieden. Hoewel het niet mogelijk is een volledig
-achitectuur onafhankelijke implementatie te bieden, hopen wij dat proces tracing
-op verschillende platformen met tracy een stuk simpeler zal zijn dan met ptrace.
-
 
 \section{Existing solutions and their problems}
 
