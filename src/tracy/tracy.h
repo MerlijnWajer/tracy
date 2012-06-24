@@ -385,4 +385,39 @@ int tracy_deny_syscall(struct tracy_child* child);
 /* -- Safe forking -- */
 int tracy_safe_fork(struct tracy_child *c, pid_t *new_child);
 
+/* -- Macro's -- */
+
+/* Coloured output */
+#ifndef GRIJSKIJKER
+#define _r(s) "\033[1;31m" s "\033[0m"
+#define _g(s) "\033[1;32m" s "\033[0m"
+#define _y(s) "\033[1;33m" s "\033[0m"
+#define _b(s) "\033[1;34m" s "\033[0m"
+#else
+#define _r(s) s
+#define _g(s) s
+#define _y(s) s
+#define _b(s) s
+#endif
+
+/* Automatic error handling/debugging for ptrace(2) */
+#define _PTRACE_CHECK(A1, S1, A2, A3, A4, A5) \
+    { \
+        if (ptrace(A1, A2, A3, A4)) { \
+            printf("\n-------------------------------" \
+                    "-------------------------------------------------\n"); \
+            perror("Whoops"); \
+            printf("Function: %s, Line: %d\n", __FUNCTION__, __LINE__); \
+            printf("Arguments: %s, %s (%d), %s, %s\n", S1, #A2, A2, #A3, #A4); \
+            printf("-------------------------------" \
+                    "-------------------------------------------------\n"); \
+            tracy_backtrace(); \
+            A5 \
+        } \
+    }
+
+#define PTRACE_CHECK(A1, A2, A3, A4, A5) _PTRACE_CHECK(A1, #A1, A2, A3, A4, return A5;)
+
+#define PTRACE_CHECK_NORETURN(A1, A2, A3, A4) _PTRACE_CHECK(A1, #A1, A2, A3, A4, ;)
+
 #endif
