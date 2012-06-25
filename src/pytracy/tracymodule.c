@@ -121,7 +121,6 @@ static int tracy_event_init(tracy_event_object *self, PyObject *args,
     }
 
     // copy the child and args into the event object
-    // TODO: make tracy_sc_args init once, not writable for this object
     self->event.child = ((tracy_child_object *) self->child)->child;
     memcpy(&self->event.args, &((tracy_sc_args_object *) self->args)->sc,
         sizeof(struct tracy_sc_args));
@@ -177,21 +176,21 @@ static int _tracy_init(tracy_object *self, PyObject *args, PyObject *kwargs)
         return -1;
     }
 
-    //self->tracy = tracy_init(opt);
+    self->tracy = tracy_init(opt);
     return 0;
 }
 
 static void _tracy_free(tracy_object *self)
 {
     if(self->tracy != NULL) {
-        //tracy_free(self->tracy);
+        tracy_free(self->tracy);
         self->tracy = NULL;
     }
 }
 
 static PyObject *_tracy_loop(tracy_object *self)
 {
-    //tracy_main(self->tracy);
+    tracy_main(self->tracy);
 
     Py_INCREF(Py_None);
     return Py_None;
@@ -206,9 +205,10 @@ static PyObject *_tracy_attach(tracy_object *self, PyObject *args)
         return Py_None;
     }
 
-    struct tracy_child *child = NULL; //tracy_attach(self->tracy, pid);
+    struct tracy_child *child = tracy_attach(self->tracy, pid);
     if(child == NULL) {
-        return NULL;
+        Py_INCREF(Py_None);
+        return Py_None;
     }
 
     return tracy_child_new(child);
@@ -217,18 +217,25 @@ static PyObject *_tracy_attach(tracy_object *self, PyObject *args)
 static PyObject *_tracy_execv(tracy_object *self, PyObject *args)
 {
     char **argv = (char **) malloc(sizeof(char *) * PyTuple_Size(args));
+    if(argv == NULL) {
+        // TODO return out of memory error
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+
     for (long i = 0; i < PyTuple_Size(args); i++) {
         PyObject *arg = PyTuple_GetItem(args, i);
         argv[i] = PyString_AsString(arg);
     }
 
-    struct tracy_child *child = NULL; // fork_trace_exec(self->tracy,
-        //PyTuple_Size(args), argv);
+    struct tracy_child *child = fork_trace_exec(self->tracy,
+        PyTuple_Size(args), argv);
 
     free(argv);
 
     if(child == NULL) {
-        return NULL;
+        Py_INCREF(Py_None);
+        return Py_None;
     }
 
     return tracy_child_new(child);
@@ -244,6 +251,7 @@ static PyObject *_tracy_children(tracy_object *self)
 
     for (struct soxy_ll_item *p = self->tracy->childs->head; p != NULL;
             p = p->next) {
+        // TODO add field in `tracy_child' so we can reuse this object
         PyList_Append(ret, tracy_child_new(p->data));
     }
 
@@ -274,6 +282,7 @@ static PyObject *_tracy_getopt(tracy_object *self, void *closure)
 static PyGetSetDef tracy_getset[] = {
     {"fpid", (getter) _tracy_getfpid, NULL, "foreground pid", NULL},
     {"opt", (getter) _tracy_getopt, NULL, "tracy flags", NULL},
+    // TODO defhook, special events
     {NULL},
 };
 

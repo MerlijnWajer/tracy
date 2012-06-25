@@ -2,7 +2,7 @@
 
 CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror -pipe
 CFLAGS+=-D_POSIX_SOURCE -D_GNU_SOURCE
-CFLAGS+=-ggdb
+CFLAGS+=-ggdb -fPIC
 
 LDFLAGS+=-rdynamic -pthread
 #CFLAGS+=-O2
