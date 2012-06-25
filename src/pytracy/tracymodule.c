@@ -319,6 +319,33 @@ PyMODINIT_FUNC inittracy(void)
         return;
     }
 
+    //
+    // Initialize all Tracy Global Values
+    //
+
+#define INT_CONSTANT(x) PyModule_AddIntConstant(m, #x, TRACY_##x)
+
+    INT_CONSTANT(TRACE_CHILDREN);
+    INT_CONSTANT(VERBOSE);
+
+    INT_CONSTANT(MEMORY_FALLBACK);
+    INT_CONSTANT(USE_SAFE_TRACE);
+
+    INT_CONSTANT(EVENT_NONE);
+    INT_CONSTANT(EVENT_SYSCALL);
+    INT_CONSTANT(EVENT_SIGNAL);
+    INT_CONSTANT(EVENT_INTERNAL);
+    INT_CONSTANT(EVENT_QUIT);
+
+    INT_CONSTANT(HOOK_CONTINUE);
+    INT_CONSTANT(HOOK_KILL_CHILD);
+    INT_CONSTANT(HOOK_ABORT);
+    INT_CONSTANT(HOOK_NOHOOK);
+
+    //
+    // Initialize all Tracy classes
+    //
+
     Py_INCREF(&tracy_type);
     PyModule_AddObject(m, "Tracy", (PyObject *) &tracy_type);
 
