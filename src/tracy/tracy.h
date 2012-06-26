@@ -52,6 +52,8 @@ struct tracy_event {
 
     struct tracy_sc_args args;
 
+    /* 3rd party data for this event
+    used as child->parent ptr in pytracy bindings */
     void *custom;
 };
 
@@ -139,6 +141,7 @@ struct tracy_child {
     /* Last event that occurred */
     struct tracy_event event;
 
+    /* Extra 3rd party data */
     void *custom2;
 };
 

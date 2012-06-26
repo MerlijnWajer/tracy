@@ -129,6 +129,7 @@ static PyTypeObject tracy_sc_args_type = {
 // Tracy Event Object
 //
 
+// forward declaration of &tracy_child_type
 static PyTypeObject *tracy_child_type_ptr = NULL;
 
 typedef struct {
@@ -188,6 +189,14 @@ static PyGetSetDef tracy_event_getset[] = {
     {NULL},
 };
 
+static void tracy_event_free(tracy_event_object *self)
+{
+    // `child' is a weak reference
+
+    // free the sc args
+    Py_DECREF(self->args);
+}
+
 static PyTypeObject tracy_event_type = {
     PyObject_HEAD_INIT(NULL)
     .tp_name = "tracy.Event",
@@ -196,7 +205,8 @@ static PyTypeObject tracy_event_type = {
     .tp_doc = "Tracy Event Object",
     .tp_new = PyType_GenericNew,
     .tp_getset = tracy_event_getset,
-    .tp_init = (initproc) tracy_event_init,
+    .tp_init = (initproc) &tracy_event_init,
+    .tp_dealloc = (destructor) &tracy_event_free,
 };
 
 //
@@ -215,6 +225,12 @@ static PyMemberDef tracy_child_members[] = {
     {NULL},
 };
 
+static void tracy_child_free(tracy_child_object *self)
+{
+    // free the event
+    Py_DECREF(self->event);
+}
+
 static PyTypeObject tracy_child_type = {
     PyObject_HEAD_INIT(NULL)
     .tp_name = "tracy.Child",
@@ -223,11 +239,12 @@ static PyTypeObject tracy_child_type = {
     .tp_doc = "Tracy Child Process Object",
     .tp_new = PyType_GenericNew,
     .tp_members = tracy_child_members,
+    .tp_dealloc = (destructor) &tracy_child_free,
 };
 
 // returns the PyObject according with this tracy_child, if it has already
 // been allocated, then it returns the existing object
-PyObject *tracy_child_new(struct tracy_child *child)
+PyObject *tracy_child_pyobj(struct tracy_child *child)
 {
     // initialize the tracy.Child object
     if(child->custom2 == NULL) {
@@ -245,7 +262,7 @@ PyObject *tracy_child_new(struct tracy_child *child)
         // TODO check for NULL
         child->event.custom = event;
 
-        ((tracy_child_object *) child->custom2)->event = event;
+        ((tracy_child_object *) child->custom2)->event = (PyObject *) event;
 
         // event->child points to the tracy.Child object
         event->child = child->custom2;
@@ -260,7 +277,7 @@ PyObject *tracy_child_new(struct tracy_child *child)
             _PyObject_New(&tracy_sc_args_type);
 
         // TODO check for NULL
-        event->args = args;
+        event->args = (PyObject *) args;
         args->args = &child->event.args;
     }
 
@@ -287,16 +304,26 @@ static int _tracy_init(tracy_object *self, PyObject *args, PyObject *kwargs)
     }
 
     self->tracy = tracy_init(opt);
-    printf("self->tracy: %p\n", self->tracy);
+    if(self->tracy == NULL) {
+        // TODO correct error message
+        return -1;
+    }
+
     return 0;
 }
 
 static void _tracy_free(tracy_object *self)
 {
-    if(self->tracy != NULL) {
-        tracy_free(self->tracy);
-        self->tracy = NULL;
+    // first we free all the tracy.Child objects (because tracy_free
+    // frees everything related to this tracy object)
+    for (struct soxy_ll_item *p = self->tracy->childs->head; p != NULL;
+            p = p->next) {
+        PyObject *child = tracy_child_pyobj((struct tracy_child *)
+            p->data);
+        Py_DECREF(child);
     }
+
+    tracy_free(self->tracy);
 }
 
 static PyObject *_tracy_loop(tracy_object *self)
@@ -322,7 +349,7 @@ static PyObject *_tracy_attach(tracy_object *self, PyObject *args)
         return Py_None;
     }
 
-    return tracy_child_new(child);
+    return tracy_child_pyobj(child);
 }
 
 static PyObject *_tracy_execv(tracy_object *self, PyObject *args)
@@ -339,8 +366,6 @@ static PyObject *_tracy_execv(tracy_object *self, PyObject *args)
         argv[i] = PyString_AsString(arg);
     }
 
-    printf("self->tracy: %p\n", self->tracy);
-
     struct tracy_child *child = fork_trace_exec(self->tracy,
         PyTuple_Size(args), argv);
 
@@ -351,7 +376,7 @@ static PyObject *_tracy_execv(tracy_object *self, PyObject *args)
         return Py_None;
     }
 
-    return tracy_child_new(child);
+    return tracy_child_pyobj(child);
 }
 
 static PyObject *_tracy_children(tracy_object *self)
@@ -364,7 +389,7 @@ static PyObject *_tracy_children(tracy_object *self)
 
     for (struct soxy_ll_item *p = self->tracy->childs->head; p != NULL;
             p = p->next) {
-        PyList_Append(ret, tracy_child_new(p->data));
+        PyList_Append(ret, tracy_child_pyobj(p->data));
     }
 
     return ret;
