@@ -133,7 +133,7 @@ traffic through a SOCKS 5 proxy using Tracy.
 \section{Existing solutions and their problems}
 
 % TODO: Text here
-
+% Uitleggen dat er flawed oplossingen zijn, e.d. Hoeft nog niet in detail.
 
 \subsection{LD\_PRELOAD}
 
@@ -414,7 +414,6 @@ PTRACE\_O\_TRACEVFORK, PTRACE\_O\_TRACEFORK, PTRACE\_O\_TRACECLONE.
 
 % TODO: CLONE_UNTRACED vs PTRACE_O_TRACECLONE
 
-
 \subsection{Safe execution of fork(2) and friends}
 
 On operating systems that do not support the \textit{PTRACE\_O\_TRACE*} options,
@@ -450,14 +449,12 @@ original fork(2) call) and let both processes continue their execution.
 
 \subsection{Children with threads}
 
-
 % Misschien verkeerde titel; maar dit zijn dingen waar we tegen aan liepen.
 % En dingen waar we op moeten letten.
 \section{Caveats}
-
 %
 
-\subsection{clone(2) on x86}
+\subsection{Clone on x86}
 
 % Args switched...
 
@@ -479,14 +476,26 @@ original fork(2) call) and let both processes continue their execution.
 
 \section{Threaded tracer}
 
+% Threaded tracer. Why? Lots of tracee's doing lots of system calls
+% may end up waiting on tracer. Solution: multiple threads that wait().
+
 \section{Secure ABI mixing}
+
+% Making sure that we catch all system calls made, even when ABIs are mixed
+% (32 bit ABI on 64 bit, etc). This should be fixed in the Linux Kernel though.
 
 \section{BSD Support}
 
+% Arguments on stack.
+% Needs safe-fork, but also with rfork(2).
+
 \section{Memory sharing between tracer and tracee}
+
+% Need to do some shm magic.
 
 \section{Instant injection using signals}
 
+% kill(2) with SIGTRAP and just do stuff.
 
 %\textit{Netjes uitschrijven.}
 %\begin{itemize}
