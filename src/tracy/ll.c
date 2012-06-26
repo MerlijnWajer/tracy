@@ -38,7 +38,7 @@ int ll_free(struct soxy_ll* ll) {
     return 0;
 }
 
-int ll_add(struct soxy_ll* ll, int id, void* d) {
+int ll_add(struct soxy_ll* ll, int id, void* d, void *d2) {
     struct soxy_ll_item *t, *tt;
 
     t = ll_find(ll, id);
@@ -47,6 +47,7 @@ int ll_add(struct soxy_ll* ll, int id, void* d) {
 
     t = malloc(sizeof(struct soxy_ll_item));
     t->data = d;
+    t->data2 = d2;
     t->id = id;
     t->prev = NULL;
     t->next = NULL;

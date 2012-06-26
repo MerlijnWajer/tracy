@@ -396,6 +396,45 @@ static PyObject *_tracy_children(tracy_object *self)
     return ret;
 }
 
+static PyObject *_tracy_main(tracy_object *self)
+{
+    return PyLong_FromLong(tracy_main(self->tracy));
+}
+
+int _tracy_hook_callback(struct tracy_event *event, void *data)
+{
+    // `data' points to a Callable PyObject
+    // `event->custom' points to the tracy.Event of this `event'
+    PyObject *ret = PyObject_CallFunctionObjArgs(
+        (PyObject *) data, event->custom, NULL);
+
+    printf("ret: %ld %s\n", PyLong_AsLong(ret), PyString_AsString(ret));
+
+    // return int as value..
+    return (int) PyLong_AsLong(ret);
+}
+
+static PyObject *_tracy_hook(tracy_object *self, PyObject *args)
+{
+    char *funcname; PyObject *callable;
+
+    if(!PyArg_ParseTuple(args, "s|O", &funcname, &callable)) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+
+    if(callable != Py_None && !PyCallable_Check(callable)) {
+        // TODO throw exception
+        return NULL;
+    }
+
+    Py_INCREF(callable);
+    tracy_set_hook(self->tracy, funcname, &_tracy_hook_callback, callable);
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyMethodDef tracy_methods[] = {
     {"loop", (PyCFunction) &_tracy_loop, METH_NOARGS, "see tracy_main"},
     {"attach", (PyCFunction) &_tracy_attach, METH_VARARGS,
@@ -404,6 +443,10 @@ static PyMethodDef tracy_methods[] = {
         "exec(2) a new process"},
     {"children", (PyCFunction) &_tracy_children, METH_NOARGS,
         "children of this tracy object"},
+    {"loop", (PyCFunction) &_tracy_main, METH_NOARGS,
+        "main loop of this tracy object"},
+    {"hook", (PyCFunction) &_tracy_hook, METH_VARARGS,
+        "set, replace or remove a hook function"},
     {NULL},
 };
 

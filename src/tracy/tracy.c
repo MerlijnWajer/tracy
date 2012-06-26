@@ -306,7 +306,7 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
         return NULL;
     }
 
-    ll_add(t->childs, tc->pid, tc);
+    ll_add(t->childs, tc->pid, tc, NULL);
     if (t->se.child_create)
         (t->se.child_create)(tc);
 
@@ -384,7 +384,7 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid)
     /* This is an attached child */
     tc->attached = 1;
 
-    ll_add(t->childs, tc->pid, tc);
+    ll_add(t->childs, tc->pid, tc, NULL);
 
     /* TODO: Special event for attached child? */
     if (t->se.child_create)
@@ -401,7 +401,7 @@ struct tracy_child * tracy_add_child(struct tracy *t, int pid) {
         return NULL; /* TODO Kill the child ? */
     }
 
-    ll_add(t->childs, pid, child);
+    ll_add(t->childs, pid, child, NULL);
 
     if (t->se.child_create)
         (t->se.child_create)(child);
@@ -427,7 +427,7 @@ static int _tracy_handle_injection(struct tracy_event *e) {
     f = e->child->inj.cb;
     e->child->inj.cb = NULL;
     if (f)
-        f(e);
+        f(e, NULL);
     e->child->inj.injected = 0;
 
     return 0;
@@ -878,8 +878,9 @@ static int hash_syscall(char * syscall) {
  * not exist on say, BSD)
  *
  */
-int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func) {
-
+int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func,
+    void *data)
+{
     struct soxy_ll_item *item;
     int hash;
     union {
@@ -893,7 +894,7 @@ int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func) {
     _hax.pfunc = func;
 
     if (!item) {
-        if (ll_add(t->hooks, hash, _hax.pvoid)) {
+        if (ll_add(t->hooks, hash, _hax.pvoid, data)) {
             return -1;
             /* Whoops */
         }
@@ -928,11 +929,11 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
 
         /* ANSI C has some disadvantages too ... */
         _hax.pvoid = item->data;
-        return _hax.pfunc(e);
+        return _hax.pfunc(e, item->data2);
     }
 
     if (t->defhook)
-        return t->defhook(e);
+        return t->defhook(e, NULL);
 
     return TRACY_HOOK_NOHOOK;
 }

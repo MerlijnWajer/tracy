@@ -57,7 +57,7 @@ struct tracy_event {
     void *custom;
 };
 
-typedef int (*tracy_hook_func) (struct tracy_event *s);
+typedef int (*tracy_hook_func) (struct tracy_event *s, void *data);
 
 typedef void (*tracy_child_creation) (struct tracy_child *c);
 
@@ -310,7 +310,8 @@ char* get_signal_name(int signal);
  * Returns 0 on success, -1 on failure.
  */
 
-int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func);
+int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func,
+    void *data);
 
 /*
  * tracy_set_default_hook
