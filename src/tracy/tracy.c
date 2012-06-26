@@ -535,7 +535,8 @@ static int tracy_internal_syscall(struct tracy_event *s) {
 
 static struct tracy_event none_event = {
         TRACY_EVENT_NONE, NULL, 0, 0,
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        NULL
     };
 
 /*

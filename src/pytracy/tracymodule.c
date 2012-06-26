@@ -239,21 +239,29 @@ PyObject *tracy_child_new(struct tracy_child *child)
 
     // initialize the tracy.Event object
     if(child->event.custom == NULL) {
-        PyObject *event = _PyObject_New(&tracy_event_type);
+        tracy_event_object *event = (tracy_event_object *)
+            _PyObject_New(&tracy_event_type);
+
         // TODO check for NULL
         child->event.custom = event;
-        ((tracy_event_object *) event)->event = event;
+
+        ((tracy_child_object *) child->custom2)->event = event;
 
         // event->child points to the tracy.Child object
-        ((tracy_event_object *) event)->child = child->custom2;
-    }
+        event->child = child->custom2;
 
-    // initialize the tracy.SyscallArguments object (in the tracy.Event
-    // object)
-    if(((tracy_event_object *) child->event.custom)->args == NULL) {
-        PyObject *args = _PyObject_New(&tracy_sc_args_type);
+        // event->event points to the tracy_event object
+        event->event = &child->event;
+
+        // initialize the tracy.SyscallArguments object (in the tracy.Event
+        // object)
+
+        tracy_sc_args_object *args = (tracy_sc_args_object *)
+            _PyObject_New(&tracy_sc_args_type);
+
         // TODO check for NULL
-        ((tracy_event_object *) child->event.custom)->args = args;
+        event->args = args;
+        args->args = &child->event.args;
     }
 
     // return the PyObject pointing to the tracy.Child object
@@ -279,6 +287,7 @@ static int _tracy_init(tracy_object *self, PyObject *args, PyObject *kwargs)
     }
 
     self->tracy = tracy_init(opt);
+    printf("self->tracy: %p\n", self->tracy);
     return 0;
 }
 
@@ -329,6 +338,8 @@ static PyObject *_tracy_execv(tracy_object *self, PyObject *args)
         PyObject *arg = PyTuple_GetItem(args, i);
         argv[i] = PyString_AsString(arg);
     }
+
+    printf("self->tracy: %p\n", self->tracy);
 
     struct tracy_child *child = fork_trace_exec(self->tracy,
         PyTuple_Size(args), argv);
