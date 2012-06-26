@@ -51,6 +51,8 @@ struct tracy_event {
     long signal_num;
 
     struct tracy_sc_args args;
+
+    void *custom;
 };
 
 typedef int (*tracy_hook_func) (struct tracy_event *s);
@@ -136,6 +138,8 @@ struct tracy_child {
 
     /* Last event that occurred */
     struct tracy_event event;
+
+    void *custom2;
 };
 
 /* Pointers for parent/child memory distinction */

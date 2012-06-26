@@ -2,35 +2,90 @@
 #include <structmember.h>
 #include "tracy.h"
 
+// types copied from PyMemberDef
+typedef struct _pyobj_ptr_t {
+    int type;
+    Py_ssize_t offset;
+} pyobj_ptr_t;
+
+// gets the value at the offset of the first pointer, e.g. if the PyObject
+// looks like the following: struct { PyObject_HEAD void *ptr }; then this
+// function will get the object at the offset of the value at the pointer..
+// note that closure is a pyobj_ptr_t object, which provides us the object
+// type and offset
+PyObject *pyobj_ptr_get(PyObject *obj, void *closure)
+{
+    pyobj_ptr_t *obj_info = (pyobj_ptr_t *) closure;
+
+    // follow the pointer after the PyObject_HEAD header and add the correct
+    // offset to it
+    unsigned char *ptr = *(unsigned char **)(obj + 1) + obj_info->offset;
+
+    switch (obj_info->type) {
+        case T_LONG: return PyLong_FromLong(*(long *)(ptr));
+        default: return NULL;
+    }
+}
+
+// sets a value, just like pyobj_ptr_get
+int pyobj_ptr_set(PyObject *obj, PyObject *value, void *closure)
+{
+    pyobj_ptr_t *obj_info = (pyobj_ptr_t *) closure;
+
+    // follow the pointer after the PyObject_HEAD header and add the correct
+    // offset to it
+    unsigned char *ptr = *(unsigned char **)(obj + 1) + obj_info->offset;
+
+    switch (obj_info->type) {
+        case T_LONG: *(long *) ptr = PyLong_AsLong(value); return 0;
+        default: return -1;
+    }
+}
+
 //
 // Tracy System Call Arguments Object
 //
 
 typedef struct {
     PyObject_HEAD
-    struct tracy_sc_args sc;
+    struct tracy_sc_args *args;
 } tracy_sc_args_object;
 
-static PyMemberDef tracy_sc_args_members[] = {
-    {"a0", T_LONG, offsetof(tracy_sc_args_object, sc.a0), 0,
-        "first argument"},
-    {"a1", T_LONG, offsetof(tracy_sc_args_object, sc.a1), 0,
-        "second argument"},
-    {"a2", T_LONG, offsetof(tracy_sc_args_object, sc.a2), 0,
-        "third argument"},
-    {"a3", T_LONG, offsetof(tracy_sc_args_object, sc.a3), 0,
-        "fourth argument"},
-    {"a4", T_LONG, offsetof(tracy_sc_args_object, sc.a4), 0,
-        "fifth argument"},
-    {"a5", T_LONG, offsetof(tracy_sc_args_object, sc.a5), 0,
-        "sixth argument"},
-    {"retcode", T_LONG, offsetof(tracy_sc_args_object, sc.return_code), 0,
-        "return value"},
-    {"syscall", T_LONG, offsetof(tracy_sc_args_object, sc.syscall), 0,
-        "syscall number"},
-    {"ip", T_LONG, offsetof(tracy_sc_args_object, sc.ip), 0,
-        "instruction pointer"},
-    {"sp", T_LONG, offsetof(tracy_sc_args_object, sc.sp), 0, "stack pointer"},
+static pyobj_ptr_t sc_args_ptr_info[] = {
+    {T_LONG, offsetof(struct tracy_sc_args, a0)},
+    {T_LONG, offsetof(struct tracy_sc_args, a1)},
+    {T_LONG, offsetof(struct tracy_sc_args, a2)},
+    {T_LONG, offsetof(struct tracy_sc_args, a3)},
+    {T_LONG, offsetof(struct tracy_sc_args, a4)},
+    {T_LONG, offsetof(struct tracy_sc_args, a5)},
+    {T_LONG, offsetof(struct tracy_sc_args, a5)},
+    {T_LONG, offsetof(struct tracy_sc_args, return_code)},
+    {T_LONG, offsetof(struct tracy_sc_args, syscall)},
+    {T_LONG, offsetof(struct tracy_sc_args, ip)},
+    {T_LONG, offsetof(struct tracy_sc_args, sp)},
+};
+
+static PyGetSetDef tracy_sc_args_getset[] = {
+    {"a0", &pyobj_ptr_get, &pyobj_ptr_set, "first argument",
+        &sc_args_ptr_info[0]},
+    {"a1", &pyobj_ptr_get, &pyobj_ptr_set, "second argument",
+        &sc_args_ptr_info[1]},
+    {"a2", &pyobj_ptr_get, &pyobj_ptr_set, "third argument",
+        &sc_args_ptr_info[2]},
+    {"a3", &pyobj_ptr_get, &pyobj_ptr_set, "fourth argument",
+        &sc_args_ptr_info[3]},
+    {"a4", &pyobj_ptr_get, &pyobj_ptr_set, "fifth argument",
+        &sc_args_ptr_info[4]},
+    {"a5", &pyobj_ptr_get, &pyobj_ptr_set, "sixth argument",
+        &sc_args_ptr_info[5]},
+    {"retcode", &pyobj_ptr_get, &pyobj_ptr_set, "return value",
+        &sc_args_ptr_info[6]},
+    {"syscall", &pyobj_ptr_get, &pyobj_ptr_set, "system call number",
+        &sc_args_ptr_info[7]},
+    {"ip", &pyobj_ptr_get, &pyobj_ptr_set, "instruction pointer",
+        &sc_args_ptr_info[8]},
+    {"sp", &pyobj_ptr_get, &pyobj_ptr_set, "stack pointer",
+        &sc_args_ptr_info[9]},
     {NULL},
 };
 
@@ -40,10 +95,20 @@ static int tracy_sc_args_init(tracy_sc_args_object *self, PyObject *args,
     static char *kwlist[] = {"a0", "a1", "a2", "a3", "a4", "a5", "retcode",
         "syscall", "ip", "sp", NULL};
 
+    // TODO this is very bad.. either we have a memleak (current situation)
+    // or we don't know whether to free() it in the destructor. probably the
+    // best fix will be having a `struct tracy_sc_args' object as well.
+    self->args = (struct tracy_sc_args *) calloc(1,
+        sizeof(struct tracy_sc_args));
+    if(self->args == NULL) {
+        return -1;
+    }
+
     if(!PyArg_ParseTupleAndKeywords(args, kwargs, "|llllllllll", kwlist,
-            &self->sc.a0, &self->sc.a1, &self->sc.a2, &self->sc.a3,
-            &self->sc.a4, &self->sc.a5, &self->sc.return_code,
-            &self->sc.syscall, &self->sc.ip, &self->sc.sp)) {
+            &self->args->a0, &self->args->a1, &self->args->a2,
+            &self->args->a3, &self->args->a4, &self->args->a5,
+            &self->args->return_code, &self->args->syscall, &self->args->ip,
+            &self->args->sp)) {
         return -1;
     }
     return 0;
@@ -56,56 +121,24 @@ static PyTypeObject tracy_sc_args_type = {
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_doc = "Tracy System Call Argument(s) Object",
     .tp_new = PyType_GenericNew,
-    .tp_members = tracy_sc_args_members,
+    .tp_getset = tracy_sc_args_getset,
     .tp_init = (initproc) &tracy_sc_args_init,
 };
-
-//
-// Tracy Child Object
-//
-
-typedef struct {
-    PyObject_HEAD
-    struct tracy_child *child;
-} tracy_child_object;
-
-static PyTypeObject tracy_child_type = {
-    PyObject_HEAD_INIT(NULL)
-    .tp_name = "tracy.Child",
-    .tp_basicsize = sizeof(tracy_child_object),
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_doc = "Tracy Child Process Object",
-    .tp_new = PyType_GenericNew,
-};
-
-PyObject *tracy_child_new(struct tracy_child *child)
-{
-    PyObject *ret = _PyObject_New(&tracy_child_type);
-    ((tracy_child_object *) ret)->child = child;
-    return ret;
-}
 
 //
 // Tracy Event Object
 //
 
+static PyTypeObject *tracy_child_type_ptr = NULL;
+
 typedef struct {
     PyObject_HEAD
-    struct tracy_event event;
+    struct tracy_event *event;
 
     // python objects of child and args in the event object
     PyObject *child;
     PyObject *args;
 } tracy_event_object;
-
-static PyMemberDef tracy_event_members[] = {
-    {"typ", T_INT, offsetof(tracy_event_object, event.type), 0, "type"},
-    {"syscall_num", T_LONG, offsetof(tracy_event_object, event.syscall_num),
-        0, "syscall number"},
-    {"signal_num", T_LONG, offsetof(tracy_event_object, event.signal_num), 0,
-        "signal number"},
-    {NULL},
-};
 
 static int tracy_event_init(tracy_event_object *self, PyObject *args,
     PyObject *kwargs)
@@ -113,17 +146,26 @@ static int tracy_event_init(tracy_event_object *self, PyObject *args,
     static char *kwlist[] = {"typ", "child", "syscall_num", "signal_num",
         "args", NULL};
 
+    // TODO this is very bad.. either we have a memleak (current situation)
+    // or we don't know whether to free() it in the destructor. probably the
+    // best fix will be having a `struct tracy_event' object as well.
+    self->event = (struct tracy_event *) calloc(1,
+        sizeof(struct tracy_event));
+    if(self->event == NULL) {
+        return -1;
+    }
+
     if(!PyArg_ParseTupleAndKeywords(args, kwargs, "iO!llO!", kwlist,
-            &self->event.type, &tracy_child_type, &self->child,
-            &self->event.syscall_num, &self->event.signal_num,
+            &self->event->type, tracy_child_type_ptr, &self->child,
+            &self->event->syscall_num, &self->event->signal_num,
             &tracy_sc_args_type, &self->args)) {
         return -1;
     }
 
     // copy the child and args into the event object
-    self->event.child = ((tracy_child_object *) self->child)->child;
-    memcpy(&self->event.args, &((tracy_sc_args_object *) self->args)->sc,
-        sizeof(struct tracy_sc_args));
+    //self->event.child = ((tracy_child_object *) self->child)->child;
+    //memcpy(&self->event.args, ((tracy_sc_args_object *) self->args)->args,
+    //    sizeof(struct tracy_sc_args));
     return 0;
 }
 
@@ -153,10 +195,70 @@ static PyTypeObject tracy_event_type = {
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_doc = "Tracy Event Object",
     .tp_new = PyType_GenericNew,
-    .tp_members = tracy_event_members,
     .tp_getset = tracy_event_getset,
     .tp_init = (initproc) tracy_event_init,
 };
+
+//
+// Tracy Child Object
+//
+
+typedef struct {
+    PyObject_HEAD
+    struct tracy_child *child;
+    PyObject *event;
+} tracy_child_object;
+
+static PyMemberDef tracy_child_members[] = {
+    {"event", T_OBJECT_EX, offsetof(tracy_child_object, event), 0,
+        "tracy.Event object which belongs to this child"},
+    {NULL},
+};
+
+static PyTypeObject tracy_child_type = {
+    PyObject_HEAD_INIT(NULL)
+    .tp_name = "tracy.Child",
+    .tp_basicsize = sizeof(tracy_child_object),
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "Tracy Child Process Object",
+    .tp_new = PyType_GenericNew,
+    .tp_members = tracy_child_members,
+};
+
+// returns the PyObject according with this tracy_child, if it has already
+// been allocated, then it returns the existing object
+PyObject *tracy_child_new(struct tracy_child *child)
+{
+    // initialize the tracy.Child object
+    if(child->custom2 == NULL) {
+        PyObject *ret = _PyObject_New(&tracy_child_type);
+        // TODO check for NULL
+        ((tracy_child_object *) ret)->child = child;
+        child->custom2 = ret;
+    }
+
+    // initialize the tracy.Event object
+    if(child->event.custom == NULL) {
+        PyObject *event = _PyObject_New(&tracy_event_type);
+        // TODO check for NULL
+        child->event.custom = event;
+        ((tracy_event_object *) event)->event = event;
+
+        // event->child points to the tracy.Child object
+        ((tracy_event_object *) event)->child = child->custom2;
+    }
+
+    // initialize the tracy.SyscallArguments object (in the tracy.Event
+    // object)
+    if(((tracy_event_object *) child->event.custom)->args == NULL) {
+        PyObject *args = _PyObject_New(&tracy_sc_args_type);
+        // TODO check for NULL
+        ((tracy_event_object *) child->event.custom)->args = args;
+    }
+
+    // return the PyObject pointing to the tracy.Child object
+    return (PyObject *) child->custom2;
+}
 
 //
 // Tracy Object
@@ -251,7 +353,6 @@ static PyObject *_tracy_children(tracy_object *self)
 
     for (struct soxy_ll_item *p = self->tracy->childs->head; p != NULL;
             p = p->next) {
-        // TODO add field in `tracy_child' so we can reuse this object
         PyList_Append(ret, tracy_child_new(p->data));
     }
 
@@ -318,6 +419,8 @@ PyMODINIT_FUNC inittracy(void)
             PyType_Ready(&tracy_event_type) < 0) {
         return;
     }
+
+    tracy_child_type_ptr = &tracy_child_type;
 
     //
     // Initialize all Tracy Global Values

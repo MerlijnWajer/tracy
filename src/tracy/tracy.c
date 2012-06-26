@@ -186,8 +186,10 @@ static struct tracy_child *malloc_tracy_child(struct tracy *t, pid_t pid)
     tc->denied_nr = 0;
     tc->tracy = t;
     tc->custom = NULL;
+    tc->custom2 = NULL;
 
     tc->event.child = tc;
+    tc->event.custom = NULL;
 
     return tc;
 }
