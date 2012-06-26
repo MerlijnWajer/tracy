@@ -354,7 +354,7 @@ static PyObject *_tracy_attach(tracy_object *self, PyObject *args)
 
 static PyObject *_tracy_execv(tracy_object *self, PyObject *args)
 {
-    char **argv = (char **) malloc(sizeof(char *) * PyTuple_Size(args));
+    char **argv = (char **) malloc(sizeof(char *) * (PyTuple_Size(args) + 1));
     if(argv == NULL) {
         // TODO return out of memory error
         Py_INCREF(Py_None);
@@ -366,6 +366,7 @@ static PyObject *_tracy_execv(tracy_object *self, PyObject *args)
         argv[i] = PyString_AsString(arg);
     }
 
+    argv[PyTuple_Size(args)] = NULL;
     struct tracy_child *child = fork_trace_exec(self->tracy,
         PyTuple_Size(args), argv);
 
