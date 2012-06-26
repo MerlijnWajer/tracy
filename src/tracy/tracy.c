@@ -114,6 +114,7 @@ struct tracy *tracy_init(long opt) {
     t->opt = opt;
 
     t->se.child_create = NULL;
+    t->defhook = NULL;
 
     return t;
 }
