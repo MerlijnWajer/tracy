@@ -469,10 +469,14 @@ static PyObject *_tracy_main(tracy_object *self)
 
 int _tracy_hook_callback(struct tracy_event *event, void *data)
 {
-    // `data' points to a Callable PyObject
     // `event->custom' points to the tracy.Event of this `event'
+    tracy_event_object *e = (tracy_event_object *) event->custom;
+
+    // `data' points to a Callable PyObject
+    // `e->child' points to tracy.Child and finally
+    // `e->args' points to tracy.SyscallArguments
     PyObject *ret = PyObject_CallFunctionObjArgs(
-        (PyObject *) data, event->custom, NULL);
+        (PyObject *) data, e->child, e, e->args, NULL);
 
     // return int as value..
     return (int) PyLong_AsLong(ret);
