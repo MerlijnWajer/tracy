@@ -290,6 +290,24 @@ static PyMemberDef tracy_child_members[] = {
     {NULL},
 };
 
+static PyObject *tracy_child_getpre(tracy_child_object *self, void *closure)
+{
+    return PyBool_FromLong(self->child->pre_syscall);
+}
+
+static PyObject *tracy_child_getpost(tracy_child_object *self, void *closure)
+{
+    return PyBool_FromLong(self->child->pre_syscall == 0);
+}
+
+static PyGetSetDef tracy_child_getset[] = {
+    {"pre", (getter) &tracy_child_getpre, NULL,
+        "true if this call is pre syscall", NULL},
+    {"post", (getter) &tracy_child_getpost, NULL,
+        "true if this call is post syscall", NULL},
+    {NULL},
+};
+
 static void tracy_child_free(tracy_child_object *self)
 {
     // free the event
@@ -306,6 +324,7 @@ static PyTypeObject tracy_child_type = {
     .tp_members = tracy_child_members,
     .tp_dealloc = (destructor) &tracy_child_free,
     .tp_methods = tracy_child_methods,
+    .tp_getset = tracy_child_getset,
 };
 
 // returns the PyObject according with this tracy_child, if it has already
