@@ -498,7 +498,7 @@ int _tracy_hook_callback(struct tracy_event *event, void *data)
         (PyObject *) data, e->child, e, e->args, NULL);
 
     // return int as value..
-    return (int) PyLong_AsLong(ret);
+    return ret == Py_None ? TRACY_HOOK_CONTINUE : (int) PyLong_AsLong(ret);
 }
 
 static PyObject *_tracy_hook(tracy_object *self, PyObject *args)
