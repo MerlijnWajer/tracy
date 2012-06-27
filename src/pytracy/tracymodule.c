@@ -219,6 +219,71 @@ typedef struct {
     PyObject *event;
 } tracy_child_object;
 
+PyObject *tracy_child_read_mem(tracy_child_object *self, PyObject *args)
+{
+    void *addr; long  size;
+
+    // TODO ability to pass an already allocated buffer
+
+    if(!PyArg_ParseTuple(args, "ll", &addr, &size)) {
+        printf("incorrect args..\n");
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+
+    // although I'm confident that this is ugly.. python strings are
+    // immutable, so we *have* to do this.
+
+    void *mem = malloc(size);
+    if(mem == NULL) {
+        // TODO set error
+        return NULL;
+    }
+
+    ssize_t ret = tracy_read_mem(self->child, mem, addr, size);
+    if(ret != size) {
+        // TODO set error
+        free(mem);
+        return NULL;
+    }
+
+    PyObject *str = PyString_FromStringAndSize((const char *) mem, size);
+    if(str == NULL) {
+        // TODO set error
+        free(mem);
+        return NULL;
+    }
+
+    free(mem);
+    return str;
+}
+
+PyObject *tracy_child_write_mem(tracy_child_object *self, PyObject *args)
+{
+    char *mem; int len; void *addr;
+
+    if(!PyArg_ParseTuple(args, "ls#", &addr, &mem, &len)) {
+        return NULL;
+    }
+
+    ssize_t ret = tracy_write_mem(self->child, addr, mem, len);
+    if(ret != len) {
+        Py_INCREF(Py_False);
+        return Py_False;
+    }
+
+    Py_INCREF(Py_True);
+    return Py_True;
+}
+
+static PyMethodDef tracy_child_methods[] = {
+    {"read", (PyCFunction) &tracy_child_read_mem, METH_VARARGS,
+        "read process memory of this child"},
+    {"write", (PyCFunction) &tracy_child_write_mem, METH_VARARGS,
+        "write process memory to this child"},
+    {NULL},
+};
+
 static PyMemberDef tracy_child_members[] = {
     {"event", T_OBJECT_EX, offsetof(tracy_child_object, event), 0,
         "tracy.Event object which belongs to this child"},
@@ -240,6 +305,7 @@ static PyTypeObject tracy_child_type = {
     .tp_new = PyType_GenericNew,
     .tp_members = tracy_child_members,
     .tp_dealloc = (destructor) &tracy_child_free,
+    .tp_methods = tracy_child_methods,
 };
 
 // returns the PyObject according with this tracy_child, if it has already
@@ -318,8 +384,8 @@ static void _tracy_free(tracy_object *self)
     // frees everything related to this tracy object)
     for (struct soxy_ll_item *p = self->tracy->childs->head; p != NULL;
             p = p->next) {
-        PyObject *child = tracy_child_pyobj((struct tracy_child *)
-            p->data);
+        PyObject *child = tracy_child_pyobj(
+            (struct tracy_child *) p->data);
         Py_DECREF(child);
     }
 
@@ -407,8 +473,6 @@ int _tracy_hook_callback(struct tracy_event *event, void *data)
     // `event->custom' points to the tracy.Event of this `event'
     PyObject *ret = PyObject_CallFunctionObjArgs(
         (PyObject *) data, event->custom, NULL);
-
-    printf("ret: %ld %s\n", PyLong_AsLong(ret), PyString_AsString(ret));
 
     // return int as value..
     return (int) PyLong_AsLong(ret);
