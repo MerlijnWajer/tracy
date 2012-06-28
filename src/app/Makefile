@@ -16,13 +16,13 @@ ll_test: ll_test.c
 	$(CC) ll_test.c ../tracy/ll.o $(CFLAGS) $(LDFLAGS) -o ll_test
 
 loggy: loggy.c
-	$(CC) loggy.c ../tracy/ll.o ../tracy/tracy.o ../tracy/trampy.o $(CFLAGS) $(LDFLAGS) -o loggy
+	$(CC) loggy.c ../tracy/libtracy.a $(CFLAGS) $(LDFLAGS) -o loggy
 
 dotty: dotty.c
-	$(CC) dotty.c ../tracy/ll.o ../tracy/tracy.o ../tracy/trampy.o $(CFLAGS) $(LDFLAGS) -o dotty
+	$(CC) dotty.c ../tracy/libtracy.a $(CFLAGS) $(LDFLAGS) -o dotty
 
 county: county.c
-	$(CC) county.c ../tracy/ll.o ../tracy/tracy.o ../tracy/trampy.o $(CFLAGS) $(LDFLAGS) -o county
+	$(CC) county.c ../tracy/libtracy.a  $(CFLAGS) $(LDFLAGS) -o county
 
 
 clean:
