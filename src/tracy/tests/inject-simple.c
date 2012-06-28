@@ -25,14 +25,17 @@
 #include <unistd.h>
 
 #define set_hook(NAME) \
-    if (tracy_set_hook(tracy, #NAME, hook_##NAME)) { \
+    if (tracy_set_hook(tracy, #NAME, hook_##NAME, NULL)) { \
         printf("Could not hook "#NAME" syscall\n"); \
         return EXIT_FAILURE; \
     }
 
-int hook_write(struct tracy_event *e) {
+int hook_write(struct tracy_event *e, void *data) {
     long ret;
     int i;
+
+    /* unused.. */
+    (void) data;
 
     if (e->child->pre_syscall) {
         printf("PRE-write\n");

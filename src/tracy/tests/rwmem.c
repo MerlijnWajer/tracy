@@ -67,7 +67,7 @@ static
  *      e->args.a1: data pointer
  *      e->args.a2: data length
  */
-int foo(struct tracy_event *e) {
+int foo(struct tracy_event *e, void *data) {
     int len, i;
     char *str;
     long word;
@@ -75,6 +75,9 @@ int foo(struct tracy_event *e) {
     char child_maps_path[20];
 
     static int dump_maps_once = 1;
+
+    /* unused.. */
+    (void) data;
 
     if (!e->child->pre_syscall)
         return 0;
@@ -188,7 +191,7 @@ int main(int argc, char** argv) {
 
     tracy = tracy_init(0);
 
-    if (tracy_set_hook(tracy, "write", foo)) {
+    if (tracy_set_hook(tracy, "write", foo, NULL)) {
         printf("Failed to hook write syscall.\n");
         return EXIT_FAILURE;
     }
