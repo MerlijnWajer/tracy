@@ -401,6 +401,59 @@ process, or a process can attach to another running process.
 
 \section{Memory access}
 
+Any program that uses the \textbf{ptrace(2)} API will probably want to access the
+traced process' memory as well. Reasons can range from simply dumping pointer
+contents to monitoring, changing or even injecting new system calls with
+completely stand-alone data. Furthermore, in case of IO intensive operation
+this access should be farely fast as well.
+
+Unfortunately as with most functions prace provides, memory access standards
+differ from operating system to operating system and are also
+affected by architectural quirks. Tracy tries to hide these differences and
+provide a uniform, fast way to access memory.
+
+\subsection{On Linux}
+On Linux it achieves this goal by employing a feature of the ``/proc''
+filesystem that was designed to work in unison with \textbf{ptrace(2)}.
+The classical way of accessing child memory on Linux was through the 
+PTRACE\_PEEKDATA and PTRACE\_POKEDATA operations. The downside of this method
+is its dependance on C's long type and the amount of data that can be
+transferred. Similar to the BASIC statements PEEK and POKE, these macro's are
+used to read and write individual processor words. On Linux the "long" type
+has, as far as we know, the same size as the processor word size, so 32 bits
+on a 32-bit architecture and 64 bits on a 64-bit architecture.
+
+This is where the trouble starts, not only is it not possible to simply read
+or write single bytes of memory, whenever one wants to access say 4kb of
+memory, depending on the architecture, this may require more than 1024
+calls to ptrace. Needless to say the amount of time spent in context switches
+and kernel code is enormous.
+
+\subsubsection{Alternative: through /proc}
+Luckily for us, Linux has also provided another method. The ``/proc''
+filesystem, used by a lot of utilities to provide information about kernel
+and process state can also be used to access arbitrary process memory,
+given certain requirements are met.
+Per process information can usually be acquired by opening a folder
+named ``/proc/<pid>'' where ``<pid>'' must be subsituted with a process
+identifier. In this folder several files, and folders, are contained which
+provide information on things such as, threads, open files, memory maps and
+memory contents.
+
+The ``/proc/<pid>/mem'' file is the one used by tracy to access child memory.
+Opening this file will present child memory as one contiguous lare file which
+can be modified using the usual IO operations. This also means we can now
+write single bytes of memory without the need of first reading a processor
+word. We can now read 4kB of memory with a single system call or any
+aribtrary amount of memory provided we can allocate a large enough buffer
+to contain the data.
+
+Obviously, one does not simply open the ``/proc/<pid>/mem'' file of any
+arbitrary process as this would cause a major security issue. The only
+processes capable of successfully opening this file are either processes
+tracing the target process, or super-user processes.
+
+% XXX: Future work, memory mapped child access?
 % /proc/<pid>/mem
 % (PEEK|POKE)USER
 
