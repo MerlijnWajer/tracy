@@ -66,8 +66,8 @@
 \chapter{Motivation}
 
 When analysing or debugging programs it is customary to trace system calls made
-a process. This often provides a useful insight in what the program is doing and
-possibly what it is doing wrong.
+by a process. This often provides a useful insight in what the program is doing
+and possibly what the program is doing wrong.
 
 When tracing a process $A$, another process $B$ is notified when a system call
 is made by process $A$  and then allows process $A$ to continue with its
@@ -81,26 +81,27 @@ specific system calls, injecting system calls. Typically, the debugging api also
 allows reading and writing to the process being debugged.
 
 Some of the applications that can be realised with this particular feature set
-including jailing programs, performance analysis tools and transparently
+includes jailing programs, performance analysis tools and transparently
 redirecting input and output of a program, such as proxifying network
 traffic or virtualising filesystem access.
 
 The debugger API on most UNIX operating systems is done using the
-\textit{ptrace} system call. A huge downside of ptrace is has not been
-standarised and differs per platform and computer architecture. Other
+\textit{ptrace} system call. A huge downside of ptrace is that ptrace
+has not been standardised and differs per platform and computer architecture. Other
 shortcomings of ptrace will be discussed later on.
 % FIXME WHERE ^
 
 One of the main reasons we created Tracy was the lack of a proper library
-for system call interception amongst the popular UNIX systems with
+for system call interception amongst the popular UNIX-like systems with
 varying CPU architectures.
 
 Tracy is a process tracing framework which uses ptrace but tries to have an API
 that is mostly platform and computer architecture independent, allowing for much
-easier creation of tracing applications. While it is not possible to create a
-completely platform independent API while not heavily reducing functionality, we
-strive to create a robust and powerful API to trace processes in a more platform
-independent way.
+easier creation of cross platform tracing applications.
+
+While it is not possible to create a completely platform independent API while
+not heavily reducing functionality, we strive to create a robust and powerful
+API to trace processes in a more platform independent way.
 
 To demonstrate the system call interception, injection and modification
 we introduce Soxy\ref{chapter:soxy}: an application to route network
@@ -132,8 +133,10 @@ traffic through a SOCKS 5 proxy using Tracy.
 
 \section{Existing solutions and their problems}
 
-% TODO: Text here
-% Uitleggen dat er flawed oplossingen zijn, e.d. Hoeft nog niet in detail.
+There are several ways to transparently intercept calls to a library or
+system calls. LD\_PRELOAD is one such method to intercept calls to a library.
+This should not be confused with intercepting system calls; this is a reason
+not to use LD\_PRELOAD.
 
 \subsection{LD\_PRELOAD}
 
@@ -145,33 +148,37 @@ before any other libraries (such as glibc) are loaded;
 this makes it possible to override functions typically provided by other
 libraries.
 
-(For our example, this ``injected'' library would provide its own
+For our example, this ``injected'' library would provide its own
 ``recvfrom'' and ``sendto''\footnote{It should probably provide
 a lot more functions; but the example will not benefit from naming others.};
-and the program being run
-would instead call the functions provided by this library.) One common
-proxyfier, \textbf{tsocks}, has an application that loads other applications
-with their own library that overwrites specific network functionality,
-thus allowing transparent network routing.
+and the program being run would instead call the functions provided by
+this library.
+
+% TODO: Niet duidelijk dat het LD_PRELOAD is
+One common proxyfier, \textbf{tsocks}, has an application that loads
+other applications with their own library that overwrites specific
+network functionality, thus allowing transparent network routing.
 
 However, because LD\_PRELOAD relies on the dynamic loader and the fact that
 programs have to make use of libraries, it also has several downsides.
 
-One of these downsides is that LD\_PRELOAD simply doesn't work on all
+One of these downsides is that LD\_PRELOAD simply does not work on all
 applications; some applications do not use the glibc methods and instead
 perform system calls directly. Another way to ``escape'' from LD\_PRELOAD
 is indeed to simply perform system calls in the program (using inline assembly
 or even the \textit{syscall(2)} system call) rather than using
+% XXX: syscall(2), is dat geen glibc functie? Ergo, kan je die niet wel afvangen
+% met LD_PRELOAD
 provided libraries such as glibc.
 
 There are some upcoming languages that do not even use glibc at all - languages
 like Go \footnote{\url{http://golang.org/}} talk to the kernel directly and
 thus perform their system calls by directly calling the kernel instead of
-(g)libc.
+(g)libc functions which would in turn call the kernel.
 
-LD\_PRELOAD is not a viable solution if one wants to transparently capture all
-(specific) system calls of a process, independent on what kind of userspace
-libraries the process uses.
+LD\_PRELOAD is not a viable solution when one wants to transparently capture
+all (specific) system calls of a process, independent on what kind of
+userspace libraries the process uses.
 
 \subsection{The ptrace(2) API}
 
@@ -182,9 +189,11 @@ completely independent of user space helper libraries used by the tracee.
 In other words, ptrace does not suffer from the same problem as LD\_PRELOAD.
 
 ptrace has platform-specific extensions (to the API) and the
-implementation differs per platform. % FIXME: Wat voor extensions?
+implementation differs per platform.
+% FIXME: Wat voor extensions? (arm %setsyscall,etc)
 
-% Beetje vreemd, want we willen wel alle system calls afvangen
+% XXX: Dit hieronder is fout. We vangen wel alles af; maar we weten niet of
+% het nummer 32 of 64 bit is.
 To actually catch every single system call made by a process one has to
 perform all sorts of tricks\ref{foo}, depending on the operating system and
 architecture. Tracy currently does not implement all of these tricks, but
@@ -193,14 +202,15 @@ support is planned.
 
 Aside from functional differences, there are also different ptrace options.
 For example, BSD supports reading or writing a big chuck of the memory
-of the tracee at once, while Linux only allows reading or writing only one
-word at a time. On the other hand, Linux has options to automatically trace
+of the tracee at once using the ptrace API, while Linux only allows
+reading or writing only one processor word at a time.
+On the other hand, Linux has options to automatically trace
 children created by the tracee where BSD lacks support for
 this particular feature\footnote{Tracy will however support it on BSD}.
-% TODO reference to solution ^
+% TODO link/reference to solution ^
 
 Aside from the differences per operating system, there are also differences
-regarding the cpu architecture, because every architecture has it's own
+regarding the cpu architecture, because every architecture has its own
 instruction set.
 
 Due to ptrace being a very low-level system call, which operates on assembly
@@ -213,6 +223,8 @@ systems often have different uses for each register.
 % en een goede inleiding naar de volgende alineas - namelijk dat ptrace niet
 % geschikt is om direct te gebruiken en dat tracy veel beter is.
 One would have to find out what register this is on each platform,
+% XXX: Introduceren: Pre en Post system call event? Dit komt eerder niet
+% XXX: voorbij.
 keep track if the current event is a pre- or post-system call event, let alone
 perform some extra architecture-specific calls to ensure that the result is
 properly set\footnote{ARM requires extra changes to make the register
@@ -221,7 +233,7 @@ modification of a system call number persistent.}.
 There is no way to hook into a specific system call, no way
 to simply inject a system call, it is not simple to change values of some
 variable/register in an architecture-agnostic way and it is not trivial
-to allocate memory in a child.
+to allocate or change memory in a child.
 
 Even though ptrace(2) provides all the functionality required to trace and
 intercept system calls\footnote{Which is why Tracy uses ptrace},
@@ -230,7 +242,8 @@ essential building blocks for tracing applications.
 % Wat voor punt maken we hier? Dit moet een betere conclusie worden.
 
 All these separate issues add up, eventually making the \textit{ptrace(2)} API
-infeasible for big projects.
+infeasible for big projects. % Ook raar; als ze tracy gebruiken gebruiken ze
+% toch ook ptrace?
 
 \section{Enter: Tracy}
 
@@ -248,8 +261,8 @@ and in the future safely tracing children on BSD)
 
 Tracy introduces an API that allows a programmers to hook into specific system
 calls, rather than every system call as is the case with ptrace.\footnote{Of
-course, under the hood Tracy will handle every system call, whether the system
-call is hooked or not.}
+course, under the hood Tracy will have to handle every system call, whether
+the system call is hooked or not. We propose a fix to this problem in FOO}% XXX
 Tracy also has both a synchronous and asynchronous injection API (which
 will be discussed in more detail later on) and tracy keeps track of the state of
 a system call - if it is an event generated before a system call is executed; or
@@ -289,14 +302,17 @@ process. Tracy can inspect, modify and even inject system calls. Being able to
 modify system calls gives the controlling process the ability to change
 arguments of system calls before system calls are allowed - or even the ability
 to ``deny'' system calls by changing the system call to a harmless one such as
-\textbf{getpid(2)}. Obvious use cases for modifying system calls is a process
+\textbf{getpid(2)}.
+
+Obvious use cases for modifying system calls is a process
 called ``sandboxing'' - intercepting and changing special system calls like
 \textbf{open(2)} and prepend (if not already in place) a specific path to the
 arguments such that the tracee cannot open files outside a specified path.
 The same effect can be achieved using \textit{LD\_PRELOAD}. \footnote{fakeroot,
-link} \textit{LD\_PRELOAD} however has serious limitations, it cannot attach to
-already running processes and a process can\footnote{If written to do so} ignore
-\textit{LD\_PRELOAD} all together.
+link}% XXX
+\textit{LD\_PRELOAD} however has serious limitations, it cannot attach to
+already running processes and a process can\footnote{If written to do so} work
+around \textit{LD\_PRELOAD} all together, defeating the purpose of the sandbox.
 
 \textbf{ptrace(2)} however, is very platform and operating system dependent,
 the Tracy API strives to be platform and operating system independent by
@@ -306,7 +322,10 @@ applying architecture and operating system dependent hacks and fixes
 \section{System call tracing, modification and injection}
 
 \textbf{ptrace(2)} stops the tracee right before it executes a system call as
-well as just after it has executed a system call.
+well as just after the tracee has executed a system call. When the tracee
+is stopped before a system call, we say that the tracee is in \textbf{pre}
+system call state; if the system call has executed and the tracee has once again
+been suspend we say that the tracee is in \textbf{post} system call state.
 While the controlling process is inspecting the tracee, the execution of the
 tracee is paused. (Figure \ref{fig1})
 
@@ -337,25 +356,32 @@ with the tracee, including but not limited to:
 To fully be able to modify a tracee, the controlling process needs to be able to
 read and write the tracee's memory. If the controlling process is to change
 arguments that point to a specific page in the tracee's memory - like a string,
-the controlling process needs to be able to write to the tracee's memory.
+the controlling process needs to be able to write to the tracee's memory - or
+share a small part of the controlling process' own memory with the tracee.
 
-However, it is often not a good idea for the controlling process to change data
-in a child. Instead, it would be a better idea to allocate a few pages in the
+Changing the memory of the tracee is usually not a good idea, as that could
+interfere with the tracee's execution.
+Instead, it would be a better idea to allocate a few pages in the
 child and copy the data to those pages, change the argument to point to the new
 pages and continue the system call. After the system call has completed, the
 pages can be freed again. This way the child's original arguments are left
-untouched, and for a reason: the child may re-use the buffers later on.
+untouched, and for a reason: the child may want to re-use the memory later on.
 
 \section{Tracing children}
 
+% XXX: Hier staat nog geen rfork() bij.
 A tracee can spawn children by calling the fork()\footnote{among other system
 calls: vfork, rfork, clone} system call. \textbf{ptrace(2)} does not
-automatically trace children of a tracee. It is often useful to keep track of
-all the children of a tracee. To do this, Linux supports specific
-\textbf{ptrace(2)} options to trace the tree of children spawned by the tracee
-as well. However, other platforms do not support these options and tracing
+automatically trace children of a tracee.
+
+In certain occasions, one may want to trace all the children of a tracee.
+To do this, Linux supports specific \textbf{ptrace(2)} options to trace
+the tree of children spawned by the tracee as well.
+
+However, other platforms do not support these options and tracing
 children of the tracee can be somewhat problematic.\footnote{strace does not
 immediately trace children on non-Linux platforms:
+% Cite strace hier weer, man page citen? Waar komt de quote vandaan (man page)
 \begin{quote}
     On non-Linux platforms the new process is attached to as soon as its pid is
     known (through the return value of fork(2) in the parent process).
@@ -371,8 +397,9 @@ immediately trace children on non-Linux platforms:
 \caption{One system call with ptrace}
 \end{figure}
 
-We provide a solution to this problem in Tracy such that any children spawned
+We provide a solution to this problem in tracy such that any children spawned
 by the tracee will not run uncontrolled on any platform.
+% XXX: Waar? Link? Ref?
 
 \chapter{Implementation}
 
@@ -449,7 +476,7 @@ provide information on things such as, threads, open files, memory maps and
 memory contents.
 
 The ``/proc/$<pid>$/mem'' file is the one used by Tracy to access child memory.
-Opening this file will present child memory as one contiguous lare file which
+Opening this file will present child memory as one contiguous file which
 can be modified using the usual IO operations.
 % Contigous lare? What are the usual operations? Elaborate
 
