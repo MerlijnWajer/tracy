@@ -31,7 +31,6 @@
 
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code) {
-    int garbage;
 
     if (child->pre_syscall) {
         if (tracy_inject_syscall_pre_start(child, syscall_number, a, NULL))
@@ -43,7 +42,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         /* XXX waitpid does not need a valid pointer for its second argument
          * switch to NULL?
          */
-        waitpid(child->pid, &garbage, __WALL);
+        waitpid(child->pid, NULL, __WALL);
 
         return tracy_inject_syscall_pre_end(child, return_code);
     } else {
@@ -54,7 +53,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
         tracy_continue(&child->event, 1);
 
-        waitpid(child->pid, &garbage, __WALL);
+        waitpid(child->pid, NULL, __WALL);
 
         return tracy_inject_syscall_post_end(child, return_code);
     }
@@ -77,7 +76,6 @@ int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_numbe
 
 
 int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code) {
-    int garbage;
     struct TRACY_REGS_NAME newargs;
 
     PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &newargs, -1);
@@ -97,14 +95,13 @@ int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code) {
     /* Wait for PRE, this shouldn't take long as we literally only wait for
      * the OS to notice that we set the PC back it should give us control back
      * on PRE-syscall. */
-    waitpid(child->pid, &garbage, __WALL);
+    waitpid(child->pid, NULL, __WALL);
 
     return 0;
 }
 
 int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback) {
-    int garbage;
     struct TRACY_REGS_NAME newargs;
 
     /* TODO CHECK PRE_SYSCALL BIT */
@@ -127,7 +124,7 @@ int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_numb
     /* Wait for PRE, this shouldn't take long as we literally only wait for
      * the OS to notice that we set the PC back; it should give us control back
      * on PRE-syscall*/
-    waitpid(child->pid, &garbage, __WALL);
+    waitpid(child->pid, NULL, __WALL);
 
     return tracy_modify_syscall(child, syscall_number, a);
 }
