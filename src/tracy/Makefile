@@ -21,7 +21,7 @@ libtracy.a: $(TRACY_OS)
 test_binaries=tests/hello tests/rwmem tests/base tests/inject-simple \
 	tests/thread-simple tests/thread-simple-prog tests/fork \
 	tests/fork-prog tests/vfork-prog tests/bounce tests/bash \
-	tests/raw-clone tests/deny
+	tests/raw-clone tests/deny tests/attach tests/metronome
 
 tests: $(test_binaries)
 tests/rwmem: tests/rwmem.o $(TRACY_OS)
@@ -33,6 +33,8 @@ tests/thread-simple: tests/thread-simple.o $(TRACY_OS)
 tests/thread-simple-prog: tests/thread-simple-prog.o
 tests/fork: tests/fork.o $(TRACY_OS)
 tests/bounce: tests/bounce.o trampy.o
+tests/attach: tests/attach.o $(TRACY_OS)
+tests/metronome: tests/metronome.o
 
 check-rwmem: tests/rwmem tests/hello
 	tests/rwmem tests/hello
@@ -53,6 +55,7 @@ tests/thread-simple.o: $(TRACY_HS)
 tests/fork.o: $(TRACY_HS)
 tests/rwmem.o: $(TRACY_HS)
 tests/bouce.o: trampy.h
+tests/attach.o: $(TRACY_HS)
 
 
 def_syscalls.h:

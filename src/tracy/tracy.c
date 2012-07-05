@@ -356,7 +356,7 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid)
 
     /* This is an attached child */
     tc->attached = 1;
-    tc->received_first_sigstop = 1;
+    tc->received_first_sigstop = 0;
 
     /* XXX: Error handling? */
     ll_add(t->childs, tc->pid, tc);
