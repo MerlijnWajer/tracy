@@ -31,6 +31,12 @@
 
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code) {
+    /* We use the async injection functions, but we simply wait() on
+     * a specific pid after the first call and then call the async
+     * api to finish the injection.
+     *
+     * We make the distinction between PRE and POST system calls; we have to,
+     * they require different injection methods. */
 
     if (child->pre_syscall) {
         if (tracy_inject_syscall_pre_start(child, syscall_number, a, NULL))
@@ -39,9 +45,6 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         child->inj.injecting = 0;
         tracy_continue(&child->event, 1);
 
-        /* XXX waitpid does not need a valid pointer for its second argument
-         * switch to NULL?
-         */
         waitpid(child->pid, NULL, __WALL);
 
         return tracy_inject_syscall_pre_end(child, return_code);
@@ -59,9 +62,18 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
     }
 }
 
+/* tracy_inject_syscall_pre_start 
+ *
+ * Change the system call, its arguments and the other registers to inject
+ * a system call. Doesn't continue the execution of the child.
+ *
+ * Call tracy_inject_syscall_pre_end to reset registers and retrieve the return
+ * value.
+ *
+ * Returns 0 on success; -1 on failure.
+ */
 int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback) {
-
     /* TODO CHECK PRE_SYSCALL BIT */
 
     PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &child->inj.reg, -1);
@@ -75,6 +87,19 @@ int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_numbe
 }
 
 
+/*
+ * tracy_inject_syscall_pre_end
+ *
+ * Call this after having called tracy_inject_syscall_pre_start, tracy_continue
+ * and waitpid on the child. This function will reset the registers to the
+ * proper values and store the return value in *return_code*.
+ *
+ * If you use tracy's event structure (you probably do), then you do not need to
+ * call this function. In fact, you shouldn't.
+ *
+ * Returns 0 on success; -1 on failure.
+ *
+ */
 int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code) {
     struct TRACY_REGS_NAME newargs;
 
@@ -100,6 +125,16 @@ int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code) {
     return 0;
 }
 
+/* tracy_inject_syscall_post_start
+ *
+ * Change the system call, its arguments and the other registers to inject
+ * a system call. Doesn't continue the execution of the child.
+ *
+ * Call tracy_inject_syscall_post_end to reset registers and retrieve the return
+ * value.
+ *
+ * Returns 0 on success; -1 on failure.
+ */
 int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback) {
     struct TRACY_REGS_NAME newargs;
@@ -129,6 +164,19 @@ int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_numb
     return tracy_modify_syscall(child, syscall_number, a);
 }
 
+/*
+ * tracy_inject_syscall_post_end
+ *
+ * Call this after having called tracy_inject_syscall_post_start, tracy_continue
+ * and waitpid on the child. This function will reset the registers to the
+ * proper values and store the return value in *return_code*.
+ *
+ * If you use tracy's event structure (you probably do), then you do not need to
+ * call this function. In fact, you shouldn't.
+ *
+ * Returns 0 on success; -1 on failure.
+ *
+ */
 int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code) {
     struct TRACY_REGS_NAME newargs;
 
@@ -141,6 +189,21 @@ int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code) 
     return 0;
 }
 
+/*
+ * tracy_modify_syscall
+ *
+ * This function allows you to change the system call number and arguments of a
+ * paused child. You can use it to change a0..a5, return_code and the ip.
+ * Changing the IP is particularly important when doing system call injection.
+ * Make sure that you set it to the right value when passing args to this
+ * function.
+ *
+ * Changes the system call number to *syscall_number* and if *a* is not NULL,
+ * changes the arguments/registers of the system call to the contents of *a*.
+ *
+ * Returns 0 on success, -1 on failure.
+ *
+ */
 int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a) {
 
@@ -153,7 +216,7 @@ int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
     newargs.TRACY_SYSCALL_N = syscall_number;
 
     #ifdef __arm__
-    /* ARM requires us to call this function to set the system call */
+    /* ARM requires us to call this function to set the system call. */
     PTRACE_CHECK(PTRACE_SET_SYSCALL, child->pid, 0, (void*)syscall_number, -1);
     #endif
 
