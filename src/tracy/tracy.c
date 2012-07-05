@@ -294,6 +294,7 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid)
     /* TRACESYSGOOD is default for now. BSD doesn't have this... */
     long ptrace_options = PTRACE_O_TRACESYSGOOD;
     long signal_id;
+    int set_fpid = 0;
     struct tracy_child *tc;
 
     if ((t->opt & TRACY_TRACE_CHILDREN) && !(t->opt & TRACY_USE_SAFE_TRACE)) {
@@ -304,16 +305,11 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid)
 
     PTRACE_CHECK(PTRACE_ATTACH, pid, NULL, NULL, NULL);
 
-    tc = malloc(sizeof(struct tracy_child));
-    if (!tc) {
-        ptrace(PTRACE_DETACH, pid, NULL, NULL);
-        return NULL;
-    }
-
     /* Parent */
-
-    if (t->fpid == 0)
+    if (t->fpid == 0) {
         t->fpid = pid;
+        set_fpid = 1;
+    }
 
     /* Wait for SIGSTOP from the child */
     waitpid(pid, &status, __WALL);
@@ -325,12 +321,16 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid)
         /* TODO: Failure */
         ptrace(PTRACE_DETACH, pid, NULL, NULL);
         /* XXX: Need to set errno to something useful */
+        if (set_fpid)
+            t->fpid = 0;
         return NULL;
     }
 
     r = ptrace(PTRACE_SETOPTIONS, pid, NULL, (void*)ptrace_options);
     if (r) {
         ptrace(PTRACE_DETACH, pid, NULL, NULL);
+        if (set_fpid)
+            t->fpid = 0;
         /* TODO: Options may not be supported... Linux 2.4? */
         return NULL;
     }
@@ -341,12 +341,16 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid)
     r = ptrace(PTRACE_SYSCALL, pid, NULL, 0);
     if (r) {
         ptrace(PTRACE_DETACH, pid, NULL, NULL);
+        if (set_fpid)
+            t->fpid = 0;
         return NULL;
     }
 
     tc = malloc_tracy_child(t, pid);
     if (!tc) {
         ptrace(PTRACE_DETACH, pid, NULL, NULL);
+        if (set_fpid)
+            t->fpid = 0;
         return NULL;
     }
 
@@ -354,6 +358,7 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid)
     tc->attached = 1;
     tc->received_first_sigstop = 1;
 
+    /* XXX: Error handling? */
     ll_add(t->childs, tc->pid, tc);
 
     /* TODO: Special event for attached child? */
