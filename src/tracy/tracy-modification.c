@@ -62,7 +62,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
     }
 }
 
-/* tracy_inject_syscall_pre_start 
+/* tracy_inject_syscall_pre_start
  *
  * Change the system call, its arguments and the other registers to inject
  * a system call. Doesn't continue the execution of the child.
