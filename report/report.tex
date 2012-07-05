@@ -1,11 +1,24 @@
-\documentclass[a4paper, twoside, 10pt, twocolumn]{report}
+\documentclass[a4paper, twoside, 10pt]{report}
+%\documentclass[a4paper, twoside, 10pt, twocolumn]{report}
 
 \author{Jurriaan Bremer \and Merlijn Wajer \and Bas Weelinck}
 \title{Tracy: UNIX system call tracing}
 
 \usepackage{graphicx}
+\usepackage{listings}
 \usepackage{hyperref}
+\usepackage{appendix}
+\usepackage{color}
 \usepackage[utf8]{inputenc}
+
+\definecolor{MidnightBlue}{rgb}{0, 0, 0.95}
+\lstset{language=C,
+    showspaces=false,
+    showstringspaces=false
+    basicstyle=\ttfamily,
+    stringstyle=\color{MidnightBlue}\ttfamily,
+    emphstyle=\color{red}\bf
+}
 
 \begin{document}
 \maketitle
@@ -405,27 +418,58 @@ by the tracee will not run uncontrolled on any platform.
 
 \section{Tracing a process}
 
-Tracing a process can be done in two different ways. A process can clone itself
-and have the child announce that it wants to be traced and then execute a
-process, or a process can attach to another running process.
+Tracing a process can be done in two different ways. A process can either attach
+to another running process, or clone a clone of itself and consequently  use
+ptrace() in the child to make the parent (the original process) trace the child
+and then \textit{execve(2)} another process.
 
 \subsection{Fork and trace}
 
-\subsection{Attaching}
+As explained in the previous section, the parent issues a \textit{fork(2)} call.
+The child then performs a \textit{ptrace(2)} call, with the
+\textit{PTRACE\_TRACEME} argument. The child then raises \textit{SIGTRAP};
+because the child is being traced by its parent, the child is then suspended
+until the parent performs a \textit{waitpid} followed by a call to ptrace to
+continue the process with the \textit{PTRACE\_SYSCALL} argument to
+\textit{ptrace(2)}. The parent can inspect and change the child before it issues
+the continue call. The code demonstrating this can be found in
+Appendix \ref{appendix:createtrace}
 
-%\begin{itemize}
-%    \item The child can simply call ptrace(PTRACE\_TRACEME, 0, NULL, NULL);
-%    \item A process can attach to an existing process using
-%        ptrace(PTRACE\_ATTACH, pid, NULL, NULL);
-%\end{itemize}
+\subsection{Attaching}
 
 \section{System call tracing}
 
+% TODO: Meer tracy specifiek maken(?)
+
+
+
 \section{System call modification}
+
+% TODO: Meer tracy specifiek maken(?)
+
+Modifying system calls can be done at two points: before and after the
+system call is executed. Changing the system call ``after'' it has been executed
+does not undo the effect of said system call, but it allows the tracer to change
+result values of the system call.
+\footnote{The tracer can ofcourse change every register and the memory of the
+tracee at any point when the tracee is suspended.}
+Changing values before the system call is executed is more exciting, as it
+allows the tracer to actually \textit{change} the system call. For example, by
+modifying the register that stores the system call number, it is possible to
+execute a completely different system call. This serves two purposes:
+``denying'' system calls by changing the system call register to a harmless
+system call such as getpid and ``injecting'' system calls by changing the
+system call number and later on the instruction pointer.
 
 \section{System call injection}
 
-% sync & async injection
+% Plaatjes van PRE-injectie en POST-injectie hier. (Met ASM?)
+
+\subsection{Pre-syscall injection}
+
+\subsection{Post-syscall injection}
+
+\subsection{Asynchronous injection in Tracy}
 
 \section{Memory access}
 
@@ -433,7 +477,7 @@ Any program that uses the \textbf{ptrace(2)} API will probably want to access th
 traced process' memory as well. Reasons can range from simply dumping pointer
 contents to monitoring, changing or even injecting new system calls with
 completely stand-alone data. Furthermore, in case of IO intensive operation
-this access should be farely fast as well.
+this access should be fairly fast as well.
 
 Unfortunately as with most functions prace provides, memory access standards
 differ from operating system to operating system and are also
@@ -553,15 +597,24 @@ original fork(2) call) and let both processes continue their execution.
 
 % Argument minder dan x86
 
+\subsection{vfork}
+
+% Problemen die we tegen kwamen met vfork? (Geen?)
 
 % FIXME title sucks
 \subsection{32 bit ABI on 64 bit}
 
+% Hoe detect je de mode? Dat is het probleem.
+% Beetje hetzelfde als Safe execution with diff ABIs
 
 
 \chapter{Soxy}
 
-% socketcall x86 vs native syscalls on x64
+% socketcall x86 vs native syscalls on x64 in caveats
+
+
+
+
 
 \chapter{Future work}
 
@@ -620,5 +673,47 @@ Applications
 % jail?
 
 \bibliography{report}
+
+\pagebreak
+
+\appendix
+\addappheadtotoc
+
+\chapter{Creating and tracing a process}
+\label{appendix:createtrace}
+
+% XXX: Willen we hier failsafes in?
+\begin{lstlisting}
+    pid = fork();
+
+    /* Child */
+    if (pid == 0) {
+        r = ptrace(PTRACE_TRACEME, 0, NULL, NULL);
+        if (r) {
+            fprintf(stderr, "PTRACE_TRACEME failed.\n");
+            _exit(1);
+        }
+
+        raise(SIGTRAP);
+
+        execve(...);
+
+        /* ... */
+    }
+
+    if (pid == -1)
+        return NULL;
+
+    waitpid(pid, &status, __WALL);
+    signal_id = WSTOPSIG(status);
+    if (signal_id != SIGTRAP) {
+        return NULL;
+    }
+
+    /* Resume child and tell ptrace to stop at the next system call */
+    r = ptrace(PTRACE_SYSCALL, pid, NULL, 0);
+\end{lstlisting}
+
+
 
 \end{document}
