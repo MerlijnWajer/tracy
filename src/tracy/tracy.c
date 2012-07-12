@@ -670,7 +670,7 @@ int tracy_main(struct tracy *tracy) {
         }
         if (e->type == TRACY_EVENT_SIGNAL) {
             if (TRACY_PRINT_SIGNALS(tracy)) {
-                printf(_y("Signal %s (%ld) for child %d")"\n",
+                fprintf(stderr, _y("Signal %s (%ld) for child %d")"\n",
                     get_signal_name(e->signal_num), e->signal_num, e->child->pid);
             }
             if(tracy->signal_hook) {

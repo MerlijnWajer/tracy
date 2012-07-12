@@ -353,14 +353,14 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
     } else if (signal_id == SIGSTOP && !s->child->received_first_sigstop) {
         if (TRACY_PRINT_SIGNALS(t))
-            printf("SIGSTOP ignored: pid = %d\n", pid);
+            fprintf(stderr, "SIGSTOP ignored: pid = %d\n", pid);
 
         s->child->received_first_sigstop = 1;
         tracy_continue(s, 1);
         return tracy_wait_event(t, c_pid);
     } else {
         if (TRACY_PRINT_SIGNALS(t))
-            printf(_y("Signal for child: %d")"\n", pid);
+            fprintf(stderr, _y("Signal for child: %d")"\n", pid);
         /* Signal for the child, pass it along. */
         s->signal_num = signal_id;
         s->type = TRACY_EVENT_SIGNAL;
@@ -382,7 +382,7 @@ int tracy_continue(struct tracy_event *s, int sigoverride) {
 
         s->signal_num = 0; /* Clear signal */
         if (TRACY_PRINT_SIGNALS(s->child->tracy))
-            printf(_y("Passing along signal %s (%d) to child %d")"\n",
+            fprintf(stderr, _y("Passing along signal %s (%d) to child %d")"\n",
                 get_signal_name(sig), sig, s->child->pid);
     }
 
