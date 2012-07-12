@@ -174,6 +174,81 @@ static struct tracy_event none_event = {
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
     };
 
+static int tracy_handle_signal_hook(struct tracy_event *e, int *suppress) {
+    int hook_ret;
+
+    struct tracy *tracy;
+    tracy = e->child->tracy;
+
+    hook_ret = tracy->signal_hook ? tracy->signal_hook(e) : TRACY_HOOK_NOHOOK;
+    switch (hook_ret) {
+        case TRACY_HOOK_CONTINUE:
+            break;
+
+        case TRACY_HOOK_SUPPRESS:
+            *suppress = 1;
+            break;
+
+        case TRACY_HOOK_KILL_CHILD:
+            tracy_kill_child(e->child);
+            return 1;
+
+        case TRACY_HOOK_ABORT:
+            tracy_quit(tracy, 1);
+            break;
+
+        default:
+            fprintf(stderr, "Invalid hook return: %d. Stopping.\n", hook_ret);
+            tracy_quit(tracy, 1);
+            break;
+    }
+
+    return 0;
+}
+
+static int tracy_handle_syscall_hook(struct tracy_event *e) {
+    int hook_ret;
+
+    struct tracy *tracy;
+
+    tracy = e->child->tracy;
+
+    hook_ret = tracy_execute_hook(tracy,
+            get_syscall_name(e->syscall_num), e);
+    switch (hook_ret) {
+        case TRACY_HOOK_CONTINUE:
+            break;
+
+        case TRACY_HOOK_KILL_CHILD:
+            tracy_kill_child(e->child);
+            return 1;
+
+        case TRACY_HOOK_DENY:
+            if(e->child->pre_syscall) {
+                tracy_deny_syscall(e->child);
+            } else {
+                fprintf(stderr, "Deny in post. Stopping.\n");
+                tracy_quit(tracy, 1);
+            }
+
+            break;
+
+        case TRACY_HOOK_ABORT:
+            tracy_quit(tracy, 1);
+            break;
+
+        case TRACY_HOOK_NOHOOK:
+            break;
+
+        default:
+            fprintf(stderr, "Invalid hook return: %d. Stopping.\n", hook_ret);
+            tracy_quit(tracy, 1);
+            break;
+    }
+
+    return 0;
+}
+
 /*
  * tracy_wait_event returns an event that is either an event belonging to a
  * child (already allocated) or the none_event (which is also already
@@ -190,6 +265,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
     struct tracy_event *s;
     struct soxy_ll_item *item;
 
+    start:
     s = NULL;
 
     /* Wait for changes */
@@ -248,7 +324,8 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         } else {
             if (t->opt & TRACY_VERBOSE)
                 puts(_y("Recursing due to WIFSTOPPED"));
-            return tracy_wait_event(t, c_pid);
+            goto start;
+            /*return tracy_wait_event(t, c_pid);*/
         }
         return s;
     }
@@ -267,6 +344,8 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
                     get_syscall_name(s->child->denied_nr));
             */
 
+            /* Set the system call numbers back to what they were before the
+             * deny to ensure proper hooks are called. */
             s->syscall_num = s->child->denied_nr;
             s->args.syscall = s->child->denied_nr;
 
@@ -283,16 +362,25 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             s->child->denied_nr = 0;
 
             check_syscall(s);
-            return s;
-        } else {
-            s->args.syscall = regs.TRACY_SYSCALL_REGISTER;
-            s->syscall_num = regs.TRACY_SYSCALL_REGISTER;
 
-            if (TRACY_PRINT_SYSCALLS(t))
-                printf(_y("%04d System call: %s (%ld) Pre: %d")"\n",
-                        s->child->pid, get_syscall_name(s->syscall_num),
-                        s->syscall_num, !s->child->pre_syscall);
+            if (tracy_handle_syscall_hook(s)) {
+                /* TODO: Child got killed. Event type -> quit */
+                s->type = TRACY_EVENT_QUIT;
+                s->signal_num = SIGKILL;
+            }
+
+            return s;
         }
+
+        s->args.syscall = regs.TRACY_SYSCALL_REGISTER;
+        s->syscall_num = regs.TRACY_SYSCALL_REGISTER;
+
+        /*
+        if (TRACY_PRINT_SYSCALLS(t))
+            printf(_y("%04d System call: %s (%ld) Pre: %d")"\n",
+                    s->child->pid, get_syscall_name(s->syscall_num),
+                    s->syscall_num, !s->child->pre_syscall);
+            */
 
         s->args.a0 = regs.TRACY_ARG_0;
         s->args.a1 = regs.TRACY_ARG_1;
@@ -311,12 +399,25 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
          * fork event to the user. XXX TODO FIXME */
         check_syscall(s);
 
-        if (!tracy_internal_syscall(s)) {
-            return tracy_wait_event(t, c_pid);
+        if (tracy_handle_syscall_hook(s)) {
+            /* TODO: Child got killed. Event type -> quit */
+            s->type = TRACY_EVENT_QUIT;
+            s->signal_num = SIGKILL;
+
+            return s;
+        }
+
+        if (s->child->denied_nr) {
+            if (!tracy_internal_syscall(s)) {
+                /* TODO: We currently don't generate POST events if
+                 * tracy_internal_syscall returns 0. This due to the fact
+                 * that tracy_internal_syscall already resumes the
+                 * target process. */
+                goto start;
+            }
         }
 
     } else if (signal_id == SIGTRAP) {
-
         if (t->opt & TRACY_VERBOSE) {
             /* XXX We probably want to move most of this logic out of the
              * verbose statement soon */
@@ -348,8 +449,8 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
          * TODO: Unless it is sent by userspace? */
         tracy_continue(s, 1);
 
-        /* TODO: Replace this with goto or loop */
-        return tracy_wait_event(t, c_pid);
+        goto start;
+        /*return tracy_wait_event(t, c_pid);*/
 
     } else if (signal_id == SIGSTOP && !s->child->received_first_sigstop) {
         if (TRACY_PRINT_SIGNALS(t))
@@ -361,6 +462,12 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
     } else {
         if (TRACY_PRINT_SIGNALS(t))
             fprintf(stderr, _y("Signal for child: %d")"\n", pid);
+
+        /* Signal hook here */
+        if (tracy_handle_signal_hook(s, &(s->child->suppress))) {
+            goto start;
+        }
+
         /* Signal for the child, pass it along. */
         s->signal_num = signal_id;
         s->type = TRACY_EVENT_SIGNAL;
@@ -384,6 +491,11 @@ int tracy_continue(struct tracy_event *s, int sigoverride) {
         if (TRACY_PRINT_SIGNALS(s->child->tracy))
             fprintf(stderr, _y("Passing along signal %s (%d) to child %d")"\n",
                 get_signal_name(sig), sig, s->child->pid);
+    }
+
+    if (s->child->suppress) {
+        sig = 0;
+        s->child->suppress = 0;
     }
 
     if (sigoverride)

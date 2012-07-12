@@ -126,6 +126,9 @@ struct tracy_child {
     /* Last denied syscall */
     int denied_nr;
 
+    /* Suppress next signal on tracy_continue */
+    int suppress;
+
     /* User data passed to the hooks */
     void* custom;
 
@@ -166,6 +169,7 @@ typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
 #define TRACY_HOOK_ABORT 2
 #define TRACY_HOOK_NOHOOK 3
 #define TRACY_HOOK_SUPPRESS 4
+#define TRACY_HOOK_DENY 5
 
 /* Setting up and tearing down a tracy session */
 
