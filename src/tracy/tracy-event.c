@@ -221,9 +221,7 @@ static int tracy_handle_syscall_hook(struct tracy_event *e) {
     name = get_syscall_name(e->syscall_num);
 
     if (!name) {
-        printf("Could not get syscall name: %ld\n", e->syscall_num);
-        tracy_backtrace();
-        tracy_quit(e->child->tracy, 1);
+        return 0;
     }
     hook_ret = tracy_execute_hook(tracy, name, e);
     switch (hook_ret) {
