@@ -645,13 +645,10 @@ static void _main_interrupt_handler(int sig)
 /* Main function for simple tracy based applications */
 int tracy_main(struct tracy *tracy) {
     struct tracy_event *e;
-    int sig_override;
 
     /* Setup interrupt handler */
     main_loop_go_on = 1;
     signal(SIGINT, _main_interrupt_handler);
-
-    sig_override = 0;
 
     while (main_loop_go_on) {
         start:
@@ -702,8 +699,7 @@ int tracy_main(struct tracy *tracy) {
             break;
         }
 
-        tracy_continue(e, sig_override);
-        sig_override = 0;
+        tracy_continue(e, 0);
     }
 
     /* Tear down interrupt handler */

@@ -186,6 +186,7 @@ static int tracy_handle_signal_hook(struct tracy_event *e, int *suppress) {
             break;
 
         case TRACY_HOOK_SUPPRESS:
+            printf("Setting child suppress\n");
             *suppress = 1;
             break;
 
@@ -195,6 +196,9 @@ static int tracy_handle_signal_hook(struct tracy_event *e, int *suppress) {
 
         case TRACY_HOOK_ABORT:
             tracy_quit(tracy, 1);
+            break;
+
+        case TRACY_HOOK_NOHOOK:
             break;
 
         default:
@@ -210,11 +214,18 @@ static int tracy_handle_syscall_hook(struct tracy_event *e) {
     int hook_ret;
 
     struct tracy *tracy;
+    char *name;
 
     tracy = e->child->tracy;
 
-    hook_ret = tracy_execute_hook(tracy,
-            get_syscall_name(e->syscall_num), e);
+    name = get_syscall_name(e->syscall_num);
+
+    if (!name) {
+        printf("Could not get syscall name: %ld\n", e->syscall_num);
+        tracy_backtrace();
+        tracy_quit(e->child->tracy, 1);
+    }
+    hook_ret = tracy_execute_hook(tracy, name, e);
     switch (hook_ret) {
         case TRACY_HOOK_CONTINUE:
             break;
@@ -458,19 +469,19 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
         s->child->received_first_sigstop = 1;
         tracy_continue(s, 1);
-        return tracy_wait_event(t, c_pid);
+        goto start;
     } else {
         if (TRACY_PRINT_SIGNALS(t))
             fprintf(stderr, _y("Signal for child: %d")"\n", pid);
+
+        /* Signal for the child, pass it along. */
+        s->signal_num = signal_id;
+        s->type = TRACY_EVENT_SIGNAL;
 
         /* Signal hook here */
         if (tracy_handle_signal_hook(s, &(s->child->suppress))) {
             goto start;
         }
-
-        /* Signal for the child, pass it along. */
-        s->signal_num = signal_id;
-        s->type = TRACY_EVENT_SIGNAL;
     }
 
     return s;
@@ -494,6 +505,7 @@ int tracy_continue(struct tracy_event *s, int sigoverride) {
     }
 
     if (s->child->suppress) {
+        fprintf(stderr, "Surpressing signal: %s\n", get_signal_name(sig));
         sig = 0;
         s->child->suppress = 0;
     }
