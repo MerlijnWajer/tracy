@@ -43,7 +43,7 @@
 #define TRACY_PRINT_SIGNALS(t) \
         t->opt & TRACY_VERBOSE_SIGNAL
 #define TRACY_PRINT_SYSCALLS(t) \
-        t->opt & TRACY_VERBOSE_SIGNAL
+        t->opt & TRACY_VERBOSE_SYSCALL
 
 struct tracy_child;
 
