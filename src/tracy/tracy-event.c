@@ -29,7 +29,8 @@
 
 #include "tracy.h"
 
-/* Used to keep track of what is PRE and what is POST. */
+/* Used to keep track of the system call state of a child.
+ * That is, whether the child is in PRE or POST system call state. */
 static int check_syscall(struct tracy_event *s) {
     s->child->pre_syscall = s->child->pre_syscall ? 0 : 1;
     return 0;
@@ -101,8 +102,10 @@ static int tracy_internal_syscall(struct tracy_event *s) {
             printf("Added and resuming child\n");
             tracy_continue(&new_child->event, 1);
 
+#if 0
             printf("Continue parent\n");
             tracy_continue(s, 1);
+#endif
 
             printf("Done!\n");
             return 0;
@@ -128,7 +131,9 @@ static int tracy_internal_syscall(struct tracy_event *s) {
             tracy_continue(&new_child->event, 1);
 
             if (!s->child->frozen_by_vfork) {
+#if 0
                 printf("Continue parent\n");
+#endif
                 tracy_continue(s, 1);
             } else {
                 printf("Not continuing parent\n");
@@ -169,11 +174,17 @@ static int tracy_internal_syscall(struct tracy_event *s) {
     return -1;
 }
 
+/* Empty tracy event.
+ * This is returned by tracy_wait_event when all the children have died. */
 static struct tracy_event none_event = {
         TRACY_EVENT_NONE, NULL, 0, 0,
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
     };
 
+/* Function to handle the signal hook.
+ * If TRACY_HOOK_SUPPRESS is set, suppress is set to 1 and the next
+ * tracy_continue will suppress the signal.
+ */
 static int tracy_handle_signal_hook(struct tracy_event *e, int *suppress) {
     int hook_ret;
 
@@ -210,6 +221,11 @@ static int tracy_handle_signal_hook(struct tracy_event *e, int *suppress) {
     return 0;
 }
 
+/*
+ * Function to handle per-system call hooks.
+ * Action taken depends on whether a hook exists at all.
+ * If the hook exists, action taken depends on the hook return value.
+ */
 static int tracy_handle_syscall_hook(struct tracy_event *e) {
     int hook_ret;
 
@@ -239,7 +255,6 @@ static int tracy_handle_syscall_hook(struct tracy_event *e) {
                 fprintf(stderr, "Deny in post. Stopping.\n");
                 tracy_quit(tracy, 1);
             }
-
             break;
 
         case TRACY_HOOK_ABORT:
@@ -291,23 +306,25 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         return &none_event;
     }
 
-    if (pid != -1) {
-        item = ll_find(t->childs, pid);
-        if (!item) {
-            if (t->opt & TRACY_VERBOSE)
-                printf(_y("New child: %d. Adding to tracy...")"\n", pid);
+    /* Does the child exist? */
+    item = ll_find(t->childs, pid);
 
-            tc = tracy_add_child(t, pid);
-            if (!tc) {
-                return NULL;
-            }
+    /* If not, add it to our list. */
+    if (!item) {
+        if (t->opt & TRACY_VERBOSE)
+            printf(_y("New child: %d. Adding to tracy...")"\n", pid);
 
-            s = &tc->event;
-            s->child = tc;
-        } else {
-            s = &(((struct tracy_child*)(item->data))->event);
-            s->child = item->data;
+        tc = tracy_add_child(t, pid);
+        if (!tc) {
+            return NULL;
         }
+
+        s = &tc->event;
+        s->child = tc;
+    } else {
+        /* If the child exists, use its event structure */
+        s = &(((struct tracy_child*)(item->data))->event);
+        s->child = item->data;
     }
 
     /* Do we want this before the signal checks? Will do for now */
@@ -320,10 +337,12 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         }
     }
 
+    /* TODO: 0 is an invalid type */
     s->type = 0;
     s->syscall_num = 0;
     s->signal_num = 0;
 
+    /* Extract signal */
     if (!WIFSTOPPED(status)) {
         s->type = TRACY_EVENT_QUIT;
         if (WIFEXITED(status)) {
@@ -341,12 +360,19 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
     signal_id = WSTOPSIG(status);
 
+    /* PTRACE_O_TRACESYSGOOD makes it easier to distinguish
+     * normal SIGTRAP signals from ptrace SIGTRAL signals.
+     *
+     * TODO: Other OS'es don't have this
+     */
     if (signal_id == (SIGTRAP | 0x80)) {
         /* Make functions to retrieve this */
         PTRACE_CHECK(PTRACE_GETREGS, pid, NULL, &regs, NULL);
 
         s->args.sp = regs.TRACY_STACK_POINTER;
 
+        /* If we previously denied a system call, now is the time to set
+         * the return code and restore the registers. */
         if (s->child->denied_nr) {
             /* printf("DENIED SYSTEM CALL: Changing from %s to %s\n",
                     get_syscall_name(regs.TRACY_SYSCALL_REGISTER),
@@ -358,7 +384,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             s->syscall_num = s->child->denied_nr;
             s->args.syscall = s->child->denied_nr;
 
-            /* Args don't matter with denied syscalls */
+            /* Args don't matter with denied syscalls, so we don't set them */
             s->args.ip = regs.TRACY_IP_REG;
             s->type = TRACY_EVENT_SYSCALL;
 
@@ -366,14 +392,17 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             s->args.return_code = -EPERM;
             s->args.sp = regs.TRACY_STACK_POINTER;
 
-            /* TODO: Check return value? */
-            tracy_modify_syscall(s->child, s->child->denied_nr, &(s->args));
+            if (tracy_modify_syscall(s->child, s->child->denied_nr, &(s->args))) {
+                fprintf(stderr, "tracy_modify_syscall failed\n");
+                tracy_backtrace();
+                /* TODO: Kill child? */
+            }
             s->child->denied_nr = 0;
 
             check_syscall(s);
 
             if (tracy_handle_syscall_hook(s)) {
-                /* TODO: Child got killed. Event type -> quit */
+                /* Child got killed. Event type -> quit */
                 s->type = TRACY_EVENT_QUIT;
                 s->signal_num = SIGKILL;
             }
@@ -389,8 +418,9 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             printf(_y("%04d System call: %s (%ld) Pre: %d")"\n",
                     s->child->pid, get_syscall_name(s->syscall_num),
                     s->syscall_num, !s->child->pre_syscall);
-            */
+        */
 
+        /* Store arguments in the cross platform/arch struct */
         s->args.a0 = regs.TRACY_ARG_0;
         s->args.a1 = regs.TRACY_ARG_1;
         s->args.a2 = regs.TRACY_ARG_2;
@@ -416,13 +446,20 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             return s;
         }
 
-        if (s->child->denied_nr) {
+        if (!s->child->denied_nr) {
             if (!tracy_internal_syscall(s)) {
-                /* TODO: We currently don't generate POST events if
-                 * tracy_internal_syscall returns 0. This due to the fact
-                 * that tracy_internal_syscall already resumes the
-                 * target process. */
-                goto start;
+                /* Call hook again. This is a bit hacky, I don't think we want
+                 * to do this everywhere. FIXME XXX */
+
+                if (tracy_handle_syscall_hook(s)) {
+                    /* TODO: Child got killed. Event type -> quit */
+                    s->type = TRACY_EVENT_QUIT;
+                    s->signal_num = SIGKILL;
+
+                    return s;
+                }
+
+                /*goto start;*/
             }
         }
 

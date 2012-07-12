@@ -548,6 +548,12 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
             tracy_hook_func pfunc;
         } _hax;
 
+
+    if (TRACY_PRINT_SYSCALLS(t))
+        printf(_y("%04d System call: %s (%ld) Pre: %d")"\n",
+                e->child->pid, get_syscall_name(e->syscall_num),
+                e->syscall_num, e->child->pre_syscall);
+
     hash = hash_syscall(syscall);
 
     item = ll_find(t->hooks, hash);
@@ -674,11 +680,13 @@ int tracy_main(struct tracy *tracy) {
         } else
 
         if (e->type == TRACY_EVENT_SYSCALL) {
+            /*
             if (TRACY_PRINT_SYSCALLS(tracy)) {
                 printf(_y("%04d System call: %s (%ld) Pre: %d")"\n",
                         e->child->pid, get_syscall_name(e->syscall_num),
                         e->syscall_num, e->child->pre_syscall);
             }
+            */
         } else
 
         if (e->type == TRACY_EVENT_QUIT) {
