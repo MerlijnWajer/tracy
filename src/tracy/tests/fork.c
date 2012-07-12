@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
 
     /* Tracy options */
     tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_USE_SAFE_TRACE \
-            | TRACY_VERBOSE);
+            | TRACY_VERBOSE_SYSCALL);
 
     if (argc < 2) {
         printf("Usage: ./example <program-name>\n");
