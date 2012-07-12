@@ -525,6 +525,12 @@ int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func) {
     return 0;
 }
 
+int tracy_set_signal_hook(struct tracy *t, tracy_hook_func f) {
+    t->signal_hook = f;
+
+    return 0;
+}
+
 int tracy_set_default_hook(struct tracy *t, tracy_hook_func f) {
     t->defhook = f;
 
@@ -638,10 +644,13 @@ static void _main_interrupt_handler(int sig)
 int tracy_main(struct tracy *tracy) {
     struct tracy_event *e;
     int hook_ret;
+    int sig_override;
 
     /* Setup interrupt handler */
     main_loop_go_on = 1;
     signal(SIGINT, _main_interrupt_handler);
+
+    sig_override = 0;
 
     while (main_loop_go_on) {
         start:
@@ -663,6 +672,27 @@ int tracy_main(struct tracy *tracy) {
             if (TRACY_PRINT_SIGNALS(tracy)) {
                 printf(_y("Signal %s (%ld) for child %d")"\n",
                     get_signal_name(e->signal_num), e->signal_num, e->child->pid);
+            }
+            if(tracy->signal_hook) {
+                hook_ret = tracy->signal_hook(e);
+                switch (hook_ret) {
+                    case TRACY_HOOK_CONTINUE:
+                        break;
+                    case TRACY_HOOK_SUPPRESS:
+                        sig_override = 1;
+                        break;
+                    case TRACY_HOOK_KILL_CHILD:
+                        tracy_kill_child(e->child);
+                        /* We don't want to call tracy_continue(e, 0); */
+                        goto start;
+                    case TRACY_HOOK_ABORT:
+                        tracy_quit(tracy, 1);
+                        break;
+                    default:
+                        fprintf(stderr, "Invalid hook return: %d. Stopping.\n", hook_ret);
+                        tracy_quit(tracy, 1);
+                        break;
+                }
             }
         } else
 
@@ -735,7 +765,8 @@ int tracy_main(struct tracy *tracy) {
             break;
         }
 
-        tracy_continue(e, 0);
+        tracy_continue(e, sig_override);
+        sig_override = 0;
     }
 
     /* Tear down interrupt handler */

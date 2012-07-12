@@ -90,6 +90,7 @@ struct tracy {
     pid_t fpid;
     long opt;
     tracy_hook_func defhook;
+    tracy_hook_func signal_hook;
     struct tracy_special_events se;
 };
 
@@ -164,6 +165,7 @@ typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
 #define TRACY_HOOK_KILL_CHILD 1
 #define TRACY_HOOK_ABORT 2
 #define TRACY_HOOK_NOHOOK 3
+#define TRACY_HOOK_SUPPRESS 4
 
 /* Setting up and tearing down a tracy session */
 
@@ -315,12 +317,31 @@ char* get_signal_name(int signal);
 int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func);
 
 /*
+ * tracy_set_signal_hook
+ *
+ * Set the signal hook. Called on each signal[1].
+ *
+ * Returns 0 on success.
+ *
+ * [1] Called on every signal that the tracy user should recieve,
+ * the SIGTRAP's from ptrace are not sent, and neither is the first
+ * SIGSTOP.
+ * Possible return values by the tracy_hook_func for the signal:
+ *
+ *  -   TRACY_HOOK_CONTINUE will send the signal and proceed as normal
+ *  -   TRACY_HOOK_SUPPRESS will not send a signal and process as normal
+ *  -   TRACY_HOOK_KILL_CHILD if the child should be killed.
+ *  -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
+ *
+ */
+int tracy_set_signal_hook(struct tracy *t, tracy_hook_func f);
+/*
  * tracy_set_default_hook
  *
  * Set the default hook. (Called when a syscall occurs and no hook is installed
  * for the system call. *func* is the function to be set as hook.
  *
- * Returns 0 on success. Success is guaranteed! :-)
+ * Returns 0 on success.
  */
 int tracy_set_default_hook(struct tracy *t, tracy_hook_func f);
 

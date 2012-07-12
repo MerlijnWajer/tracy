@@ -21,11 +21,13 @@ libtracy.a: $(TRACY_OS)
 test_binaries=tests/hello tests/rwmem tests/base tests/inject-simple \
 	tests/thread-simple tests/thread-simple-prog tests/fork \
 	tests/fork-prog tests/vfork-prog tests/bounce tests/bash \
-	tests/raw-clone tests/deny tests/attach tests/metronome
+	tests/raw-clone tests/deny tests/attach tests/metronome \
+	tests/sig_suppress
 
 tests: $(test_binaries)
 tests/rwmem: tests/rwmem.o $(TRACY_OS)
 tests/base: tests/base.o $(TRACY_OS)
+tests/sig_suppress: tests/sig_suppress.o $(TRACY_OS)
 tests/bash: tests/bash.o $(TRACY_OS)
 tests/deny: tests/deny.o $(TRACY_OS)
 tests/inject-simple: tests/inject-simple.o $(TRACY_OS)
@@ -49,6 +51,7 @@ ll.o: ll.h
 # Tracy dependent test files.
 tests/bash.o: $(TRACY_HS)
 tests/deny.o: $(TRACY_HS)
+tests/sig_suppress.o: $(TRACY_HS)
 tests/base.o: $(TRACY_HS)
 tests/inject-simple.o: $(TRACY_HS)
 tests/thread-simple.o: $(TRACY_HS)

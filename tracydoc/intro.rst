@@ -143,11 +143,58 @@ tracy_set_hook
 .. c:function::
     int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func);
 
+Set the hook for a system call.
+
+Returns 0 on success, -1 on failure.
+
+tracy_set_signal_hook
+---------------------
+
+.. c:function::
+    int tracy_set_signal_hook(struct tracy *t, tracy_hook_func f);
+
+Set the signal hook. Called on each signal[1].
+
+Returns 0 on success.
+
+[1] Called on every signal that the tracy user should recieve,
+the SIGTRAP's from ptrace are not sent, and neither is the first
+SIGSTOP.
+Possible return values by the tracy_hook_func for the signal:
+
+    -   TRACY_HOOK_CONTINUE will send the signal and proceed as normal
+    -   TRACY_HOOK_SUPPRESS will not send a signal and process as normal
+    -   TRACY_HOOK_KILL_CHILD if the child should be killed.
+    -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
+
+
+tracy_set_default_hook
+----------------------
+
+.. c:function::
+    int tracy_set_default_hook(struct tracy *t, tracy_hook_func f);
+
+tracy_set_default_hook
+
+Set the default hook. (Called when a syscall occurs and no hook is installed
+for the system call. *func* is the function to be set as hook.
+
+Returns 0 on success.
+
+
 tracy_execute_hook
 ------------------
 
 .. c:function::
     int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e);
+
+Returns the return value of the hook. Hooks should return:
+
+    -   TRACY_HOOK_CONTINUE if everything is fine.
+    -   TRACY_HOOK_KILL_CHILD if the child should be killed.
+    -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
+    -   TRACY_HOOK_NOHOOK is no hook is in place for this system call.
+
 
 Memory manipulation
 ~~~~~~~~~~~~~~~~~~~
