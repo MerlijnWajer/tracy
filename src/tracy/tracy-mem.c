@@ -50,18 +50,23 @@ int tracy_peek_word(struct tracy_child *child, long from, long *word) {
  * filesystem for accessing the child's memory space.
  *
  * If this function errors the 'dest' memory is left in an undefined state.
- *
- * XXX: We currently do not align at word boundaries, furthermore we only read
- * whole words, this might cause trouble on some architectures.
- *
  */
 ssize_t tracy_peek_mem(struct tracy_child *c, tracy_parent_addr_t dest,
         tracy_child_addr_t src, ssize_t n) {
 
-    long *l_dest = (long*)dest;
+    char *destbuf = (char*)dest;
 
     /* The long source address */
-    long from;
+    long from, from_outer, from_inner;
+
+    /* Amount of data to read */
+    ssize_t data_read = n;
+
+    /* Alignment correction storage */
+    union {
+        long word;
+        char data[sizeof(long)];
+    } _landing_zone;
 
     /* Force cast from (void*) to (long) */
     union {
@@ -76,25 +81,52 @@ ssize_t tracy_peek_mem(struct tracy_child *c, tracy_parent_addr_t dest,
     _cast_addr.p_addr = src;
     from = _cast_addr.l_addr;
 
-    /* Peek memory loop */
-    while (n > 0) {
-        *l_dest = ptrace(PTRACE_PEEKDATA, c->pid, from, NULL);
+    /* Read non-aligned pre word */
+    if (n) {
+        from_outer = from & ~(sizeof(long) - 1);
+        from_inner = from & (sizeof(long) - 1);
+
+        /* Read data */
+        _landing_zone.word = ptrace(PTRACE_PEEKDATA, c->pid,
+            from_outer, NULL);
         if (errno)
             return -1;
 
-        /* Update the various pointers */
-        l_dest++;
-        from += sizeof(long);
-        n -= sizeof(long);
+        /* Copy data */
+        for (; from_inner < (ssize_t)sizeof(long) && n; n--,
+                from_inner++, destbuf++)
+            *destbuf = _landing_zone.data[from_inner];
+        from_outer += sizeof(long);
+
+        /* Aligned words loop */
+        while (n > 0) {
+            /* Read data */
+            _landing_zone.word = ptrace(PTRACE_PEEKDATA, c->pid,
+                from_outer, NULL);
+            if (errno)
+                return -1;
+
+            /* Copy data */
+            for (from_inner = 0; from_inner < (ssize_t)sizeof(long) && n; n--,
+                    from_inner++, destbuf++)
+                *destbuf = _landing_zone.data[from_inner];
+            from_outer += sizeof(long);
+        }
     }
 
-    return from - _cast_addr.l_addr;
+    return data_read;
 }
 
 /* Open child's memory space */
 static int open_child_mem(struct tracy_child *c)
 {
     char proc_mem_path[18];
+
+    /* XXX: This method might cause unexpected behaviour
+     * or introduce bugs.
+     * There must be a safer way to convert the integer
+     * to a string.
+     */
 
     /* Setup memory access via /proc/<pid>/mem */
     sprintf(proc_mem_path, "/proc/%d/mem", c->pid);
