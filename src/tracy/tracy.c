@@ -76,6 +76,21 @@
         } \
     }
 
+/* For all the casts we should be punished for
+ *
+ * The FORCE_CAST unconditionally stores the value of the source-var with
+ * source-type into the variable dest-var of dest-type.
+ */
+#define FORCE_CAST(DEST_TYPE, DEST_VAR, SRC_TYPE, SRC_VAR) \
+    { \
+        union { \
+            SRC_TYPE src_type; \
+            DEST_TYPE dest_type; \
+        } _force_cast_ ## __LINE__; \
+        _force_cast_ ## __LINE__.src_type = SRC_VAR; \
+        DEST_VAR = _force_cast_ ## __LINE__.dest_type; \
+    }
+
 struct tracy *tracy_init(long opt) {
     struct tracy *t;
 
@@ -965,6 +980,7 @@ ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
     /* The long target address */
     long to;
 
+    /* FORCE_CAST(long, to, void*, dest) */
     /* Force cast from (void*) to (long) */
     union {
         void *p_addr;
