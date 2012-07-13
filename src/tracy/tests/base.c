@@ -28,7 +28,8 @@ int main(int argc, char** argv) {
     struct tracy *tracy;
 
     /* Tracy options */
-    tracy = tracy_init(TRACY_TRACE_CHILDREN);
+    tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE |
+            TRACY_VERBOSE_SIGNAL | TRACY_VERBOSE_SYSCALL);
 
     if (argc < 2) {
         printf("Usage: ./example <program-name>\n");

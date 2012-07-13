@@ -5,7 +5,7 @@ Tracy:
 [X MB] Read/Write system call arguments
 [X MB] Inject system calls
 [X M ] Asynchronous system call injection.
-[/ M ] Modify (and deny) system calls
+[X M ] Modify (and deny) system calls
 [X  B] Efficiently read(and write?) child memory. (Use mmap and shared memory)
 [/  B] Efficiently share (allow read) memory with the child (Use mmap and shared
        Memory)
@@ -15,12 +15,12 @@ Tracy:
        on *BSD, Solaris.
 [X M ] Finish code that tests for fails. (Do we kill all childs on some
        failures?)
-[/ M ] Implement deny i.c.w. return code -ENOSYS, perhaps
+[X M ] Implement deny i.c.w. return code -ENOSYS, perhaps
        "unimplement_syscall"?
 
 [X  B] Add interrupt handler to tracy_main().
 [/ M ] Documentation for tracy. (in sphinx and code)
-[/ M ] API support for threads. (Not in tracy, but for threaded tracees)
+[/ MB] API support for threads. (Not in tracy, but for threaded tracees)
 
 Optional:
 [    ] System call injection by signal. (Requires some changes to the injection
@@ -46,7 +46,7 @@ Documentation / Report
 [ JMB] Soxy usage
 [ JMB] Soxy design decisions
 
-[/ M ] Final report
+[\ M ] Final report
 [/ M ] Motivation Chapter
 [/ M ] Theory (ptrace explanation)
 [/ M ] Implementation (Tracy design decisions)

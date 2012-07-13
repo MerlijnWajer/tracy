@@ -31,11 +31,22 @@
 /* Tracy options, pass them to tracy_init(). */
 #define TRACY_TRACE_CHILDREN 1 << 0
 #define TRACY_VERBOSE 1 << 1
+#define TRACY_VERBOSE_SIGNAL 1 << 2
+#define TRACY_VERBOSE_SYSCALL 1 << 3
+#define TRACY_VERBOSE_MUCH -1
+
+/* Enable automatic usage of ptrace's memory API when PPM (/proc based) fails */
+#define TRACY_MEMORY_FALLBACK 1 << 2
 
 /* Enable automatic usage of ptrace's memory API when PPM (/proc based) fails */
 #define TRACY_MEMORY_FALLBACK 1 << 2
 
 #define TRACY_USE_SAFE_TRACE 1 << 31
+
+#define TRACY_PRINT_SIGNALS(t) \
+        t->opt & TRACY_VERBOSE_SIGNAL
+#define TRACY_PRINT_SYSCALLS(t) \
+        t->opt & TRACY_VERBOSE_SYSCALL
 
 struct tracy_child;
 
@@ -82,6 +93,7 @@ struct tracy {
     pid_t fpid;
     long opt;
     tracy_hook_func defhook;
+    tracy_hook_func signal_hook;
     struct tracy_special_events se;
 };
 
@@ -126,11 +138,19 @@ struct tracy_child {
     /* Asynchronous syscall injection info */
     struct tracy_inject_data inj;
 
+    /* Child in vfork parent-role (frozen until child execve, etc.) */
+    int frozen_by_vfork;
+
+    /* If the child has recieved the first SIGSTOP (that we will block) */
+    int received_first_sigstop;
+
+    /* vfork restoration values */
+    long orig_pc;
+    long orig_trampy_pid_reg;
+    long orig_return_code;
+
     /* Last event that occurred */
     struct tracy_event event;
-
-    /* Child PID acquired through controlled forking */
-    pid_t safe_fork_pid;
 };
 
 /* Pointers for parent/child memory distinction */
@@ -148,6 +168,7 @@ typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
 #define TRACY_HOOK_KILL_CHILD 1
 #define TRACY_HOOK_ABORT 2
 #define TRACY_HOOK_NOHOOK 3
+#define TRACY_HOOK_SUPPRESS 4
 
 /* Setting up and tearing down a tracy session */
 
@@ -225,6 +246,15 @@ struct tracy_child *tracy_attach(struct tracy *t, pid_t pid);
  */
 
 /*
+ * tracy_add_child
+ *
+ * tracy_add_child adds a child to tracy's list of children.
+ *
+ * Returns the structure of the child.
+ */
+struct tracy_child * tracy_add_child(struct tracy *t, int pid);
+
+/*
  * tracy_wait_event
  *
  * tracy_wait_event waits for an event to occur on any child when pid is -1;
@@ -268,13 +298,54 @@ int tracy_kill_child(struct tracy_child *c);
 
 int tracy_remove_child(struct tracy_child *c);
 
+/*
+ * tracy_children_count
+ *
+ * tracy_children_count returns the amount of alive children managed by tracy.
+ */
 int tracy_children_count(struct tracy* t);
-int check_syscall(struct tracy_event *s);
+
 char* get_syscall_name(int syscall);
 char* get_signal_name(int signal);
 
 /* -- Syscall hooks -- */
+/*
+ * tracy_set_hook
+ *
+ * Set the hook for a system call.
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+
 int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func);
+
+/*
+ * tracy_set_signal_hook
+ *
+ * Set the signal hook. Called on each signal[1].
+ *
+ * Returns 0 on success.
+ *
+ * [1] Called on every signal that the tracy user should recieve,
+ * the SIGTRAP's from ptrace are not sent, and neither is the first
+ * SIGSTOP.
+ * Possible return values by the tracy_hook_func for the signal:
+ *
+ *  -   TRACY_HOOK_CONTINUE will send the signal and proceed as normal
+ *  -   TRACY_HOOK_SUPPRESS will not send a signal and process as normal
+ *  -   TRACY_HOOK_KILL_CHILD if the child should be killed.
+ *  -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
+ *
+ */
+int tracy_set_signal_hook(struct tracy *t, tracy_hook_func f);
+/*
+ * tracy_set_default_hook
+ *
+ * Set the default hook. (Called when a syscall occurs and no hook is installed
+ * for the system call. *func* is the function to be set as hook.
+ *
+ * Returns 0 on success.
+ */
 int tracy_set_default_hook(struct tracy *t, tracy_hook_func f);
 
 /*
@@ -311,14 +382,24 @@ int tracy_mmap(struct tracy_child *child, tracy_child_addr_t *ret,
 int tracy_munmap(struct tracy_child *child, long *ret,
        tracy_child_addr_t addr, size_t length);
 
-/* -- Syscall management -- */
-
-
 /* -- Debug functions -- */
 int tracy_debug_current(struct tracy_child *child);
+int tracy_debug_current_pid(pid_t pid);
 void tracy_backtrace(void);
 
 /* Synchronous injection */
+
+/*
+ * tracy_inject_syscall
+ *
+ * Inject a system call in process defined by tracy_child *child*.
+ * The syscall_number is the number of the system call; use *SYS_foo* or
+ * *__NR_foo* to retrieve these numbers. *a* is a pointer to the system
+ * call arguments. The *return_code* will be set to the return code of the
+ * system call.
+ *
+ * Returns 0 on success; -1 on failure.
+ */
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code);
 
@@ -338,5 +419,55 @@ int tracy_deny_syscall(struct tracy_child* child);
 
 /* -- Safe forking -- */
 int tracy_safe_fork(struct tracy_child *c, pid_t *new_child);
+
+/* -- Macro's -- */
+
+/* Coloured output */
+#ifndef GRIJSKIJKER
+#define _r(s) "\033[1;31m" s "\033[0m"
+#define _g(s) "\033[1;32m" s "\033[0m"
+#define _y(s) "\033[1;33m" s "\033[0m"
+#define _b(s) "\033[1;34m" s "\033[0m"
+#else
+#define _r(s) s
+#define _g(s) s
+#define _y(s) s
+#define _b(s) s
+#endif
+
+/* Automatic error handling/debugging for ptrace(2) */
+#define _PTRACE_CHECK(A1, S1, A2, A3, A4, A5) \
+    { \
+        if (ptrace(A1, A2, A3, A4)) { \
+            printf("\n-------------------------------" \
+                    "-------------------------------------------------\n"); \
+            perror("Whoops"); \
+            printf("Function: %s, Line: %d\n", __FUNCTION__, __LINE__); \
+            printf("Arguments: %s, %s (%d), %s, %s\n", S1, #A2, A2, #A3, #A4); \
+            printf("-------------------------------" \
+                    "-------------------------------------------------\n"); \
+            tracy_backtrace(); \
+            A5 \
+        } \
+    }
+
+#define PTRACE_CHECK(A1, A2, A3, A4, A5) _PTRACE_CHECK(A1, #A1, A2, A3, A4, return A5;)
+
+#define PTRACE_CHECK_NORETURN(A1, A2, A3, A4) _PTRACE_CHECK(A1, #A1, A2, A3, A4, ;)
+
+/* For all the casts we should be punished for
+ *
+ * The FORCE_CAST unconditionally stores the value of the source-var with
+ * source-type into the variable dest-var of dest-type.
+ */
+#define FORCE_CAST(DEST_TYPE, DEST_VAR, SRC_TYPE, SRC_VAR) \
+    { \
+        union { \
+            SRC_TYPE src_type; \
+            DEST_TYPE dest_type; \
+        } _force_cast_ ## __LINE__; \
+        _force_cast_ ## __LINE__.src_type = SRC_VAR; \
+        DEST_VAR = _force_cast_ ## __LINE__.dest_type; \
+    }
 
 #endif

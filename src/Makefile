@@ -5,7 +5,7 @@ CFLAGS+=-std=c99 -pedantic -Wall -Wextra -Werror -pipe
 CFLAGS+=-I tracy/
 CFLAGS+=-D_POSIX_SOURCE
 CFLAGS+=-D_GNU_SOURCE
-CFLAGS+=-ggdb
+CFLAGS+=-ggdb -pthread
 CFLAGS+=-D_SOXY_IPV6_
 #CFLAGS+=-O2
 #CFLAGS+=-m32
@@ -19,7 +19,7 @@ default: soxy
 tracy:
 	$(MAKE) -C tracy
 
-OBJECTS:=tracy/tracy.o tracy/ll.o tracy/trampy.o
+OBJECTS:=tracy/libtracy.a
 TESTS:=tst/fork tst/mmap
 
 tests: $(TESTS)
