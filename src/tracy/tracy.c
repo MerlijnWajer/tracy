@@ -152,6 +152,7 @@ static struct tracy_child *malloc_tracy_child(struct tracy *t, pid_t pid)
     tc->frozen_by_vfork = 0;
     tc->received_first_sigstop = 0;
     tc->denied_nr = 0;
+    tc->suppress = 0;
     tc->tracy = t;
     tc->custom = NULL;
 
@@ -394,6 +395,7 @@ int tracy_kill_child(struct tracy_child *c) {
 
     if (tracy_remove_child(c)) {
         puts("Could not remove child");
+        /* TODO: Quit tracy here? */
     }
 
     return 0;
@@ -546,6 +548,12 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
             tracy_hook_func pfunc;
         } _hax;
 
+
+    if (TRACY_PRINT_SYSCALLS(t))
+        printf(_y("%04d System call: %s (%ld) Pre: %d")"\n",
+                e->child->pid, get_syscall_name(e->syscall_num),
+                e->syscall_num, e->child->pre_syscall);
+
     hash = hash_syscall(syscall);
 
     item = ll_find(t->hooks, hash);
@@ -643,14 +651,10 @@ static void _main_interrupt_handler(int sig)
 /* Main function for simple tracy based applications */
 int tracy_main(struct tracy *tracy) {
     struct tracy_event *e;
-    int hook_ret;
-    int sig_override;
 
     /* Setup interrupt handler */
     main_loop_go_on = 1;
     signal(SIGINT, _main_interrupt_handler);
-
-    sig_override = 0;
 
     while (main_loop_go_on) {
         start:
@@ -673,78 +677,16 @@ int tracy_main(struct tracy *tracy) {
                 fprintf(stderr, _y("Signal %s (%ld) for child %d")"\n",
                     get_signal_name(e->signal_num), e->signal_num, e->child->pid);
             }
-            if(tracy->signal_hook) {
-                hook_ret = tracy->signal_hook(e);
-                switch (hook_ret) {
-                    case TRACY_HOOK_CONTINUE:
-                        break;
-                    case TRACY_HOOK_SUPPRESS:
-                        sig_override = 1;
-                        break;
-                    case TRACY_HOOK_KILL_CHILD:
-                        tracy_kill_child(e->child);
-                        /* We don't want to call tracy_continue(e, 0); */
-                        goto start;
-                    case TRACY_HOOK_ABORT:
-                        tracy_quit(tracy, 1);
-                        break;
-                    default:
-                        fprintf(stderr, "Invalid hook return: %d. Stopping.\n", hook_ret);
-                        tracy_quit(tracy, 1);
-                        break;
-                }
-            }
         } else
 
         if (e->type == TRACY_EVENT_SYSCALL) {
-            /* TODO: Duplicate code */
-            if (e->child->pre_syscall) {
-                if (get_syscall_name(e->syscall_num)) {
-                    hook_ret = tracy_execute_hook(tracy,
-                            get_syscall_name(e->syscall_num), e);
-                    switch (hook_ret) {
-                        case TRACY_HOOK_CONTINUE:
-                            break;
-                        case TRACY_HOOK_KILL_CHILD:
-                            tracy_kill_child(e->child);
-                            /* We don't want to call tracy_continue(e, 0); */
-                            goto start;
-
-                        case TRACY_HOOK_ABORT:
-                            tracy_quit(tracy, 1);
-                            break;
-                        case TRACY_HOOK_NOHOOK:
-                            break;
-                        default:
-                            fprintf(stderr, "Invalid hook return: %d. Stopping.\n", hook_ret);
-                            tracy_quit(tracy, 1);
-                            break;
-                    }
-                }
-            } else {
-                if (get_syscall_name(e->syscall_num)) {
-                    hook_ret = tracy_execute_hook(tracy,
-                            get_syscall_name(e->syscall_num), e);
-                    switch (hook_ret) {
-                        case TRACY_HOOK_CONTINUE:
-                            break;
-                        case TRACY_HOOK_KILL_CHILD:
-                            tracy_kill_child(e->child);
-                            /* We don't want to call tracy_continue(e, 0); */
-                            goto start;
-
-                        case TRACY_HOOK_ABORT:
-                            tracy_quit(tracy, 1);
-                            break;
-                        case TRACY_HOOK_NOHOOK:
-                            break;
-                        default:
-                            fprintf(stderr, "Invalid hook return: %d. Stopping.\n", hook_ret);
-                            tracy_quit(tracy, 1);
-                            break;
-                    }
-                }
+            /*
+            if (TRACY_PRINT_SYSCALLS(tracy)) {
+                printf(_y("%04d System call: %s (%ld) Pre: %d")"\n",
+                        e->child->pid, get_syscall_name(e->syscall_num),
+                        e->syscall_num, e->child->pre_syscall);
             }
+            */
         } else
 
         if (e->type == TRACY_EVENT_QUIT) {
@@ -765,8 +707,7 @@ int tracy_main(struct tracy *tracy) {
             break;
         }
 
-        tracy_continue(e, sig_override);
-        sig_override = 0;
+        tracy_continue(e, 0);
     }
 
     /* Tear down interrupt handler */
