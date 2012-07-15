@@ -19,7 +19,7 @@
 #include "ll.h"
 
 struct tracy_ll* ll_init(void) {
-    struct tracy_ll* ll = malloc(sizeof(struct soxy_ll));
+    struct tracy_ll* ll = malloc(sizeof(struct tracy_ll));
     ll->head = NULL;
 
     return ll;
