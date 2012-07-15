@@ -2,7 +2,7 @@ Tracy:
     -   [FIXED] bash werkt niet
     -   [FIXED] problemen met injectie
     -   [FIXED] Error on invalid hook return values.
-    -   [     ] attached & detach (repeatedly)
+    -   [FIXED] attached & detach (repeatedly)
     -   [FIXED] Interrupt handler moet niet zomaar SIGINT afvangen; denk aan
                 interactieve processen zoals Python.
     -   [FIXED] TRACY_USE_SAFE_TRACE doet nog niets.
@@ -12,7 +12,7 @@ Tracy:
 
     -   [     ] Sanitise syscall arguments. OF string, OF __NR_foo (of SYS_foo), maar niet
                 mixed.
-    -   [     ] Tests voor:
+    -   [FIXED] Tests voor:
                     -   Async syscall injection.
                     -   Deny syscall.
                     -   safe-fork.
