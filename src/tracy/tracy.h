@@ -38,6 +38,9 @@
 /* Enable automatic usage of ptrace's memory API when PPM (/proc based) fails */
 #define TRACY_MEMORY_FALLBACK 1 << 2
 
+/* Enable automatic usage of ptrace's memory API when PPM (/proc based) fails */
+#define TRACY_MEMORY_FALLBACK 1 << 2
+
 #define TRACY_USE_SAFE_TRACE 1 << 31
 
 #define TRACY_PRINT_SIGNALS(t) \
@@ -455,5 +458,20 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child);
 #define PTRACE_CHECK(A1, A2, A3, A4, A5) _PTRACE_CHECK(A1, #A1, A2, A3, A4, return A5;)
 
 #define PTRACE_CHECK_NORETURN(A1, A2, A3, A4) _PTRACE_CHECK(A1, #A1, A2, A3, A4, ;)
+
+/* For all the casts we should be punished for
+ *
+ * The FORCE_CAST unconditionally stores the value of the source-var with
+ * source-type into the variable dest-var of dest-type.
+ */
+#define FORCE_CAST(DEST_TYPE, DEST_VAR, SRC_TYPE, SRC_VAR) \
+    { \
+        union { \
+            SRC_TYPE src_type; \
+            DEST_TYPE dest_type; \
+        } _force_cast_ ## __LINE__; \
+        _force_cast_ ## __LINE__.src_type = SRC_VAR; \
+        DEST_VAR = _force_cast_ ## __LINE__.dest_type; \
+    }
 
 #endif

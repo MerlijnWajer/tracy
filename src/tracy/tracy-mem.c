@@ -50,18 +50,23 @@ int tracy_peek_word(struct tracy_child *child, long from, long *word) {
  * filesystem for accessing the child's memory space.
  *
  * If this function errors the 'dest' memory is left in an undefined state.
- *
- * XXX: We currently do not align at word boundaries, furthermore we only read
- * whole words, this might cause trouble on some architectures.
- *
  */
 ssize_t tracy_peek_mem(struct tracy_child *c, tracy_parent_addr_t dest,
         tracy_child_addr_t src, ssize_t n) {
 
-    long *l_dest = (long*)dest;
+    char *destbuf = (char*)dest;
 
     /* The long source address */
-    long from;
+    long from, from_outer, from_inner;
+
+    /* Amount of data to read */
+    ssize_t data_read = n;
+
+    /* Alignment correction storage */
+    union {
+        long word;
+        char data[sizeof(long)];
+    } _landing_zone;
 
     /* Force cast from (void*) to (long) */
     union {
@@ -76,25 +81,52 @@ ssize_t tracy_peek_mem(struct tracy_child *c, tracy_parent_addr_t dest,
     _cast_addr.p_addr = src;
     from = _cast_addr.l_addr;
 
-    /* Peek memory loop */
-    while (n > 0) {
-        *l_dest = ptrace(PTRACE_PEEKDATA, c->pid, from, NULL);
+    /* Read non-aligned pre word */
+    if (n) {
+        from_outer = from & ~(sizeof(long) - 1);
+        from_inner = from & (sizeof(long) - 1);
+
+        /* Read data */
+        _landing_zone.word = ptrace(PTRACE_PEEKDATA, c->pid,
+            from_outer, NULL);
         if (errno)
             return -1;
 
-        /* Update the various pointers */
-        l_dest++;
-        from += sizeof(long);
-        n -= sizeof(long);
+        /* Copy data */
+        for (; from_inner < (ssize_t)sizeof(long) && n; n--,
+                from_inner++, destbuf++)
+            *destbuf = _landing_zone.data[from_inner];
+        from_outer += sizeof(long);
+
+        /* Aligned words loop */
+        while (n > 0) {
+            /* Read data */
+            _landing_zone.word = ptrace(PTRACE_PEEKDATA, c->pid,
+                from_outer, NULL);
+            if (errno)
+                return -1;
+
+            /* Copy data */
+            for (from_inner = 0; from_inner < (ssize_t)sizeof(long) && n; n--,
+                    from_inner++, destbuf++)
+                *destbuf = _landing_zone.data[from_inner];
+            from_outer += sizeof(long);
+        }
     }
 
-    return from - _cast_addr.l_addr;
+    return data_read;
 }
 
 /* Open child's memory space */
 static int open_child_mem(struct tracy_child *c)
 {
     char proc_mem_path[18];
+
+    /* XXX: This method might cause unexpected behaviour
+     * or introduce bugs.
+     * There must be a safer way to convert the integer
+     * to a string.
+     */
 
     /* Setup memory access via /proc/<pid>/mem */
     sprintf(proc_mem_path, "/proc/%d/mem", c->pid);
@@ -171,9 +203,6 @@ int tracy_poke_word(struct tracy_child *child, long to, long word) {
  *
  * If this function errors the 'dest' child memory is left in an undefined state.
  *
- * XXX: We currently do not align at word boundaries, furthermore we only read
- * whole words, this might cause trouble on some architectures.
- *
  * XXX: We could possibly return the negative of words successfully written
  * on error. When we do, we need to be careful because the negative value
  * returned is used to signal some faults in the tracy_ppm* functions.
@@ -181,10 +210,19 @@ int tracy_poke_word(struct tracy_child *child, long to, long word) {
 ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
         tracy_parent_addr_t src, ssize_t n) {
 
-    long *l_src = (long*)src;
+    char *srcbuf = (char*)src;
 
-    /* The long target address */
-    long to;
+    /* The long destination address */
+    long to, to_outer, to_inner;
+
+    /* Amount of data to read */
+    ssize_t data_written = n;
+
+    /* Alignment correction storage */
+    union {
+        long word;
+        char data[sizeof(long)];
+    } _landing_zone;
 
     /* Force cast from (void*) to (long) */
     union {
@@ -192,22 +230,71 @@ ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
         long l_addr;
     } _cast_addr;
 
-    /* Convert source address to a long to be used by ptrace */
+    /* The only way to check for a ptrace poke error is errno, so reset it */
+    errno = 0;
+
+    /* Convert destination address to a long to be used by ptrace */
     _cast_addr.p_addr = dest;
     to = _cast_addr.l_addr;
 
-    /* Peek memory loop */
-    while (n > 0) {
-        if (ptrace(PTRACE_POKEDATA, c->pid, to, *l_src))
+    /* Write non-aligned pre word */
+    if (n) {
+        to_outer = to & ~(sizeof(long) - 1);
+        to_inner = to & (sizeof(long) - 1);
+
+        /* Read data */
+        _landing_zone.word = ptrace(PTRACE_PEEKDATA, c->pid,
+            to_outer, NULL);
+        if (errno)
             return -1;
 
-        /* Update the various pointers */
-        l_src++;
-        to += sizeof(long);
-        n -= sizeof(long);
+        /* Modify data */
+        for (; to_inner < (ssize_t)sizeof(long) && n; n--,
+                to_inner++, srcbuf++)
+            _landing_zone.data[to_inner] = *srcbuf;
+
+        /* Write back modified word */
+        ptrace(PTRACE_POKEDATA, c->pid, to_outer, _landing_zone.word);
+        if (errno)
+            return -1;
+        to_outer += sizeof(long);
+
+        /* Aligned words loop */
+        while (n >= (ssize_t)sizeof(long)) {
+            /* Copy data */
+            for (to_inner = 0; to_inner < (ssize_t)sizeof(long) && n; n--,
+                    to_inner++, srcbuf++)
+                _landing_zone.data[to_inner] = *srcbuf;
+
+            /* Write data */
+            ptrace(PTRACE_POKEDATA, c->pid, to_outer, _landing_zone.word);
+
+            if (errno)
+                return -1;
+            to_outer += sizeof(long);
+        }
+
+        /* Finally write last misaligned data, if any. */
+        if (n) {
+            /* Read data */
+            _landing_zone.word = ptrace(PTRACE_PEEKDATA, c->pid,
+                to_outer, NULL);
+            if (errno)
+                return -1;
+
+            /* Modify data */
+            for (to_inner = 0; n; n--, to_inner++, srcbuf++)
+                _landing_zone.data[to_inner] = *srcbuf;
+
+            /* Write back modified word */
+            ptrace(PTRACE_POKEDATA, c->pid, to_outer, _landing_zone.word);
+            if (errno)
+                return -1;
+            to_outer += sizeof(long);
+        }
     }
 
-    return to - _cast_addr.l_addr;
+    return data_written;
 }
 
 
