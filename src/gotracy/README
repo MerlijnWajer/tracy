@@ -1,0 +1,18 @@
+Go-tracy
+========
+
+Go-tracy is a Go binding for the tracy library.
+It's currently under heavy development and not finished.
+
+Building
+--------
+
+To build, simply call:
+
+    go tool cgo tracy.go
+    go build
+
+Run: (or copy libtracy.so to your path or the directory of gotracy)
+
+    LD_LIBRARY_PATH=../tracy/ ./gotracy /bin/ls
+
