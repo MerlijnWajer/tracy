@@ -427,7 +427,7 @@ static int _tracy_handle_injection(struct tracy_event *e) {
     f = e->child->inj.cb;
     e->child->inj.cb = NULL;
     if (f)
-        f(e, NULL);
+        f(e, e->child->inj.data);
     e->child->inj.injected = 0;
 
     return 0;
@@ -1232,7 +1232,8 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
     int garbage;
 
     if (child->pre_syscall) {
-        if (tracy_inject_syscall_pre_start(child, syscall_number, a, NULL))
+        if (tracy_inject_syscall_pre_start(child, syscall_number, a, NULL,
+                NULL))
             return -1;
 
         child->inj.injecting = 0;
@@ -1242,7 +1243,8 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
         return tracy_inject_syscall_pre_end(child, return_code);
     } else {
-        if (tracy_inject_syscall_post_start(child, syscall_number, a, NULL))
+        if (tracy_inject_syscall_post_start(child, syscall_number, a, NULL,
+                NULL))
             return -1;
 
         child->inj.injecting = 0;
@@ -1256,7 +1258,7 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 }
 
 int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number,
-        struct tracy_sc_args *a, tracy_hook_func callback) {
+        struct tracy_sc_args *a, tracy_hook_func callback, void *data) {
 
     /* TODO CHECK PRE_SYSCALL BIT */
 
@@ -1266,6 +1268,7 @@ int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_numbe
     child->inj.injecting = 1;
     child->inj.pre = 1;
     child->inj.syscall_num = syscall_number;
+    child->inj.data = data;
 
     return tracy_modify_syscall(child, syscall_number, a);
 }
@@ -1298,7 +1301,7 @@ int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code) {
 }
 
 int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_number,
-        struct tracy_sc_args *a, tracy_hook_func callback) {
+        struct tracy_sc_args *a, tracy_hook_func callback, void *data) {
     int garbage;
     struct TRACY_REGS_NAME newargs;
 
@@ -1309,6 +1312,7 @@ int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_numb
     child->inj.injecting = 1;
     child->inj.pre = 0;
     child->inj.syscall_num = syscall_number;
+    child->inj.data = data;
 
     PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &newargs, -1);
 

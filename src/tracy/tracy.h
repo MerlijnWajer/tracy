@@ -96,6 +96,7 @@ struct tracy_inject_data {
     int syscall_num;
     struct TRACY_REGS_NAME reg;
     tracy_hook_func cb;
+    void *data;
 };
 
 struct tracy_child {
@@ -373,11 +374,11 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
 
 /* Asynchronous injection */
 int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number,
-        struct tracy_sc_args *a, tracy_hook_func callback);
+        struct tracy_sc_args *a, tracy_hook_func callback, void *data);
 int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code);
 
 int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_number,
-        struct tracy_sc_args *a, tracy_hook_func callback);
+        struct tracy_sc_args *a, tracy_hook_func callback, void *data);
 int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code);
 
 /* Modification and rejection */
