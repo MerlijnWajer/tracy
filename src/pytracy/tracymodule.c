@@ -23,7 +23,7 @@ PyObject *pyobj_ptr_get(PyObject *obj, void *closure)
     unsigned char *ptr = *(unsigned char **)(obj + 1) + obj_info->offset;
 
     switch (obj_info->type) {
-        case T_LONG: return PyLong_FromLong(*(long *)(ptr));
+        case T_LONG: return PyLong_FromLong(*(long *) ptr);
         default: return NULL;
     }
 }
@@ -58,7 +58,6 @@ static pyobj_ptr_t sc_args_ptr_info[] = {
     {T_LONG, offsetof(struct tracy_sc_args, a2)},
     {T_LONG, offsetof(struct tracy_sc_args, a3)},
     {T_LONG, offsetof(struct tracy_sc_args, a4)},
-    {T_LONG, offsetof(struct tracy_sc_args, a5)},
     {T_LONG, offsetof(struct tracy_sc_args, a5)},
     {T_LONG, offsetof(struct tracy_sc_args, return_code)},
     {T_LONG, offsetof(struct tracy_sc_args, syscall)},
@@ -127,20 +126,19 @@ PyObject *tracy_sc_args_repr(tracy_sc_args_object *self)
     // bit hacky, but gives the cleanest output
     for (int i = 0; i < sizeof(struct tracy_sc_args) / sizeof(long); i++) {
         long value = ((long *) self->args)[i];
-        if(value != 0) {
-            if(first) first = 0;
-            else PyString_ConcatAndDel(&str, PyString_FromString(", "));
 
-            // this cannot be done with a ternary statement, because gcc
-            // will whine about long integer vs pointer format strings
-            if(value < 0 && value > -0x1000) {
-                PyString_ConcatAndDel(&str, PyString_FromFormat("%s=%ld",
-                    kwlist[i], value));
-            }
-            else {
-                PyString_ConcatAndDel(&str, PyString_FromFormat("%s=%p",
-                    kwlist[i], (void *) value));
-            }
+        if(first) first = 0;
+        else PyString_ConcatAndDel(&str, PyString_FromString(", "));
+
+        // this cannot be done with a ternary statement, because gcc
+        // will whine about long integer vs pointer format strings
+        if((value < 0 && value > -0x1000) || (value >= 0 && value < 32)) {
+            PyString_ConcatAndDel(&str, PyString_FromFormat("%s=%ld",
+                kwlist[i], value));
+        }
+        else {
+            PyString_ConcatAndDel(&str, PyString_FromFormat("%s=%p",
+                kwlist[i], (void *) value));
         }
     }
 
