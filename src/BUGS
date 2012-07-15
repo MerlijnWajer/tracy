@@ -21,16 +21,16 @@ Tracy:
 
     -   [     ] Safely lezen van memory uit een child (copy naar ro mem, validate,
                 veranderd pointers van syscall) (Kan al met current api)
-    -   [     ] Tracy Hook voor signal override in tracy_continue(e, 0);
+    -   [FIXED] Tracy Hook voor signal override in tracy_continue(e, 0);
 
     -   [     ] Tracy's TRACY_INTERNAL_EVENT niet exposen aan user?
-    -   [     ] Safe fork is helemaal niet netjes wrt events naar de user:
+    -   [FIXED] Safe fork is helemaal niet netjes wrt events naar de user:
             -   Niet alle fork, vfork en clone worden doorgegeven. (depends on new
             event api)
             -   Userspace kan het atm niet eens denyen. (Event loop herschrijven)
 
-    -   [     ] New event API/structure.
-    -   [     ] tracy_wait_event niet recursief.
+    -   [FIXED] New event API/structure.
+    -   [FIXED] tracy_wait_event niet recursief.
 
 Niet nodig / Future Work:
 

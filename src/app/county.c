@@ -35,10 +35,10 @@
 
 #include <errno.h>
 
-struct soxy_ll * ll;
+struct tracy_ll * ll;
 
 int all(struct tracy_event *e) {
-    struct soxy_ll_item *i;
+    struct tracy_ll_item *i;
     long syscall;
 
     if(e->child->pre_syscall)
@@ -57,7 +57,7 @@ int all(struct tracy_event *e) {
 }
 
 static void print_stats(void) {
-    struct soxy_ll_item *cur;
+    struct tracy_ll_item *cur;
     cur = ll->head;
 
     while (cur) {

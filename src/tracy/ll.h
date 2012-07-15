@@ -24,15 +24,15 @@ struct tracy_ll_item {
     struct tracy_ll_item* next;
 };
 
-struct soxy_ll {
+struct tracy_ll {
     struct tracy_ll_item *head;
 };
 
-struct soxy_ll* ll_init(void);
-int ll_free(struct soxy_ll* ll);
+struct tracy_ll* ll_init(void);
+int ll_free(struct tracy_ll* ll);
 
-int ll_add(struct soxy_ll* ll, int id, void* d);
-int ll_del(struct soxy_ll* ll, int id);
-struct tracy_ll_item *ll_find(struct soxy_ll* ll, int id);
+int ll_add(struct tracy_ll* ll, int id, void* d);
+int ll_del(struct tracy_ll* ll, int id);
+struct tracy_ll_item *ll_find(struct tracy_ll* ll, int id);
 
 #endif

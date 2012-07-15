@@ -21,8 +21,8 @@
 #include "ll.h"
 
 int main() {
-    struct soxy_ll *l;
-    struct soxy_ll_item *t;
+    struct tracy_ll *l;
+    struct tracy_ll_item *t;
     char *s, *s2, *s3;
 
     s = malloc(sizeof(char) * 10);

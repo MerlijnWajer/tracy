@@ -88,8 +88,8 @@ struct tracy_special_events {
 };
 
 struct tracy {
-    struct soxy_ll *childs;
-    struct soxy_ll *hooks;
+    struct tracy_ll *childs;
+    struct tracy_ll *hooks;
     pid_t fpid;
     long opt;
     tracy_hook_func defhook;

@@ -86,7 +86,7 @@ struct tracy *tracy_init(long opt) {
 }
 
 /* Loop over all child structs in the children list and free them */
-static void free_children(struct soxy_ll *children)
+static void free_children(struct tracy_ll *children)
 {
     struct tracy_child *tc;
     struct tracy_ll_item *cur = children->head;

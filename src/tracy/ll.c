@@ -18,14 +18,14 @@
 
 #include "ll.h"
 
-struct soxy_ll* ll_init(void) {
-    struct soxy_ll* ll = malloc(sizeof(struct soxy_ll));
+struct tracy_ll* ll_init(void) {
+    struct tracy_ll* ll = malloc(sizeof(struct soxy_ll));
     ll->head = NULL;
 
     return ll;
 }
 
-int ll_free(struct soxy_ll* ll) {
+int ll_free(struct tracy_ll* ll) {
     if(ll->head)
         while (ll->head->next) {
             ll_del(ll, ll->head->next->id);
@@ -38,7 +38,7 @@ int ll_free(struct soxy_ll* ll) {
     return 0;
 }
 
-int ll_add(struct soxy_ll* ll, int id, void* d) {
+int ll_add(struct tracy_ll* ll, int id, void* d) {
     struct tracy_ll_item *t, *tt;
 
     t = ll_find(ll, id);
@@ -67,7 +67,7 @@ int ll_add(struct soxy_ll* ll, int id, void* d) {
     return 0;
 }
 
-int ll_del(struct soxy_ll* ll, int id) {
+int ll_del(struct tracy_ll* ll, int id) {
     struct tracy_ll_item *t = ll_find(ll, id);
 
     if(t) {
@@ -93,7 +93,7 @@ int ll_del(struct soxy_ll* ll, int id) {
     return -1;
 }
 
-struct tracy_ll_item* ll_find(struct soxy_ll* ll, int id) {
+struct tracy_ll_item* ll_find(struct tracy_ll* ll, int id) {
     struct tracy_ll_item *t;
 
     t = ll->head;
