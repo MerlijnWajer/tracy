@@ -24,12 +24,25 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+int sig_hook(struct tracy_event *e, void *data) {
+    (void)data;
+    if (e->signal_num == SIGTERM) {
+        fprintf(stderr, "Supressing SIGTERM\n");
+        return TRACY_HOOK_SUPPRESS;
+    }
+    return TRACY_HOOK_CONTINUE;
+}
+
 int main(int argc, char** argv) {
     struct tracy *tracy;
 
     /* Tracy options */
-    tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE |
+    tracy = tracy_init(TRACY_TRACE_CHILDREN);
+    /*| TRACY_VERBOSE |
             TRACY_VERBOSE_SIGNAL | TRACY_VERBOSE_SYSCALL);
+            */
+
+    tracy_set_signal_hook(tracy, sig_hook);
 
     if (argc < 2) {
         printf("Usage: ./example <program-name>\n");

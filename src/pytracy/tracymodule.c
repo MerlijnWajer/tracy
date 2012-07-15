@@ -523,7 +523,7 @@ static void _tracy_free(tracy_object *self)
 {
     // first we free all the tracy.Child objects (because tracy_free
     // frees everything related to this tracy object)
-    for (struct soxy_ll_item *p = self->tracy->childs->head; p != NULL;
+    for (struct tracy_ll_item *p = self->tracy->childs->head; p != NULL;
             p = p->next) {
         PyObject *child = tracy_child_pyobj(
             (struct tracy_child *) p->data);
@@ -595,7 +595,7 @@ static PyObject *_tracy_children(tracy_object *self)
         return ret;
     }
 
-    for (struct soxy_ll_item *p = self->tracy->childs->head; p != NULL;
+    for (struct tracy_ll_item *p = self->tracy->childs->head; p != NULL;
             p = p->next) {
         PyList_Append(ret, tracy_child_pyobj(p->data));
     }

@@ -24,12 +24,35 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+int _write(struct tracy_event *e, void *data) {
+    (void)data;
+    if (e->child->inj.injected) {
+        printf("We just injected something. Result: %ld\n", e->args.return_code);
+        return 0;
+    }
+    if (e->child->pre_syscall) {
+        printf("Pre-async inject\n");
+        if (tracy_inject_syscall_pre_start(e->child, __NR_write,
+                &(e->args), &_write, NULL))
+            return TRACY_HOOK_ABORT;
+    } else {
+        printf("Post-async inject\n");
+        if (tracy_inject_syscall_post_start(e->child, __NR_write,
+                &(e->args), &_write, NULL))
+            return TRACY_HOOK_ABORT;
+    }
+
+    return 0;
+}
+
 int main(int argc, char** argv) {
     struct tracy *tracy;
 
     /* Tracy options */
     tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE |
             TRACY_VERBOSE_SIGNAL | TRACY_VERBOSE_SYSCALL);
+
+    tracy_set_hook(tracy, "write", &_write, NULL);
 
     if (argc < 2) {
         printf("Usage: ./example <program-name>\n");

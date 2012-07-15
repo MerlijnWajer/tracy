@@ -19,7 +19,6 @@ Code: (Time spent writing only)
     -   Working system call injection: 14 hours. (28 Feb - 3 March)
     -   Asynchronous injection: 10 hours. (9 March)
     -   Architecture fixes, deny functionality: 8 hours. (10-15 March)
-    -   Initial work on report: 25 hours. (16 March - 1 April)
     -   Small features and fixes: 3 hours. (19 March)
     -   Safe-fork: 7 hours: (13 March)
     -   child_create event: 1 hour. (18 April)
@@ -28,6 +27,14 @@ Code: (Time spent writing only)
     -   Tracy debug functions: 4 hours. (15 May)
     -   Fix POST-inject bug: 8 hours - yes, really. (15 May)
     -   Signals: A study in man ptrace: 4 hours. (18 May)
+    -   Bash bug: 2 hours. (11 June)
+    -   safe-fork-fix-1: clone quirks: 8 hours. (13-15 June)
+
+Report:
+    -   Initial work on report: 25 hours. (16 March - 1 April)
+    -   Bibliography, more work on the report: 4 hours. (21 June - 24 June)
+    -   More text in the report: 4 hours.  (04 July - 06 July)
+
 
 Tracy tests:
     -   Loggy: 3 hours. (11 March)

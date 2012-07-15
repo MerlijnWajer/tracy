@@ -15,7 +15,6 @@
     along with Tracy.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "../tracy.h"
-#include "../ll.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,27 +25,41 @@
 
 int main(int argc, char** argv) {
     struct tracy *tracy;
+    pid_t pid;
+    char *endptr;
 
     /* Tracy options */
-    tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE |
-            TRACY_VERBOSE_SIGNAL | TRACY_VERBOSE_SYSCALL);
+    #if 0
+    tracy = tracy_init(TRACY_TRACE_CHILDREN);
+    #else
+    tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE_MUCH);
+    #endif
 
-    if (argc < 2) {
-        printf("Usage: ./example <program-name>\n");
+    /* Only a PID is required */
+    if (argc != 2) {
+        printf("Usage: %s <pid>\n", argv[0]);
         return EXIT_FAILURE;
     }
 
-    argv++; argc--;
+    /* Parse PID */
+    pid = (int)strtol(argv[1], &endptr, 10);
+    if (endptr[0]) {
+        fprintf(stderr, "Invalid PID value\n");
+        tracy_free(tracy);
+        return EXIT_FAILURE;
+    }
 
     /* Start child */
-    if (!fork_trace_exec(tracy, argc, argv)) {
-        perror("fork_trace_exec");
+    if (!tracy_attach(tracy, pid)) {
+        perror("tracy_attach");
+        tracy_free(tracy);
         return EXIT_FAILURE;
     }
 
     /* Main event-loop */
     tracy_main(tracy);
 
+    /* Clean up */
     tracy_free(tracy);
 
     return EXIT_SUCCESS;

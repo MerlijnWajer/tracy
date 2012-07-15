@@ -19,17 +19,36 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* For __NR_<SYSCALL> */
 #include <sys/syscall.h>
 #include <unistd.h>
 
+int hook_write(struct tracy_event *e, void *data) {
+    (void)data;
+    if (e->child->pre_syscall) {
+        if(e->args.a0 == 1) {
+            tracy_deny_syscall(e->child);
+            printf("Denying write to stdout\n");
+        }
+    } else {
+    }
+
+    return TRACY_HOOK_CONTINUE;
+}
+
 int main(int argc, char** argv) {
     struct tracy *tracy;
 
     /* Tracy options */
-    tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE |
-            TRACY_VERBOSE_SIGNAL | TRACY_VERBOSE_SYSCALL);
+    /*tracy = tracy_init(TRACY_TRACE_CHILDREN);*/
+    tracy = tracy_init(TRACY_TRACE_CHILDREN);
+
+    if (tracy_set_hook(tracy, "write", hook_write, NULL)) {
+        fprintf(stderr, "Could not hook getpid\n");
+        return EXIT_FAILURE;
+    }
 
     if (argc < 2) {
         printf("Usage: ./example <program-name>\n");

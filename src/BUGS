@@ -1,39 +1,43 @@
 Tracy:
     -   [FIXED] bash werkt niet
     -   [FIXED] problemen met injectie
-    -   [     ] attached & detach (repeatedly)
-    -   [     ] Interrupt handler moet niet zomaar SIGINT afvangen; denk aan
-    interactieve processen zoals Python.
+    -   [FIXED] Error on invalid hook return values.
+    -   [FIXED] attached & detach (repeatedly)
+    -   [FIXED] Interrupt handler moet niet zomaar SIGINT afvangen; denk aan
+                interactieve processen zoals Python.
+    -   [FIXED] TRACY_USE_SAFE_TRACE doet nog niets.
+    -   [FIXED] Optioneel peek/poke voor read/write mem als fallback.
+    -   [FIXED] Deny API beter maken en documenteren.
 
--   [     ] Onthou om te kijken SIGTRAP ook gedaan wordt op BSD bij exec, clone, etc
--   [FIXED] Error on invalid hook return values.
--   [     ] Sanitise syscall arguments. OF string, OF __NR_foo (of SYS_foo), maar niet
-            mixed.
--   [     ] Goede API support voor threaded tracees. (Als ze threaded zijn,
-delen ze resources)
--   [     ] Deny API beter maken en documenteren.
--   [     ] Tests voor:
-                -   Async syscall injection.
-                -   Deny syscall.
-                -   safe-fork.
-                -   mmap/munmap
-                -   child read/write mem (de test werkt)
 
--   [     ] Safely lezen van memory uit een child (copy naar ro mem, validate,
-veranderd pointers van syscall) (Kan al met current api)
--   [     ] tracy_safe_fork opschonen.
--   [FIXED] TRACY_USE_SAFE_TRACE doet nog niets.
--   [     ] Tracy Hook voor signal override in tracy_continue(e, 0);
--   [     ] Tracy's TRACY_INTERNAL_EVENT niet exposen aan user?
--   [     ] Safe fork is helemaal niet netjes wrt events naar de user:
-        -   Niet alle fork, vfork en clone worden doorgegeven.
-        -   Userspace kan het atm niet eens denyen. (Event loop herschrijven)
--   [FIXED] Optioneel peek/poke voor read/write mem als fallback.
--   [     ] tracy_wait_event niet recursief.
+    -   [     ] Sanitise syscall arguments. OF string, OF __NR_foo (of SYS_foo), maar niet
+                mixed.
+    -   [FIXED] Tests voor:
+                    -   Async syscall injection.
+                    -   Deny syscall.
+                    -   safe-fork.
+                    -   mmap/munmap
+                    -   child read/write mem (de test werkt)
 
-Niet nodig:
+    -   [     ] Safely lezen van memory uit een child (copy naar ro mem, validate,
+                veranderd pointers van syscall) (Kan al met current api)
+    -   [FIXED] Tracy Hook voor signal override in tracy_continue(e, 0);
+
+    -   [     ] Tracy's TRACY_INTERNAL_EVENT niet exposen aan user?
+    -   [FIXED] Safe fork is helemaal niet netjes wrt events naar de user:
+            -   Niet alle fork, vfork en clone worden doorgegeven. (depends on new
+            event api)
+            -   Userspace kan het atm niet eens denyen. (Event loop herschrijven)
+
+    -   [FIXED] New event API/structure.
+    -   [FIXED] tracy_wait_event niet recursief.
+
+Niet nodig / Future Work:
 
 -   [     ] BSD Support?
+-   [     ] Goede API support voor threaded tracees. (Als ze threaded zijn,
+-   [     ] Onthou om te kijken SIGTRAP ook gedaan wordt op BSD bij exec, clone, etc
+delen ze resources)
 
 
 Soxy:
