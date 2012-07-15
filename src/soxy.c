@@ -55,7 +55,7 @@ static void get_proxy_server(struct sockaddr *addr, socklen_t *proxy_addr_len)
 
 static proxy_t *proxy_find(struct tracy_event *e, int fd)
 {
-    struct soxy_ll_item *p = ll_find((struct soxy_ll *) e->child->custom, fd);
+    struct tracy_ll_item *p = ll_find((struct soxy_ll *) e->child->custom, fd);
     return (p != NULL) ? (proxy_t *) p->data : NULL;
 }
 
