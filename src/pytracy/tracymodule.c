@@ -276,11 +276,47 @@ PyObject *tracy_child_write_mem(tracy_child_object *self, PyObject *args)
     return Py_True;
 }
 
+PyObject *tracy_child_inject(tracy_child_object *self, PyObject *args,
+    PyObject *kwargs)
+{
+    static char *kwlist[] = {"syscall_number", "args", "cb", NULL};
+
+    long syscall_number; tracy_sc_args_object *sc_args; PyObject *cb = NULL;
+
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "lO!|O", kwlist,
+            &syscall_number, &tracy_sc_args_type, &sc_args, &cb)) {
+        return NULL;
+    }
+
+    // if callback is set, it must be a callable
+    if(cb != NULL && PyCallable_Check(cb) == 0) {
+        // TODO add error message
+        return NULL;
+    }
+
+    // if callback is not set, then the call is blocking.
+    if(cb == NULL) {
+        long ret;
+        int success = tracy_inject_syscall(self->child, syscall_number,
+            sc_args->args, &ret);
+        if(success < 0) {
+            Py_INCREF(Py_False);
+            return Py_False;
+        }
+        return PyLong_FromLong(ret);
+    }
+
+    // this injected system call is non-blocking (not yet implemented!)
+    return NULL;
+}
+
 static PyMethodDef tracy_child_methods[] = {
     {"read", (PyCFunction) &tracy_child_read_mem, METH_VARARGS,
         "read process memory of this child"},
     {"write", (PyCFunction) &tracy_child_write_mem, METH_VARARGS,
         "write process memory to this child"},
+    {"inject", (PyCFunction) &tracy_child_inject, METH_KEYWORDS,
+        "inject a system call"},
     {NULL},
 };
 
