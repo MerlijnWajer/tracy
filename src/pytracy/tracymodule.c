@@ -1,5 +1,6 @@
 #include <Python.h>
 #include <structmember.h>
+#include <sys/mman.h>
 #include "tracy.h"
 
 // types copied from PyMemberDef
@@ -351,6 +352,46 @@ PyObject *tracy_child_deny(tracy_child_object *self)
     return Py_None;
 }
 
+PyObject *tracy_child_mmap(tracy_child_object *self, PyObject *args,
+    PyObject *kwargs)
+{
+    long addr, size; int flag_exec = 0, flags = PROT_READ;
+
+    static char *kwlist[] = {"size", "exec", NULL};
+
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "l|i", kwlist, &size,
+            &flag_exec)) {
+        return NULL;
+    }
+
+    if(flag_exec != 0) {
+        flags |= PROT_EXEC;
+    }
+
+    tracy_mmap(self->child, (tracy_child_addr_t *) &addr, NULL, size, flags,
+        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    return PyLong_FromLong(addr);
+
+}
+
+PyObject *tracy_child_munmap(tracy_child_object *self, PyObject *args)
+{
+    long addr, size, ret;
+
+    if(!PyArg_ParseTuple(args, "ll", &addr, &size)) {
+        return NULL;
+    }
+
+    tracy_munmap(self->child, &ret, (tracy_child_addr_t) addr, size);
+
+    // TODO check return values
+    // ...
+
+    Py_INCREF(Py_True);
+    return Py_True;
+}
+
 static PyMethodDef tracy_child_methods[] = {
     {"read", (PyCFunction) &tracy_child_read_mem, METH_VARARGS,
         "read process memory of this child"},
@@ -360,6 +401,10 @@ static PyMethodDef tracy_child_methods[] = {
         "inject a system call"},
     {"deny", (PyCFunction) &tracy_child_deny, METH_NOARGS,
         "deny a system call"},
+    {"mmap", (PyCFunction) &tracy_child_mmap, METH_KEYWORDS,
+        "allocate a memory page in the child"},
+    {"munmap", (PyCFunction) &tracy_child_munmap, METH_VARARGS,
+        "free a memory page in the child"},
     {NULL},
 };
 
