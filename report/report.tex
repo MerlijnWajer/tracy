@@ -30,7 +30,7 @@
     Tracy is a system call tracing framework implemented on top of the UNIX
     ptrace(2) system call.
     Tracy can trace, modify and inject system calls as well as perform memory
-    allocation in the child, modifying the memory of children and safely trace
+    allocation in the child, modify the memory of children and safely trace
     all (newly created) children of a process being traced.
 \end{abstract}
 
@@ -87,31 +87,33 @@ is made by process $A$  and then allows process $A$ to continue with its
 execution. An example of a program that traces system calls is
 \textit{strace}\cite{strace}.
 
-Apart from just tracing system calls, it is also possible to change
+Apart from \textit{tracing} system calls, it is also possible to
+\textit{change}
 (arguments of) system calls before they are executed. This allows for a range
-of other applications such as not allowing specific system calls, denying
-specific system calls, injecting system calls. Typically, the debugging api also
-allows reading and writing to the process being debugged.
+of other applications such as not allowing specific system calls and
+injecting system calls. Typically, the debugging api also allows reading and
+writing to the process being debugged.
 
 Some of the applications that can be realised with this particular feature set
 includes jailing programs, performance analysis tools and transparently
 redirecting input and output of a program, such as proxifying network
 traffic or virtualising filesystem access.
 
-The debugger API on most UNIX operating systems is done using the
+The debugger API on most UNIX operating systems is implemented using the
 \textit{ptrace} system call. A huge downside of ptrace is that ptrace
-has not been standardised and differs per platform and computer architecture. Other
-shortcomings of ptrace will be discussed later on.
-% FIXME WHERE ^
+has not been standardised and differs per platform and computer architecture.
+Other shortcomings of ptrace will be discussed later on.
+% TODO: ^ Deze zin weglaten?
 
 One of the main reasons we created Tracy was the lack of a proper library
 for system call interception amongst the popular UNIX-like systems with
 varying CPU architectures.
 
-Tracy is a process tracing framework which uses ptrace but tries to have an API
-that is mostly platform and computer architecture independent, allowing for much
-easier creation of cross platform tracing applications.
+Tracy is a process tracing framework which uses ptrace but tries to provide
+an API that is mostly platform and computer architecture independent,
+allowing for much easier creation of cross platform tracing applications.
 
+% XXX: While... while? :-(
 While it is not possible to create a completely platform independent API while
 not heavily reducing functionality, we strive to create a robust and powerful
 API to trace processes in a more platform independent way.
@@ -148,8 +150,9 @@ traffic through a SOCKS 5 proxy using Tracy.
 
 There are several ways to transparently intercept calls to a library or
 system calls. LD\_PRELOAD is one such method to intercept calls to a library.
-This should not be confused with intercepting system calls; this is a reason
-not to use LD\_PRELOAD.
+This should not be confused with intercepting system calls; LD\_PRELOAD
+cannot intercept system calls; this is a reason not to use LD\_PRELOAD.
+% Raar stukje
 
 \subsection{LD\_PRELOAD}
 
@@ -158,8 +161,8 @@ while creating and loading a process.
 
 One can use this to load a shared object (a library) into a process,
 before any other libraries (such as glibc) are loaded;
-this makes it possible to override functions typically provided by other
-libraries.
+this makes it possible to (transparently) override functions typically
+provided by other libraries.
 
 For our example, this ``injected'' library would provide its own
 ``recvfrom'' and ``sendto''\footnote{It should probably provide
@@ -168,12 +171,12 @@ and the program being run would instead call the functions provided by
 this library.
 
 % TODO: Niet duidelijk dat het LD_PRELOAD is
-One common proxyfier, \textbf{tsocks}, has an application that loads
+One common proxyfier, \textbf{tsocks}, is an application that loads
 other applications with their own library that overwrites specific
 network functionality, thus allowing transparent network routing.
 
 However, because LD\_PRELOAD relies on the dynamic loader and the fact that
-programs have to make use of libraries, it also has several downsides.
+programs have to make use of libraries, LD\_PRELAOD also has several downsides.
 
 One of these downsides is that LD\_PRELOAD simply does not work on all
 applications; some applications do not use the glibc methods and instead
@@ -609,6 +612,7 @@ original fork(2) call) and let both processes continue their execution.
 
 
 \chapter{Soxy}
+\label{chapter:soxy}
 
 % socketcall x86 vs native syscalls on x64 in caveats
 
