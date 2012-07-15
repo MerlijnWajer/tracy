@@ -114,6 +114,39 @@ static int tracy_sc_args_init(tracy_sc_args_object *self, PyObject *args,
     return 0;
 }
 
+PyObject *tracy_sc_args_repr(tracy_sc_args_object *self)
+{
+    static char *kwlist[] = {"a0", "a1", "a2", "a3", "a4", "a5", "retcode",
+        "syscall", "ip", "sp", NULL};
+
+    PyObject *str = PyString_FromString("tracy.SyscallArguments(");
+
+    int first = 1;
+
+    // bit hacky, but gives the cleanest output
+    for (int i = 0; i < sizeof(struct tracy_sc_args) / sizeof(long); i++) {
+        long value = ((long *) self->args)[i];
+        if(value != 0) {
+            if(first) first = 0;
+            else PyString_ConcatAndDel(&str, PyString_FromString(", "));
+
+            // this cannot be done with a ternary statement, because gcc
+            // will whine about long integer vs pointer format strings
+            if(value < 0 && value > -0x1000) {
+                PyString_ConcatAndDel(&str, PyString_FromFormat("%s=%ld",
+                    kwlist[i], value));
+            }
+            else {
+                PyString_ConcatAndDel(&str, PyString_FromFormat("%s=%p",
+                    kwlist[i], (void *) value));
+            }
+        }
+    }
+
+    PyString_ConcatAndDel(&str, PyString_FromString(")"));
+    return str;
+}
+
 static PyTypeObject tracy_sc_args_type = {
     PyObject_HEAD_INIT(NULL)
     .tp_name = "tracy.SyscallArguments",
@@ -123,6 +156,7 @@ static PyTypeObject tracy_sc_args_type = {
     .tp_new = PyType_GenericNew,
     .tp_getset = tracy_sc_args_getset,
     .tp_init = (initproc) &tracy_sc_args_init,
+    .tp_repr = (reprfunc) &tracy_sc_args_repr,
 };
 
 //
@@ -310,6 +344,13 @@ PyObject *tracy_child_inject(tracy_child_object *self, PyObject *args,
     return NULL;
 }
 
+PyObject *tracy_child_deny(tracy_child_object *self)
+{
+    tracy_deny_syscall(self->child);
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyMethodDef tracy_child_methods[] = {
     {"read", (PyCFunction) &tracy_child_read_mem, METH_VARARGS,
         "read process memory of this child"},
@@ -317,6 +358,8 @@ static PyMethodDef tracy_child_methods[] = {
         "write process memory to this child"},
     {"inject", (PyCFunction) &tracy_child_inject, METH_KEYWORDS,
         "inject a system call"},
+    {"deny", (PyCFunction) &tracy_child_deny, METH_NOARGS,
+        "deny a system call"},
     {NULL},
 };
 
