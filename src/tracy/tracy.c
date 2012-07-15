@@ -89,7 +89,7 @@ struct tracy *tracy_init(long opt) {
 static void free_children(struct soxy_ll *children)
 {
     struct tracy_child *tc;
-    struct soxy_ll_item *cur = children->head;
+    struct tracy_ll_item *cur = children->head;
 
     /* Walk over all items in the list */
     while(cur) {
@@ -412,7 +412,7 @@ int tracy_remove_child(struct tracy_child *c) {
 }
 
 int tracy_children_count(struct tracy* t) {
-    struct soxy_ll_item * cur;
+    struct tracy_ll_item * cur;
     int i = 0;
     cur = t->childs->head;
 
@@ -503,7 +503,7 @@ static int hash_syscall(char * syscall) {
  */
 int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func) {
 
-    struct soxy_ll_item *item;
+    struct tracy_ll_item *item;
     int hash;
     union {
             void *pvoid;
@@ -541,7 +541,7 @@ int tracy_set_default_hook(struct tracy *t, tracy_hook_func f) {
 
 /* Find and execute hook. */
 int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
-    struct soxy_ll_item *item;
+    struct tracy_ll_item *item;
     int hash;
     union {
             void *pvoid;

@@ -287,7 +287,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
     struct TRACY_REGS_NAME regs;
     struct tracy_child *tc;
     struct tracy_event *s;
-    struct soxy_ll_item *item;
+    struct tracy_ll_item *item;
 
     start:
     s = NULL;

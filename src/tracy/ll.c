@@ -39,13 +39,13 @@ int ll_free(struct soxy_ll* ll) {
 }
 
 int ll_add(struct soxy_ll* ll, int id, void* d) {
-    struct soxy_ll_item *t, *tt;
+    struct tracy_ll_item *t, *tt;
 
     t = ll_find(ll, id);
     if (t)
         return -1;
 
-    t = malloc(sizeof(struct soxy_ll_item));
+    t = malloc(sizeof(struct tracy_ll_item));
     t->data = d;
     t->id = id;
     t->prev = NULL;
@@ -68,7 +68,7 @@ int ll_add(struct soxy_ll* ll, int id, void* d) {
 }
 
 int ll_del(struct soxy_ll* ll, int id) {
-    struct soxy_ll_item *t = ll_find(ll, id);
+    struct tracy_ll_item *t = ll_find(ll, id);
 
     if(t) {
         if (t->prev)
@@ -93,8 +93,8 @@ int ll_del(struct soxy_ll* ll, int id) {
     return -1;
 }
 
-struct soxy_ll_item* ll_find(struct soxy_ll* ll, int id) {
-    struct soxy_ll_item *t;
+struct tracy_ll_item* ll_find(struct soxy_ll* ll, int id) {
+    struct tracy_ll_item *t;
 
     t = ll->head;
 
