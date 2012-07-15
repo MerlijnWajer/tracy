@@ -14,8 +14,6 @@ import (
 )
 
 func main() {
-    defer fmt.Println("This will be printed at the end\n")
-
     slice := os.Args[1:]
     fmt.Println(slice)
     chpp := make([]*C.char, len(slice)+1);
