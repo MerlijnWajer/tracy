@@ -1,4 +1,5 @@
-\documentclass[a4paper, twoside, 10pt]{report}
+\documentclass[a4paper, 10pt]{report}
+%\documentclass[a4paper, twoside, 10pt]{report}
 %\documentclass[a4paper, twoside, 10pt, twocolumn]{report}
 
 \author{Jurriaan Bremer \and Merlijn Wajer \and Bas Weelinck}
@@ -188,9 +189,9 @@ or even the \textit{syscall(2)} system call) rather than using
 provided libraries such as glibc.
 
 There are some upcoming languages that do not even use glibc at all - languages
-like Go \footnote{\url{http://golang.org/}} talk to the kernel directly and
-thus perform their system calls by directly calling the kernel instead of
-(g)libc functions which would in turn call the kernel.
+like Go \cite{golang} talk to the kernel directly and thus perform their
+system calls by calling the kernel directly instead of
+reyling on (g)libc functions which would in turn call the kernel.
 
 LD\_PRELOAD is not a viable solution when one wants to transparently capture
 all (specific) system calls of a process, independent on what kind of
@@ -200,9 +201,10 @@ userspace libraries the process uses.
 
 \textbf{ptrace(2)} allows a process to catch all of the system calls (or even
 step through every instruction, but we have no use for that in tracy)
-made by another process (called the \textit{tracee}), which makes it
-completely independent of user space helper libraries used by the tracee.
-In other words, ptrace does not suffer from the same problem as LD\_PRELOAD.
+made by another process (called the \textit{tracee}), which makes ptrace system
+call tracing completely independent of user space helper libraries used by the
+tracee. In other words, ptrace does not suffer from the same limitation as
+LD\_PRELOAD.
 
 ptrace has platform-specific extensions (to the API) and the
 implementation differs per platform.
@@ -211,19 +213,20 @@ implementation differs per platform.
 % XXX: Dit hieronder is fout. We vangen wel alles af; maar we weten niet of
 % het nummer 32 of 64 bit is.
 To actually catch every single system call made by a process one has to
-perform all sorts of tricks\ref{foo}, depending on the operating system and
+perform all sorts of tricks\ref{safe-abi}, depending on the operating system and
 architecture. Tracy currently does not implement all of these tricks, but
 support is planned.
  % TODO all kinds of tricks, link to caveats section in our paper.
 
-Aside from functional differences, there are also different ptrace options.
+Aside from functional differences, there are also differences in ptrace
+functionality.
 For example, BSD supports reading or writing a big chuck of the memory
 of the tracee at once using the ptrace API, while Linux only allows
 reading or writing only one processor word at a time.
 On the other hand, Linux has options to automatically trace
 children created by the tracee where BSD lacks support for
-this particular feature\footnote{Tracy will however support it on BSD}.
-% TODO link/reference to solution ^
+this particular feature\footnote{Tracy will however support it on
+BSD\ref{safe-fork}}.
 
 Aside from the differences per operating system, there are also differences
 regarding the cpu architecture, because every architecture has its own
@@ -241,7 +244,9 @@ systems often have different uses for each register.
 One would have to find out what register this is on each platform,
 % XXX: Introduceren: Pre en Post system call event? Dit komt eerder niet
 % XXX: voorbij.
-keep track if the current event is a pre- or post-system call event, let alone
+keep track if the current event is a pre- or post-system call event
+\footnote{If the process is about to execute a system call or has just
+executed a system call}, let alone
 perform some extra architecture-specific calls to ensure that the result is
 properly set\footnote{ARM requires extra changes to make the register
 modification of a system call number persistent.}.
@@ -251,14 +256,14 @@ to simply inject a system call, it is not simple to change values of some
 variable/register in an architecture-agnostic way and it is not trivial
 to allocate or change memory in a child.
 
-Even though ptrace(2) provides all the functionality required to trace and
-intercept system calls\footnote{Which is why Tracy uses ptrace},
+Even though \textbf{ptrace(2)} provides all the functionality required to
+trace and intercept system calls\footnote{Which is why Tracy uses ptrace},
 the functions provided by ptrace are very basic and only provide the
 essential building blocks for tracing applications.
 % Wat voor punt maken we hier? Dit moet een betere conclusie worden.
 
 All these separate issues add up, eventually making the \textit{ptrace(2)} API
-infeasible for big projects. % Ook raar; als ze tracy gebruiken gebruiken ze
+infeasible for large projects. % Ook raar; als ze tracy gebruiken gebruiken ze
 % toch ook ptrace?
 
 \section{Enter: Tracy}
@@ -307,16 +312,16 @@ Several UNIX and UNIX-like systems support the \textbf{ptrace(2)} system call.
 This system call allows one process to ``control'' another process - from now on
 called \textit{tracee}, enabling the controlling process to stop and inspect
 the \textit{tracee}, as well as writing to its memory. \textbf{ptrace(2)} is
-mostly used by tools that aid debugging of software such as GDB\cite{} or
-Valgrind \cite{}. \textbf{ptrace(2)} provides two ways of controlling a process
+mostly used by tools that aid debugging of software such as GDB\cite{gdb}.
+\textbf{ptrace(2)} provides two ways of controlling a process
 - either by controlling all the system calls made by the process or by stopping
 the tracee after each instruction. The latter option has a serious effect on the
-performance of the tracee.
+performance of the tracee and is of no use to Tracy.
 
 Tracy is a library that uses \textbf{ptrace(2)} to trace the system calls of a
 process. Tracy can inspect, modify and even inject system calls. Being able to
 modify system calls gives the controlling process the ability to change
-arguments of system calls before system calls are allowed - or even the ability
+arguments of system calls before system calls are executed - or even the ability
 to ``deny'' system calls by changing the system call to a harmless one such as
 \textbf{getpid(2)}.
 
@@ -330,7 +335,7 @@ link}% XXX
 already running processes and a process can\footnote{If written to do so} work
 around \textit{LD\_PRELOAD} all together, defeating the purpose of the sandbox.
 
-\textbf{ptrace(2)} however, is very platform and operating system dependent,
+However, \textbf{ptrace(2)} is very platform and operating system dependent,
 the Tracy API strives to be platform and operating system independent by
 applying architecture and operating system dependent hacks and fixes
 ``behind the scenes''.
@@ -341,7 +346,7 @@ applying architecture and operating system dependent hacks and fixes
 well as just after the tracee has executed a system call. When the tracee
 is stopped before a system call, we say that the tracee is in \textbf{pre}
 system call state; if the system call has executed and the tracee has once again
-been suspend we say that the tracee is in \textbf{post} system call state.
+been suspended we say that the tracee is in \textbf{post} system call state.
 While the controlling process is inspecting the tracee, the execution of the
 tracee is paused. (Figure \ref{fig1})
 
@@ -354,7 +359,7 @@ tracee is paused. (Figure \ref{fig1})
 
 This gives the controlling process the ability to read and modify registers,
 which gives the controlling process the ability to do pretty much anything
-with the tracee, including but not limited to:
+with the tracee, including:
 
 \begin{itemize}
 \item Modify the system call (number) that is executed.
@@ -364,12 +369,12 @@ with the tracee, including but not limited to:
     different set of instructions.
 \item Inject system calls, by modifying the instruction pointer and changing the
     system call number.
-\item Modify the return value from the system call.
+\item Modify the return value of the system call.
 \end{itemize}
 
 \section{Memory access}
 
-To fully be able to modify a tracee, the controlling process needs to be able to
+To be able to fully modify a tracee, the controlling process needs to be able to
 read and write the tracee's memory. If the controlling process is to change
 arguments that point to a specific page in the tracee's memory - like a string,
 the controlling process needs to be able to write to the tracee's memory - or
@@ -383,12 +388,15 @@ pages and continue the system call. After the system call has completed, the
 pages can be freed again. This way the child's original arguments are left
 untouched, and for a reason: the child may want to re-use the memory later on.
 
+%TODO: Pages allocaten in child (wat voor beide RW is) is racy;
+%zie future work memory sharing oplossing.
+
 \section{Tracing children}
 
 % XXX: Hier staat nog geen rfork() bij.
-A tracee can spawn children by calling the fork()\footnote{among other system
-calls: vfork, rfork, clone} system call. \textbf{ptrace(2)} does not
-automatically trace children of a tracee.
+A tracee can spawn children by calling the \textbf{fork(2)}\footnote{among
+    other system calls: vfork, rfork, clone} system call. \textbf{ptrace(2)}
+does not automatically trace children of a tracee.
 
 In certain occasions, one may want to trace all the children of a tracee.
 To do this, Linux supports specific \textbf{ptrace(2)} options to trace
@@ -414,8 +422,7 @@ immediately trace children on non-Linux platforms:
 \end{figure}
 
 We provide a solution to this problem in tracy such that any children spawned
-by the tracee will not run uncontrolled on any platform.
-% XXX: Waar? Link? Ref?
+by the tracee will not run uncontrolled on any platform in Section \ref{safe-fork}.
 
 \chapter{Implementation}
 
@@ -424,17 +431,17 @@ by the tracee will not run uncontrolled on any platform.
 Tracing a process can be done in two different ways. A process can either attach
 to another running process, or clone a clone of itself and consequently  use
 ptrace() in the child to make the parent (the original process) trace the child
-and then \textit{execve(2)} another process.
+and then \textbf{execve(2)} another process.
 
 \subsection{Fork and trace}
 
-As explained in the previous section, the parent issues a \textit{fork(2)} call.
-The child then performs a \textit{ptrace(2)} call, with the
-\textit{PTRACE\_TRACEME} argument. The child then raises \textit{SIGTRAP};
+As explained in the previous section, the parent issues a \textbf{fork(2)} call.
+The child then performs a \textbf{ptrace(2)} call, with the
+\textbf{PTRACE\_TRACEME} argument. The child then raises \textbf{SIGTRAP};
 because the child is being traced by its parent, the child is then suspended
-until the parent performs a \textit{waitpid} followed by a call to ptrace to
-continue the process with the \textit{PTRACE\_SYSCALL} argument to
-\textit{ptrace(2)}. The parent can inspect and change the child before it issues
+until the parent performs a \textbf{wait(2)} followed by a call to ptrace to
+continue the process with the \textbf{PTRACE\_SYSCALL} argument to
+\textbf{ptrace(2)}. The parent can inspect and change the child before it issues
 the continue call. The code demonstrating this can be found in
 Appendix \ref{appendix:createtrace}
 
@@ -443,7 +450,6 @@ Appendix \ref{appendix:createtrace}
 \section{System call tracing}
 
 % TODO: Meer tracy specifiek maken(?)
-
 
 
 \section{System call modification}
@@ -553,6 +559,7 @@ PTRACE\_O\_TRACEVFORK, PTRACE\_O\_TRACEFORK, PTRACE\_O\_TRACECLONE.
 % TODO: CLONE_UNTRACED vs PTRACE_O_TRACECLONE
 
 \subsection{Safe execution of fork(2) and friends}
+\label{safe-fork}
 
 On operating systems that do not support the \textit{PTRACE\_O\_TRACE*} options,
 another solution is required to ensure that all children are traced the moment
@@ -582,6 +589,7 @@ original fork(2) call) and let both processes continue their execution.
 % picture of the process
 
 \subsection{Safe execution with different ABIs}
+\label{safe-abi}
 
 %
 
@@ -589,6 +597,9 @@ original fork(2) call) and let both processes continue their execution.
 
 % Misschien verkeerde titel; maar dit zijn dingen waar we tegen aan liepen.
 % En dingen waar we op moeten letten.
+
+% Eerste SIGSTOP negeren?
+
 \section{Caveats}
 %
 
@@ -655,6 +666,10 @@ original fork(2) call) and let both processes continue their execution.
 %    \item Multithreaded tracing.
 %    %\item Python bindings
 %\end{itemize}
+
+\section{Calling functions in the tracee}
+
+\section{Tracing 32 bit applications with a 64 bit tracer}
 
 Applications
 \begin{itemize}
