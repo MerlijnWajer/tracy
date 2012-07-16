@@ -33,7 +33,6 @@
 #define TRACY_VERBOSE 1 << 1
 #define TRACY_VERBOSE_SIGNAL 1 << 2
 #define TRACY_VERBOSE_SYSCALL 1 << 3
-#define TRACY_VERBOSE_MUCH -1
 
 /* Enable automatic usage of ptrace's memory API when PPM (/proc based) fails */
 #define TRACY_MEMORY_FALLBACK 1 << 2

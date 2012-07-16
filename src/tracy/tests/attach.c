@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     #if 0
     tracy = tracy_init(TRACY_TRACE_CHILDREN);
     #else
-    tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE_MUCH);
+    tracy = tracy_init(TRACY_TRACE_CHILDREN);
     #endif
 
     /* Only a PID is required */
