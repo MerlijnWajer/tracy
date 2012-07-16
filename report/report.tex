@@ -9,6 +9,8 @@
 \usepackage{listings}
 \usepackage{hyperref}
 \usepackage{appendix}
+\usepackage{subfig}
+\usepackage{wrapfig}
 \usepackage{color}
 \usepackage[utf8]{inputenc}
 
@@ -520,18 +522,34 @@ call instruction is known, it is possible to ``jump back'' to the system call
 instruction. % TODO: Add figure with asm + int 0x80 and arrows.
 
 The process of injecting a system call differs per system call state (pre or
-post). Now follows is an explanation of system call injection from either state.
+post). Now follows an explanation of system call injection from either state.
+
+\begin{figure}
+    \centering
+    \subfloat[Injection from a pre state]{\label{fig:pre-inj}\includegraphics[width=0.4\textwidth]{pre.png}}
+    \hspace{1em}
+    \subfloat[Injection from a post state]{\label{fig:post-inj}\includegraphics[width=0.4\textwidth]{post.png}}
+    \caption{Injection for pre and post system call states}
+    \label{fig:injection}
+\end{figure}
+
+
 
 \subsection{Pre-syscall injection}
 
+As seen in figure \ref{fig:pre-inj}
 
 \subsection{Post-syscall injection}
+
+As seen in figure \ref{fig:pre-inj}
 
 
 \subsection{Asynchronous injection in Tracy}
 
 
 \section{Memory access}
+
+% TODO: process_vm_{read,write}v noemen.
 
 Any program that uses the \textbf{ptrace(2)} API will probably want to access the
 traced process' memory as well. Reasons can range from simply dumping pointer
@@ -652,7 +670,7 @@ original fork(2) call) and let both processes continue their execution.
 % Eerste SIGSTOP negeren?
 
 \section{Caveats}
-%
+
 
 \subsection{Clone on x86}
 
@@ -690,6 +708,7 @@ original fork(2) call) and let both processes continue their execution.
 % may end up waiting on tracer. Solution: multiple threads that wait().
 
 \section{Secure ABI mixing}
+\label{secure-abi}
 
 % Making sure that we catch all system calls made, even when ABIs are mixed
 % (32 bit ABI on 64 bit, etc). This should be fixed in the Linux Kernel though.
@@ -700,6 +719,7 @@ original fork(2) call) and let both processes continue their execution.
 % Needs safe-fork, but also with rfork(2).
 
 \section{Memory sharing between tracer and tracee}
+\label{memory-share}
 
 % Need to do some shm magic.
 
@@ -724,6 +744,7 @@ original fork(2) call) and let both processes continue their execution.
 \section{Tracing 32 bit applications with a 64 bit tracer}
 
 \section{Improving ptrace(2) performance}
+\label{ptrace-perf}
 
 %Applications
 %\begin{itemize}
