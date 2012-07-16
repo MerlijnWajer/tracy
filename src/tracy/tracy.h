@@ -37,9 +37,6 @@
 /* Enable automatic usage of ptrace's memory API when PPM (/proc based) fails */
 #define TRACY_MEMORY_FALLBACK 1 << 2
 
-/* Enable automatic usage of ptrace's memory API when PPM (/proc based) fails */
-#define TRACY_MEMORY_FALLBACK 1 << 2
-
 #define TRACY_USE_SAFE_TRACE 1 << 31
 
 #define TRACY_PRINT_SIGNALS(t) \
