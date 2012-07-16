@@ -423,6 +423,7 @@ static int soxy_hook_close(struct tracy_event *e)
 int main(int argc, char *argv[])
 {
     struct tracy *tracy = tracy_init(TRACY_TRACE_CHILDREN);
+    (void)argc;
 
     tracy->se.child_create = &soxy_child_create;
 
@@ -441,7 +442,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    fork_trace_exec(tracy, --argc, ++argv);
+    tracy_exec(tracy, ++argv);
 
     tracy_main(tracy);
     tracy_free(tracy);

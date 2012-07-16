@@ -219,16 +219,16 @@ void tracy_quit(struct tracy* t, int exitcode);
 int tracy_main(struct tracy *tracy);
 
 /*
- * fork_trace_exec
+ * tracy_exec
  *
- * fork_trace_exec is the function tracy offers to actually start tracing a
- * process. fork_trace_exec safely forks, asks to be traced in the child and
+ * tracy_exec is the function tracy offers to actually start tracing a
+ * process. tracy_exec safely forks, asks to be traced in the child and
  * then executes the given process with possible arguments.
  *
  * Returns the first tracy_child. You don't really need to store this as each
  * event will be directly coupled to a child.
  */
-struct tracy_child *fork_trace_exec(struct tracy *t, int argc, char **argv);
+struct tracy_child *tracy_exec(struct tracy *t, char **argv);
 
 /*
  * tracy_attach

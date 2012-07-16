@@ -219,8 +219,8 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    if (!fork_trace_exec(tracy, argc, argv)) {
-        perror("fork_trace_exec returned NULL");
+    if (!tracy_exec(tracy, argv)) {
+        perror("tracy_exec returned NULL");
         return EXIT_FAILURE;
     }
 

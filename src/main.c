@@ -217,8 +217,8 @@ int main(int argc, char** argv) {
         }
 
     /* If not attaching, fork/exec */
-    } else if (!fork_trace_exec(tracy, argc, argv)) {
-        perror("fork_trace_exec returned NULL");
+    } else if (!tracy_exec(tracy, argc, argv)) {
+        perror("tracy_exec returned NULL");
         tracy_free(tracy);
         return EXIT_FAILURE;
     }

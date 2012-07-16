@@ -162,7 +162,7 @@ static struct tracy_child *malloc_tracy_child(struct tracy *t, pid_t pid)
 }
 
 /* TODO: Environment variables? */
-struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
+struct tracy_child* tracy_exec(struct tracy *t, char **argv) {
     pid_t pid;
     long r;
     int status;
@@ -210,14 +210,10 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
          * restart the child and let it call exec() */
         raise(SIGTRAP);
 
-        if (argc == 1) {
-            execv(argv[0], argv);
-        } else {
-            execv(argv[0], argv);
-        }
+        execv(argv[0], argv);
 
         if (errno) {
-            perror("fork_trace_exec");
+            perror("tracy_exec");
             fprintf(stderr, "execv failed.\n");
             _exit(1);
         }
@@ -239,7 +235,7 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
 
     signal_id = WSTOPSIG(status);
     if (signal_id != SIGTRAP) {
-        fprintf(stderr, "fork_trace_exec: child signal was not SIGTRAP.\n");
+        fprintf(stderr, "tracy_exec: child signal was not SIGTRAP.\n");
         kill(pid, SIGKILL);
         waitpid(pid, &status, 0);
         return NULL;
@@ -247,7 +243,7 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
 
     r = ptrace(PTRACE_SETOPTIONS, pid, NULL, (void*)ptrace_options);
     if (r) {
-        fprintf(stderr, "fork_trace_exec: ptrace(PTRACE_SETOPTIONS) failed.\n");
+        fprintf(stderr, "tracy_exec: ptrace(PTRACE_SETOPTIONS) failed.\n");
         kill(pid, SIGKILL);
         waitpid(pid, &status, 0);
         return NULL;
@@ -258,7 +254,7 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
      * resume. */
     r = ptrace(PTRACE_SYSCALL, pid, NULL, 0);
     if (r) {
-        fprintf(stderr, "fork_trace_exec: ptrace(PTRACE_SYSCALL) failed.\n");
+        fprintf(stderr, "tracy_exec: ptrace(PTRACE_SYSCALL) failed.\n");
         kill(pid, SIGKILL);
         waitpid(pid, &status, 0);
         return NULL;
@@ -266,7 +262,7 @@ struct tracy_child* fork_trace_exec(struct tracy *t, int argc, char **argv) {
 
     tc = malloc_tracy_child(t, pid);
     if (!tc) {
-        fprintf(stderr, "fork_trace_exec: malloc_tracy_child failed.\n");
+        fprintf(stderr, "tracy_exec: malloc_tracy_child failed.\n");
         kill(pid, SIGKILL);
         waitpid(pid, &status, 0);
         return NULL;
