@@ -45,7 +45,7 @@ static void get_proxy_server(struct sockaddr *addr, socklen_t *proxy_addr_len)
         struct sockaddr_in *addr4 = (struct sockaddr_in *) &_addr;
         addr4->sin_family = AF_INET;
         addr4->sin_addr.s_addr = 0x0100007f;
-        addr4->sin_port = htons(2222);
+        addr4->sin_port = htons(9050);
         first = 1;
     }
 
@@ -65,7 +65,7 @@ static int proxy_set(struct tracy_event *e, int fd, proxy_t *proxy)
         return ll_del((struct tracy_ll *) e->child->custom, fd);
     }
     else {
-        return ll_add((struct tracy_ll *) e->child->custom, fd, proxy);
+        return ll_add((struct tracy_ll *) e->child->custom, fd, proxy, NULL);
     }
 }
 
@@ -313,8 +313,9 @@ cleanup:
 }
 */
 
-static int soxy_hook_socket(struct tracy_event *e)
+static int soxy_hook_socket(struct tracy_event *e, void *d)
 {
+    (void)d;
     if(e->child->pre_syscall == 0) {
 
 #ifdef _SOXY_IPV6_
@@ -346,8 +347,9 @@ static int soxy_hook_socket(struct tracy_event *e)
     return 0;
 }
 
-static int soxy_hook_connect(struct tracy_event *e)
+static int soxy_hook_connect(struct tracy_event *e, void *d)
 {
+    (void)d;
     if(e->child->pre_syscall) {
         struct sockaddr_in6 addr;
         if(
@@ -402,8 +404,9 @@ static int soxy_hook_connect(struct tracy_event *e)
     return 0;
 }
 
-static int soxy_hook_close(struct tracy_event *e)
+static int soxy_hook_close(struct tracy_event *e, void *d)
 {
+    (void)d;
     if(e->child->pre_syscall) {
         proxy_t *proxy = proxy_find(e, e->args.a0);
         if(proxy != NULL) {
@@ -422,21 +425,21 @@ static int soxy_hook_close(struct tracy_event *e)
 
 int main(int argc, char *argv[])
 {
-    struct tracy *tracy = tracy_init(TRACY_TRACE_CHILDREN);
+    struct tracy *tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE_SYSCALL | TRACY_VERBOSE_SIGNAL);
 
     tracy->se.child_create = &soxy_child_create;
 
-    if(tracy_set_hook(tracy, "socket", &soxy_hook_socket)) {
+    if(tracy_set_hook(tracy, "socket", &soxy_hook_socket, NULL)) {
         fprintf(stderr, "Error hooking socket(2)\n");
         return EXIT_FAILURE;
     }
 
-    if(tracy_set_hook(tracy, "connect", &soxy_hook_connect)) {
+    if(tracy_set_hook(tracy, "connect", &soxy_hook_connect, NULL)) {
         fprintf(stderr, "Error hooking connect(2)\n");
         return EXIT_FAILURE;
     }
 
-    if(tracy_set_hook(tracy, "close", &soxy_hook_close)) {
+    if(tracy_set_hook(tracy, "close", &soxy_hook_close, NULL)) {
         fprintf(stderr, "Error hooking close(2)\n");
         return EXIT_FAILURE;
     }
