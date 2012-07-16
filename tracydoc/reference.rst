@@ -6,6 +6,8 @@ This section contains documentation on all public functions exported by Tracy.
 Tracy object
 ~~~~~~~~~~~~
 
+.. _rtracy_init:
+
 tracy_init
 ----------
 .. code-block:: c
@@ -51,6 +53,8 @@ tracy_quit frees all the structures, kills or detaches from all the
 children and then calls exit() with *exitcode*. Use tracy_free if you want to
 gracefully free tracy.
 
+.. _rtracy_main:
+
 tracy_main
 ----------
 
@@ -63,17 +67,19 @@ tracy_main
 tracy_main is a simple tracy-event loop.
 Helper for RAD Tracy deployment
 
-fork_trace_exec
+.. _rtracy_exec:
+
+tracy_exec
 ---------------
 
 .. code-block:: c
 
-    struct tracy_child *fork_trace_exec(struct tracy *t, int argc, char **argv);
+    struct tracy_child *tracy_exec(struct tracy *t, char **argv);
 
 .. **
 
-fork_trace_exec is the function tracy offers to actually start tracing a
-process. fork_trace_exec safely forks, asks to be traced in the child and
+tracy_exec is the function tracy offers to actually start tracing a
+process. tracy_exec safely forks, asks to be traced in the child and
 then executes the given process with possible arguments.
 
 Returns the first tracy_child. You don't really need to store this as each
@@ -91,6 +97,9 @@ tracy_attach
 tracy_attach attaches to a running process specified by pid.
 
 Returns the structure of the attached child.
+
+Events
+------
 
 tracy_wait_event
 ----------------
@@ -137,17 +146,6 @@ the PTRACE_KILL argument.
 
 Return 0 upon success, -1 upon failure.
 
-check_syscall
--------------
-
-.. TODO REMOVE?
-
-.. code-block:: c
-
-    int check_syscall(struct tracy_event *s);
-
-.. **
-
 get_syscall_name
 ----------------
 
@@ -161,6 +159,9 @@ get_signal_name
 .. code-block:: c
 
     char* get_signal_name(int signal);
+
+Hooks
+-----
 
 tracy_set_hook
 --------------
