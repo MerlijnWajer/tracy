@@ -240,12 +240,6 @@ struct tracy_child *tracy_exec(struct tracy *t, char **argv);
 struct tracy_child *tracy_attach(struct tracy *t, pid_t pid);
 
 /*
- * tracy_attach
- * tracy_fork XXX: ???
- * tracy_fork_exec XXX: ???
- */
-
-/*
  * tracy_add_child
  *
  * tracy_add_child adds a child to tracy's list of children.
