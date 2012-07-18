@@ -66,6 +66,7 @@
 % call,  it  appears  as though the execve(2) occurred in the thread group leader, regardless of which
 % thread did the execve(2).)  This resetting of the thread ID looks very confusing to tracers:
 
+% Misschien pre/post renamen naar syscall entry en exit?
 
 % XXX END NOTES XXX
 
@@ -122,7 +123,7 @@ not heavily reducing functionality, we strive to create a robust and powerful
 API to trace processes in a more platform independent way.
 
 To demonstrate the system call interception, injection and modification
-we introduce Soxy\ref{chapter:soxy}: an application to route network
+we introduce Soxy (Chapter \ref{chapter:soxy}): an application to route network
 traffic through a SOCKS 5 proxy using tracy.
 
 % Oplossing voor problemen zoals:
@@ -178,7 +179,7 @@ other applications with their own library that overwrites specific
 network functionality, thus allowing transparent network routing.
 
 However, because LD\_PRELOAD relies on the dynamic loader and the fact that
-programs have to make use of libraries, LD\_PRELAOD also has several downsides.
+programs have to make use of libraries, LD\_PRELOAD also has several downsides.
 
 One of these downsides is that LD\_PRELOAD simply does not work on all
 applications; some applications do not use the glibc methods and instead
@@ -221,7 +222,7 @@ support is planned.
 
 Aside from functional differences, there are also differences in ptrace
 functionality.
-For example, BSD supports reading or writing a big chuck of the memory
+For example, BSD supports reading or writing a big chunk of the memory
 of the tracee at once using the ptrace API, while Linux only allows
 reading or writing only one processor word at a time.
 On the other hand, Linux has options to automatically trace
@@ -245,7 +246,8 @@ systems often have different uses for each register.
 One would have to find out what register this is on each platform,
 % XXX: Introduceren: Pre en Post system call event? Dit komt eerder niet
 % XXX: voorbij.
-keep track if the current event is a pre- or post-system call event
+keep track if the current event is a pre (entry)- or post(exit)-system
+call event
 \footnote{If the process is about to execute a system call or has just
 executed a system call}, let alone
 perform some extra architecture-specific calls to ensure that the result is
@@ -448,14 +450,29 @@ Appendix \ref{appendix:createtrace}
 
 \subsection{Attaching}
 
+% TODO: How does one attach
+%
+% XXX: Noemen dat we attach ook gebruiken in safe-fork
+
 \section{System call tracing}
 
-% TODO: Meer tracy specifiek maken(?)
+% TODO: Mist nog wat diepte. Hoe krijgen we precies notifications? (waitpid)
+% En wat voor signal (PTRACE_O_TRACESYSGOOD).
+Tracing system calls with \textbf{ptrace(2)} is done by issuing ptrace on the
+tracee with the \textit{PTRACE\_SYSCALL} option, this will make the tracee
+suspend on entry (pre) and exit (post) of the next system call. Resuming a
+suspended tracee is done with the same option. Tracy uses this option on
+all the tracees.
 
+Tracy keeps track of each child; it has to store information about the state
+of the child: will the next stop be a system call entry or exit, or are we
+currently injecting a system call? Aside from those two states, Tracy also
+has to do some other internal bookkeeping.
+% XXX: Bijvoorbeeld, suppress first SIGSTOP
+
+% Meer is niet nodig denk ik, er staat ook een hoop in het event system.
 
 \section{System call modification}
-
-% TODO: Meer tracy specifiek maken(?)
 
 Modifying system calls can be done at two points: before and after the
 system call is executed. Changing the system call ``after'' it has been executed
@@ -470,6 +487,10 @@ execute a completely different system call. This serves two purposes:
 ``denying'' system calls by changing the system call register to a harmless
 system call such as getpid and ``injecting'' system calls by changing the
 system call number and later on the instruction pointer.
+
+
+% TODO: Tracy specifiek stuk hier? Methode namen hoeft niet, maar wellicht wel
+% hoe wij het doen?
 
 \section{Event system}
 
@@ -491,7 +512,7 @@ each system call, the user provides a callback which will be called when
 the related system call occurs. The callback is provided with full access to
 event. The return value of the callback determines the action that tracy
 will take. A callback for signals also exists as well a callback for each
-systemcall that has not been hooked.
+system call that has not been hooked.
 
 \section{System call injection}
 
@@ -502,7 +523,7 @@ a specified tracee, without requiring said tracee to explicity call the
 system call.
 
 Theoretically it is possible to inject a system call at any point during
-the execution (as discussed in section \ref{instant-inject}),
+the execution (as discussed in Section \ref{instant-inject}),
 tracy however can only inject system calls in a pre and post
 system call state. In other words, one can currently only inject system calls
 when a tracee is stopped because it is currently trying to perform a system
@@ -522,7 +543,7 @@ call instruction is known, it is possible to ``jump back'' to the system call
 instruction. % TODO: Add figure with asm + int 0x80 and arrows.
 
 The process of injecting a system call differs per system call state (pre or
-post). Now follows an explanation of system call injection from either state.
+post).
 
 \begin{figure}
     \centering
@@ -533,7 +554,7 @@ post). Now follows an explanation of system call injection from either state.
     \label{fig:injection}
 \end{figure}
 
-
+% TODO: Jump naar pre en post uitleg.
 
 \subsection{Pre-syscall injection}
 
@@ -546,6 +567,31 @@ As seen in figure \ref{fig:pre-inj}
 
 \subsection{Asynchronous injection in Tracy}
 
+Tracy supports asynchronous injection. Typically, when injecting a system call
+in a tracee, tracy waits for the system call that is being injected to complete
+and then restores the tracee to its previous state. This process can be split
+into two stages, readying the tracee to perform a system call and restoring
+the tracee to its original state. No system call returns instantly and it
+may be favourable to perform other tasks rather than waiting for the system
+call to complete.
+
+Asynchronous injection is method to start the injection of a system call in
+some process $A$, and then perform other tasks (such as injecting another
+system call in another process $B$) instead of waiting for the system call
+of $A$ to complete.
+Once process $A$ has finished its (injected) system call, tracy will store
+the return value and restore the process to its original state.
+
+Functionally this makes no difference to the injection of a system call, but
+it does allow tracy to handle the requests of other (suspended) processes
+instead of simply waiting for process $A$ to finish.
+% De performance boost is niet helemaal duidelijk. Ik wil responsive zeggen,m
+% maar dat klinkt ook zo raar. XXX
+
+It should be noted that while asynchronous injection is usually preferred,
+synchronous injection is supported by tracy as well and used in tracy
+internally where asychronous injection simply isn't worth the extra work
+and effort.
 
 \section{Memory access}
 
@@ -617,6 +663,13 @@ tracing the target process, or super-user processes.
 % /proc/<pid>/mem
 % (PEEK|POKE)USER
 
+\section{Signals}
+
+% Hoe haal je signals op? Hoe stuur je signals door naar tracees?
+% ptrace(PTRACE_SYSCALL, data=SIGNAL)
+
+% Rare ptrace signals (PTRACE_EVENT_FORK met PTRACE_O_TRACEFORK etc)
+
 \section{Tracing children}
 
 \subsection{Linux}
@@ -627,13 +680,14 @@ PTRACE\_O\_TRACEVFORK, PTRACE\_O\_TRACEFORK, PTRACE\_O\_TRACECLONE.
 
 % TODO: CLONE_UNTRACED vs PTRACE_O_TRACECLONE
 
+% XXX: TODO: Friends?
 \subsection{Safe execution of fork(2) and friends}
 \label{safe-fork}
 
 On operating systems that do not support the \textit{PTRACE\_O\_TRACE*} options,
 another solution is required to ensure that all children are traced the moment
-they are created. To achieve this, the fork(2)\footnote{and related} system call
-must be executed in a controlled manner.
+they are created. To achieve this, the fork(2)\footnote{and related: vfork,
+clone} system call must be executed in a controlled manner.
 
 To implement this feature, we make use of system call injection as well as the
 ability to be able to allocate and write to pages in the child. We allocate a
@@ -655,7 +709,7 @@ tracing the child of the tracee as well, we can restore the Instruction Pointer
 (or Program Counter) to their original position (that is, just after the
 original fork(2) call) and let both processes continue their execution.
 
-% picture of the process
+% picture of the process. Just use dot.
 
 \subsection{Safe execution with different ABIs}
 \label{safe-abi}
@@ -664,17 +718,19 @@ original fork(2) call) and let both processes continue their execution.
 
 \subsection{Children with threads}
 
+% Hoe werkt resource sharing? CLONE_VM, CLONE_FILES, unshare(2), etc.
+
+
 % Misschien verkeerde titel; maar dit zijn dingen waar we tegen aan liepen.
 % En dingen waar we op moeten letten.
 
-% Eerste SIGSTOP negeren?
-
 \section{Caveats}
 
+% Eerste SIGSTOP negeren?
 
 \subsection{Clone on x86}
 
-% Args switched...
+% Args switched... Waarom? Misschien wel leuk om uit te zoeken.
 
 \subsubsection{Clone on x64}
 
@@ -694,8 +750,9 @@ original fork(2) call) and let both processes continue their execution.
 \chapter{Soxy}
 \label{chapter:soxy}
 
-% socketcall x86 vs native syscalls on x64 in caveats
+% \section{Python bindings} ???
 
+% socketcall x86 vs native syscalls on x64 in caveats
 
 
 
@@ -704,7 +761,7 @@ original fork(2) call) and let both processes continue their execution.
 
 \section{Threaded tracer}
 
-% Threaded tracer. Why? Lots of tracee's doing lots of system calls
+% Threaded tracer. Why? Lots of tracees doing lots of system calls
 % may end up waiting on tracer. Solution: multiple threads that wait().
 
 \section{Secure ABI mixing}
@@ -765,6 +822,14 @@ original fork(2) call) and let both processes continue their execution.
 % strace
 % gdb
 % jail?
+% ltrace? (is niet ptrace based)
+
+
+% Discussie is re-capture van alles weg gezegd hebben
+\chapter{Discussion}
+
+% Performance sectie / chapter ergens?
+% Viability
 
 \bibliography{report}
 
