@@ -750,12 +750,75 @@ original fork(2) call) and let both processes continue their execution.
 \chapter{Soxy}
 \label{chapter:soxy}
 
-% \section{Python bindings} ???
+In order to show the power and features of tracy, as well as finding bugs and
+improving the API, we have developed Soxy, a proxifier \footnote{An
+application which tunnels internet traffic through another server} on top of
+tracy which works solely on existing binaries (that is, executables which do
+not provide such functionality natively.)
+
+Soxy has the unique ability to tunnel all (or a subset of) the network traffic
+created by a process (either a child processes or a running processes) over a
+proxy based on the SOCKS5 \footnote{\href{http://www.ietf.org/rfc/rfc1928.txt}
+{RFC 1928 - SOCKS5 Protocol}} protocol.
+
+The server which will be used as proxy server must be configured to accept and
+tunnel SOCKS5 data. There are several proxy daemons available, including
+\verb=ssh=.
+
+\section{Python bindings}
 
 % socketcall x86 vs native syscalls on x64 in caveats
 
+Besides Soxy, which demonstrates an example usage of the tracy library, we
+also provide Python bindings, allowing rapid development of applications
+which utilize tracy. As a matter of facts, Soxy has been implemented using the
+Python bindings, ensuring the correctness and efficiency of these bindings.
 
+The Python bindings provide a similar, but even easier, API for using tracy.
 
+For example, a pre-syscall hook on \textit{write} which duplicates the write
+system call (i.e. write the same string twice) looks like the following.
+
+\begin{lstlisting}
+def hook_write(child, event, args):
+    if child.pre:
+        child.inject(args.syscall, args)
+\end{lstlisting}
+
+\section{Soxy Internals}
+
+\subsection{SOCKS5}
+
+Complete documentation of the SOCKS5 algorithm can be found in
+RFC 1928 \footnote{\href{http://www.ietf.org/rfc/rfc1928.txt}
+{RFC 1928 - SOCKS5 Protocol}}. However, the global flow is as follows (for
+TCP connections.)
+
+\begin{itemize}
+\item Application connects to the Proxy Server
+\item Optionally the application performs some sort of authentication
+\item A request containing the destination address is sent
+\item Server replies with success or failure
+\item Proxy connection has been established
+\end{itemize}
+
+After the proxy connection has been established, the protocol does not need
+any further work, because all incoming and outgoing traffic goes through the
+proxy server.
+
+\subsection{Implementation}
+
+Soxy implements the SOCKS5 protocol as follows, using hooks on the
+\textit{socket} and \textit{connect} system calls. When a
+socket is created, using the socket system call, Soxy determines whether the
+socket is TCP or UDP based. Following, when the socket attempts to connect to
+another machine, using the connect system call, Soxy injects a few system
+calls in order to connect to the proxy server, authenticate, and establish the
+proxy connection.
+
+\subsection{Asynchronous Sockets}
+
+\subsection{Proxifying UDP Traffic}
 
 \chapter{Future work}
 
