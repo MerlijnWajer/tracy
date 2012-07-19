@@ -1,9 +1,10 @@
-Hours worked: 214 (Approximately...)
+Hours worked: 267 (Approximately...)
 
 Proposal:   15 hours.
 
 Documentation:
     -   Sphinx: 15 hours.
+    -   Documentation for tracy: 5 hours (15 July - 19 July)
 
 Meetings:
     -   2 x 2 hours.
@@ -29,12 +30,13 @@ Code: (Time spent writing only)
     -   Signals: A study in man ptrace: 4 hours. (18 May)
     -   Bash bug: 2 hours. (11 June)
     -   safe-fork-fix-1: clone quirks: 8 hours. (13-15 June)
+    -   Source clean up and fixes: 5 hours. (15 July - 16 July)
 
 Report:
     -   Initial work on report: 25 hours. (16 March - 1 April)
     -   Bibliography, more work on the report: 4 hours. (21 June - 24 June)
     -   More text in the report: 4 hours.  (04 July - 06 July)
-
+    -   Fixes, Ch. 3, Ch. 5: 25 hours. (15 July - 19 July)
 
 Tracy tests:
     -   Loggy: 3 hours. (11 March)
