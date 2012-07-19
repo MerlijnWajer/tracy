@@ -653,7 +653,6 @@ int tracy_main(struct tracy *tracy) {
     signal(SIGINT, _main_interrupt_handler);
 
     while (main_loop_go_on) {
-        start:
         e = tracy_wait_event(tracy, -1);
         if (!e) {
             fprintf(stderr, "tracy_main: tracy_wait_Event returned NULL\n");
@@ -696,7 +695,7 @@ int tracy_main(struct tracy *tracy) {
             }
 
             tracy_remove_child(e->child);
-            goto start;
+            continue;
         }
 
         if (!tracy_children_count(tracy)) {
