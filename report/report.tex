@@ -427,6 +427,7 @@ immediately trace children on non-Linux platforms:
 We provide a solution to this problem in tracy such that any children spawned
 by the tracee will not run uncontrolled on any platform in Section \ref{safe-fork}.
 
+
 \chapter{Implementation}
 
 \section{Tracing a process}
@@ -675,8 +676,9 @@ tracing the target process, or super-user processes.
 \subsection{Linux}
 
 Linux 2.6 and onwards offer options to automatically trace all children
-created by fork(2), vfork(2) and clone(2). Respectively:
-PTRACE\_O\_TRACEVFORK, PTRACE\_O\_TRACEFORK, PTRACE\_O\_TRACECLONE.
+created by \textbf{fork(2)}, \textbf{vfork(2)} and \textbf{clone(2)}.
+Respectively: PTRACE\_O\_TRACEVFORK, PTRACE\_O\_TRACEFORK,
+PTRACE\_O\_TRACECLONE.
 
 % TODO: CLONE_UNTRACED vs PTRACE_O_TRACECLONE
 
@@ -686,30 +688,36 @@ PTRACE\_O\_TRACEVFORK, PTRACE\_O\_TRACEFORK, PTRACE\_O\_TRACECLONE.
 
 On operating systems that do not support the \textit{PTRACE\_O\_TRACE*} options,
 another solution is required to ensure that all children are traced the moment
-they are created. To achieve this, the fork(2)\footnote{and related: vfork,
-clone} system call must be executed in a controlled manner.
+they are created. To achieve this, the \textbf{fork(2)}
+\footnote{and related: vfork, clone} system call must be executed in a
+controlled manner.
 
 To implement this feature, we make use of system call injection as well as the
 ability to be able to allocate and write to pages in the child. We allocate a
 page in the child and write a few lines of assembly that will safely execute
-fork(2) to the page. Once this is done, we deny the initial fork(2) call by
-changing the system call to getpid(2). In the POST-getpid callback, we change
-the Instruction Pointer (or Program Counter) to the first instruction in the
-newly allocated page. Once the tracee starts executing the instructions in this
-page, it will once again execute a system call - fork(2) in this case, and this
-time we allow the call to proceed. However, after the fork(2) and we stored the
-result of the call (pid), both the tracee and the child execute the rest of the
-instructions in the page. The only other instructions in the page are a busy
-while loop that calls the sched\_yield(2) system call. Now that both the tracee
-and the child of the tracee are caught in this while loop.
+\textbf{fork(2)} to the page. Once this is done, we deny the initial
+\textbf{fork(2)} call by changing the system call to \textbf{getpid(2)}.
+In the POST-getpid callback, we change the Instruction Pointer
+(or Program Counter) to the first instruction in the newly allocated page.
+Once the tracee starts executing the instructions in this
+page, it will once again execute a system call - \textbf{fork(2)} in this case,
+and this time we allow the call to proceed. However, after the \textbf{fork(2)}
+and we stored the result of the call (pid), both the tracee and the child
+execute the rest of the instructions in the page. The only other instructions
+in the page are a busy while loop that calls the \textbf{sched\_yield(2)}
+system call. Now that both the tracee and the child of the tracee are caught
+in this while loop.
 
 At this moment, we are still only tracing the tracee, but we can now use the
 ``attach'' mechanism of ptrace to attach to the child of our tracee. Once we are
 tracing the child of the tracee as well, we can restore the Instruction Pointer
 (or Program Counter) to their original position (that is, just after the
-original fork(2) call) and let both processes continue their execution.
+original \textbf{fork(2)} call) and let both processes continue their execution.
 
 % picture of the process. Just use dot.
+%
+% Assembly hier includen?
+% Signals e.d. hier noemen?
 
 \subsection{Safe execution with different ABIs}
 \label{safe-abi}
@@ -779,7 +787,7 @@ The Python bindings provide a similar, but even easier, API for using tracy.
 For example, a pre-syscall hook on \textit{write} which duplicates the write
 system call (i.e. write the same string twice) looks like the following.
 
-\begin{lstlisting}
+\begin{lstlisting}[language=Python]
 def hook_write(child, event, args):
     if child.pre:
         child.inject(args.syscall, args)
@@ -791,8 +799,8 @@ def hook_write(child, event, args):
 
 Complete documentation of the SOCKS5 algorithm can be found in
 RFC 1928 \footnote{\href{http://www.ietf.org/rfc/rfc1928.txt}
-{RFC 1928 - SOCKS5 Protocol}}. However, the global flow is as follows (for
-TCP connections.)
+{RFC 1928 - SOCKS5 Protocol}}. The global flow for TCP connections
+is as follows.
 
 \begin{itemize}
 \item Application connects to the Proxy Server
@@ -824,19 +832,126 @@ proxy connection.
 
 \section{Threaded tracer}
 
-% Threaded tracer. Why? Lots of tracees doing lots of system calls
-% may end up waiting on tracer. Solution: multiple threads that wait().
+As the number of tracees for a single tracy instance increases, the
+likelyhood of tracy becoming a bottleneck increases. Since tracy is
+single threaded, it is very possible a lot of tracees will have to wait
+on tracy to perform a system call. \\
+
+We believe that it is possible to add multithreading support to tracy where
+each thread can perform its own \textbf{waitpid(2)}. Access to certain
+datastructures in tracy will have to be guarded with semaphores, but
+we think multithreading will be both viable to program and an effective
+wait to increase the performance of tracy with a lot of tracees.
 
 \section{Secure ABI mixing}
 \label{secure-abi}
+
+% link to AMD ?
+% link to arm? explain oabi and eabi?
+% Explain ABI (before this chapter?)
+On some platforms such as AMD64 and ARM Linux implements several ABIs.
+These ABIs are sometimes invoked differently (as is the case with AMD64)
+and it is not easy to tell what ABI is being used to issue the system call.
+The problem here is that each ABI (sometimes) has different system call
+numbers, which means that \textbf{read(2)} on AMD64 ABI is not the same
+as the 32 bit ABI on the AMD64 platform. Tracy currently always assumes
+a x86\_64 ABI. This is not just a functional issue (not being able to
+properly identify a 32 bit ABI system call) but a security problem because it
+allows any tracee to ``fake'' tracy into thinking it is doing system call $A$
+where it is in fact doing system call $B$; tracy will not call the proper hook
+function and (if told to do so) may deny the wrong system call or even worse,
+not deny the system call at all. \\
+
+In a sense not being able to identify the system call ABI can be seen as a
+limitation of the Linux \textbf{ptrace(2)} API. It should be possible to
+integrate support for identifying the system call ABI in the Linux kernel
+by using a system that is already in place: the \textit{PTRACE\_O\_TRACESYSGOOD}
+extension. If \textit{PTRACE\_O\_TRACESYSGOOD} is enabled, the kernal sets bit 7
+of the signal being delivered to the tracer; this makes it easier to distinguish
+between a normal \textit{SIGTRAP} signal and a trap caused by a system call of
+a tracee. The kernel could expose (and set) another bit (or more) which would
+indicate the ABI of the current system call.
+
+However, a kernel change is not an immediate solution and would require all
+users of tracy to install a very recent Linux kernel or even apply a patch
+to their current kernel. \\
+
+Another solution to the problem of identifying the ABI of the current
+system call would be to read the current assembly instruction. AMD64 uses a
+different instruction to perform a system call than the 32 bit ABI; which
+means we can use that instruction to differentiate the two ABIs. There are a
+few caveats however: it is possible that the instruction in the program (memory)
+and the instruction in the cpu pipeline are not the same; a program could use
+another thread to intentionally whipe out or change the instruction that was
+used to invoke the system call, which would result in tracy reading a faulty
+or fake instruction. \\
+
+To prevent another thread in the process to change the instruction we can
+use the \textbf{mprotect(2)} system call to mark the memory as read and execute
+only (not writable), which would make it impossible to change the contents of
+the memory without calling \textbf{mprotect(2)} to mark the memory as writable.
+Calling \textbf{mprotect(2)} from a tracee will however be noticed by tracy,
+upon which tracy can take appropriate actions (such as allow the memory to be
+written but mark it read and execute only after the write has occured and make
+sure the cpu pipeline has is flushed by calling jmp).
+
+One could even go as far as cache the system call instructions of each tracee
+so they do not have to be read again until a tracee changes its own
+instructions.
+
+Even though now yet supporting identifying the ABIs is a serious security issue,
+it is also mainly important when someone wants to be completely sure that every
+single system call is traced. Most programs also do not usually modify their
+own instructions; nor do they create their own instructions (JITs do)
+% XXX: JIT reference, Java is jit, ofc, firefox js etc
+that perform 32 bit system calls in a 64 bit process.
+
+% A solution to this problem would be support from the Linux kernel; a way to
+% get the mode of the current system call, the best way would be to deliver this
+% information in the system call trap signal when using the
+% \textit{PTRACE\_O\_TRACESYSGOOD} option. However, this requires kernel changes
+% and is therefore not an immediate solution.
+%
+% Another solution would be to analyse the assembly instruction that was used to
+% perform the system call. On x86 a system call is performed with the
+% \textit{int 0x80} instruction whereas a x86-64 instruction is performed with
+% the \textit{syscall} instruction. To prevent a race condition similar to the
+% one presented and solved in \cite{Noordende_asecure}, the memory pages should
+% be either writable, or readeable and executable. This way we can assure that
+% the prisoner does not quickly change the instruction in another thread -
+% before we read but after the initial system call has been made. Another 
+% advantage of this approach it is possible to ``cache'' the system call
+% instruction. Because it is not possible to change the instruction without
+% changing the permissions of the memory. It is possible to temporarily give
+% write access to the memory and then update the system call instruction cache.
+
 
 % Making sure that we catch all system calls made, even when ABIs are mixed
 % (32 bit ABI on 64 bit, etc). This should be fixed in the Linux Kernel though.
 
 \section{BSD Support}
 
-% Arguments on stack.
-% Needs safe-fork, but also with rfork(2).
+Support for Tracy on the BSD variants is planned, but will require some
+additional work. We have not extensively examined \textbf{ptrace(2)} and
+system calls in general on BSD variants, but a few things jumped out. \\
+
+BSD uses \textbf{rfork(2)} instead of \textbf{clone(2)} and BSD also does
+not support automatically tracing processes created by a tracee. While
+we can emulate this effectively with tracy's safe fork
+Section(\ref{safe-fork}) it will still require some work.
+
+Apart from this functional difference, there is also a difference in
+how BSD variants treat the system call arguments. Arguments of a system
+call are pushed onto the stack (the last parameter is pushed first).
+\cite{int80h}
+
+Alternatively, if Linux emulation is enabled, BSD variants (at least FreeBSD)
+also support the Linux way of system calls, by passing the arguments in
+registers in the same manner as Linux.
+
+BSD also returns errors differently than Linux (although again, it supports
+Linux emulation). BSD sets the ``carry flag'' upon failure, whereas Linux
+returns a negative value upon error.
 
 \section{Memory sharing between tracer and tracee}
 \label{memory-share}
@@ -846,7 +961,34 @@ proxy connection.
 \section{Instant injection using signals}
 \label{instant-inject}
 
-% kill(2) with SIGTRAP and just do stuff.
+An interesting addition to tracy would be the ability to inject a system call
+even when a tracee is not performing a system call: that is, when the tracee
+is not stopped. We can simply stop the tracee by sending it a signal will
+\textbf{kill(2)}; which will automatically suspend the tracee as
+\textbf{ptrace(2)} gives us complete control over the tracee.
+So, before the signal is actually recieved by the tracee, we have control
+over the tracee and we can resume it later while supressing the signal that
+should never be delivered as we only send the signal to suspend the tracee and
+gain control.
+
+Once the tracee is suspended, we can jump to some previously crafted assembly
+similar to our safe fork code (Section \ref{safe-fork}), and execute a system
+call by simplying invoking the system call instruction and modifying the
+arguments and system call instruction in tracy. Once the system call
+has completed we can store the return code and jump back to the original code,
+and the finally resume the tracee.
+
+The process just described can also be used to inject system calls
+in the signal hook exposed by tracy.
+
+While it would not be too hard to implement support for this particular
+feature, we have postponed the feature due to time constraints. We also
+did not find the feature particularly useful because tracy is event based,
+which means that in most cases the tracee is already stopped.
+
+% XXX: Dit kan onhandig zijn in combinatie met threaded tracing. Wat als
+% we een signal sturen en een andere thread die afvangt?
+
 
 %\textit{Netjes uitschrijven.}
 %\begin{itemize}
