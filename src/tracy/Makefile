@@ -2,12 +2,16 @@
 
 CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror -pipe
 CFLAGS+=-D_POSIX_SOURCE -D_GNU_SOURCE
-CFLAGS+=-ggdb -pthread
+CFLAGS+=-pthread
 
 LDFLAGS+=-rdynamic -pthread
 #CFLAGS+=-O2
 #CFLAGS+=-m32
 #LDFLAGS+=-m32
+
+build ?= debug
+
+include Makerules
 
 TRACY_HS=tracy.h ll.h tracyarch.h
 TRACY_OS=tracy.o tracy-mem.o tracy-safe-fork.o tracy-modification.o \
