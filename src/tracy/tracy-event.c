@@ -498,7 +498,17 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         goto start;
         /*return tracy_wait_event(t, c_pid);*/
 
-    } else if (signal_id == SIGSTOP && !s->child->received_first_sigstop) {
+    } else if (signal_id == SIGSTOP && (t->opt & TRACY_TRACE_CHILDREN) &&
+        !(t->opt & TRACY_USE_SAFE_TRACE) && !s->child->received_first_sigstop) {
+        /* We ignore the first SIGSTOP signal when
+         * PTRACE_O_TRACE{VFORK,FORK,CLONE are used, because on process creation
+         * Linux starts the processes with a SIGSTOP signal. From the manpage:
+         *
+         *    PTRACE_O_TRACEFORK (since Linux 2.5.46)
+         *           Stop  the  tracee at the next fork(2) and automatically
+         *           start tracing the newly forked process, which will start
+         *           with a SIGSTOP.
+         */
         if (TRACY_PRINT_SIGNALS(t))
             fprintf(stderr, "SIGSTOP ignored: pid = %d\n", pid);
 
