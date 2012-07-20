@@ -463,6 +463,9 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             }
         }
 
+    /* TODO: SIGSTOP-ignore should perhaps also be in this piece of code.
+     * TRACE_O_TRACEFORK etc. send a SIGSTOP upon creation of a new
+     * child */
     } else if (signal_id == SIGTRAP) {
         if (t->opt & TRACY_VERBOSE) {
             /* XXX We probably want to move most of this logic out of the
@@ -498,6 +501,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         goto start;
         /*return tracy_wait_event(t, c_pid);*/
 
+    /* TODO: Merge this with the SIGSTOP status checking code above */
     } else if (signal_id == SIGSTOP && (t->opt & TRACY_TRACE_CHILDREN) &&
         !(t->opt & TRACY_USE_SAFE_TRACE) && !s->child->received_first_sigstop) {
         /* We ignore the first SIGSTOP signal when
