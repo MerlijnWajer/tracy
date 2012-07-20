@@ -215,7 +215,7 @@ implementation differs per platform.
 % XXX: Dit hieronder is fout. We vangen wel alles af; maar we weten niet of
 % het nummer 32 of 64 bit is.
 To actually catch every single system call made by a process one has to
-perform all sorts of tricks\ref{safe-abi}, depending on the operating system and
+perform all sorts of tricks\ref{secure-abi}, depending on the operating system and
 architecture. Tracy currently does not implement all of these tricks, but
 support is planned.
  % TODO all kinds of tricks, link to caveats section in our paper.
@@ -299,7 +299,8 @@ can still change the value are bad ideas.
 The first interferes with the normal execution of the process
 (although this may be exactly what the programmer wants) and the second is
 sensitive to race conditions. A solution is presented in
-\cite{Noordende_asecure}.
+\cite{Noordende_asecure} and the feature in tracy is planned (Section
+\ref{memory-share}).
 
 Tracy has functionality to allocate memory in the
 tracee which itself cannot write but only read; thus allowing the controlling
@@ -666,12 +667,31 @@ tracing the target process, or super-user processes.
 
 \section{Signals}
 
-% Hoe haal je signals op? Hoe stuur je signals door naar tracees?
-% ptrace(PTRACE_SYSCALL, data=SIGNAL)
+Tracy obtains information about the signals directly from the
+\textbf{waitpid(2)} call. The waitpid call has an argument called
+\textit{status} which contains the information about the signal that was
+recieved. Retrieving the signal sent to the tracee is done using the
+\textbf{WSTOPSIG} macro. \\
 
-% Rare ptrace signals (PTRACE_EVENT_FORK met PTRACE_O_TRACEFORK etc)
+To pass a signal to a tracee, tracy passes the signal number as data
+argument to the ptrace \textit{PTRACE\_SYSCALL} api call. This will
+resume the execution of the tracee with said signal. If the data is
+left at zero, no signal will be delivered. This makes it possible to
+suppress certain signals by simply not passing them along to the tracee.
+
+% We could also talk about PTRACE_O_TRACEEXEC and PTRACE_O_TRACEVFORKDONE
+% and PTRACE_O_TRACEEXIT
+
+\subsection{Caveats}
+
+When the feature to automatically trace newly created children in Linux
+is turned on, every new child will initially be send a \textit{SIGSTOP}
+signal. For this reason, tracy suppresses the first SIGSTOP that is sent
+to a newly create tracee if the automatically trace option is enabled.
 
 \section{Tracing children}
+
+% TODO: This can't be empty
 
 \subsection{Linux}
 
@@ -715,12 +735,10 @@ tracing the child of the tracee as well, we can restore the Instruction Pointer
 original \textbf{fork(2)} call) and let both processes continue their execution.
 
 % picture of the process. Just use dot.
-%
-% Assembly hier includen?
-% Signals e.d. hier noemen?
 
-\subsection{Safe execution with different ABIs}
-\label{safe-abi}
+% Assembly hier includen?
+% Signals e.d. hier noemen? Hoe we die gebruiken voor het verkrijgen van het pid
+% bij vfork.
 
 %
 
@@ -734,15 +752,15 @@ original \textbf{fork(2)} call) and let both processes continue their execution.
 
 \section{Caveats}
 
-% Eerste SIGSTOP negeren?
+% TODO Dit mag niet leeg zijn.
 
-\subsection{Clone on x86}
+\subsection{Clone(2)}
 
-% Args switched... Waarom? Misschien wel leuk om uit te zoeken.
+The Linux specific \textbf{clone(2)} system call is a bit problematic, for
+several reasons.
 
-\subsubsection{Clone on x64}
-
-% Argument minder dan x86
+% x86: Args switched... Waarom? Misschien wel leuk om uit te zoeken.
+% x64: Argument minder dan x86
 
 \subsection{vfork}
 
@@ -750,6 +768,8 @@ original \textbf{fork(2)} call) and let both processes continue their execution.
 
 % FIXME title sucks
 \subsection{32 bit ABI on 64 bit}
+
+% Future work entry. Willen we het hier ook nog? (Ja, kort)
 
 % Hoe detect je de mode? Dat is het probleem.
 % Beetje hetzelfde als Safe execution with diff ABIs
@@ -846,6 +866,8 @@ wait to increase the performance of tracy with a lot of tracees.
 \section{Secure ABI mixing}
 \label{secure-abi}
 
+
+% TODO: integrate https://en.wikipedia.org/wiki/W%5EX
 % link to AMD ?
 % link to arm? explain oabi and eabi?
 % Explain ABI (before this chapter?)
@@ -905,29 +927,6 @@ single system call is traced. Most programs also do not usually modify their
 own instructions; nor do they create their own instructions (JITs do)
 % XXX: JIT reference, Java is jit, ofc, firefox js etc
 that perform 32 bit system calls in a 64 bit process.
-
-% A solution to this problem would be support from the Linux kernel; a way to
-% get the mode of the current system call, the best way would be to deliver this
-% information in the system call trap signal when using the
-% \textit{PTRACE\_O\_TRACESYSGOOD} option. However, this requires kernel changes
-% and is therefore not an immediate solution.
-%
-% Another solution would be to analyse the assembly instruction that was used to
-% perform the system call. On x86 a system call is performed with the
-% \textit{int 0x80} instruction whereas a x86-64 instruction is performed with
-% the \textit{syscall} instruction. To prevent a race condition similar to the
-% one presented and solved in \cite{Noordende_asecure}, the memory pages should
-% be either writable, or readeable and executable. This way we can assure that
-% the prisoner does not quickly change the instruction in another thread -
-% before we read but after the initial system call has been made. Another 
-% advantage of this approach it is possible to ``cache'' the system call
-% instruction. Because it is not possible to change the instruction without
-% changing the permissions of the memory. It is possible to temporarily give
-% write access to the memory and then update the system call instruction cache.
-
-
-% Making sure that we catch all system calls made, even when ABIs are mixed
-% (32 bit ABI on 64 bit, etc). This should be fixed in the Linux Kernel though.
 
 \section{BSD Support}
 
