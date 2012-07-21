@@ -193,7 +193,7 @@ provided libraries such as glibc.
 There are some upcoming languages that do not even use glibc at all - languages
 like Go \cite{golang} talk to the kernel directly and thus perform their
 system calls by calling the kernel directly instead of
-reyling on (g)libc functions which would in turn call the kernel.
+relying on (g)libc functions which would in turn call the kernel.
 
 LD\_PRELOAD is not a viable solution when one wants to transparently capture
 all (specific) system calls of a process, independent on what kind of
@@ -214,11 +214,10 @@ implementation differs per platform.
 
 % XXX: Dit hieronder is fout. We vangen wel alles af; maar we weten niet of
 % het nummer 32 of 64 bit is.
-To actually catch every single system call made by a process one has to
-perform all sorts of tricks\ref{secure-abi}, depending on the operating system and
-architecture. Tracy currently does not implement all of these tricks, but
-support is planned.
- % TODO all kinds of tricks, link to caveats section in our paper.
+To actually accurately catch every single system call made by a process one has
+to perform all sorts of tricks\ref{secure-abi}, depending on the operating
+system and architecture. Tracy currently does not implement all of these
+tricks, but support is planned.
 
 Aside from functional differences, there are also differences in ptrace
 functionality.
@@ -243,9 +242,9 @@ systems often have different uses for each register.
 % Dit is niet te veel detail, het is een realisatie van echte ptrace problemen
 % en een goede inleiding naar de volgende alineas - namelijk dat ptrace niet
 % geschikt is om direct te gebruiken en dat tracy veel beter is.
-One would have to find out what register this is on each platform,
 % XXX: Introduceren: Pre en Post system call event? Dit komt eerder niet
 % XXX: voorbij.
+One would have to find out what register this is on each platform,
 keep track if the current event is a pre (entry)- or post(exit)-system
 call event
 \footnote{If the process is about to execute a system call or has just
@@ -286,11 +285,11 @@ and in the future safely tracing children on BSD)
 Tracy introduces an API that allows a programmers to hook into specific system
 calls, rather than every system call as is the case with ptrace.\footnote{Of
 course, under the hood tracy will have to handle every system call, whether
-the system call is hooked or not. We propose a fix to this problem in FOO}% XXX
-tracy also has both a synchronous and asynchronous injection API (which
-will be discussed in more detail later on) and tracy keeps track of the state of
-a system call - if it is an event generated before a system call is executed; or
-after a system call is executed.
+the system call is hooked or not. We propose a fix to this problem in
+Section \ref{ptrace-perf}} tracy also has both a synchronous and asynchronous
+injection API (which will be discussed in more detail later on) and tracy keeps
+track of the state of a system call - if it is an event generated before a
+system call is executed; or after a system call is executed.
 
 It is often important to change arguments to a system call in a process that is
 being traced; to safely change these additional hacks are required;
@@ -428,7 +427,6 @@ immediately trace children on non-Linux platforms:
 We provide a solution to this problem in tracy such that any children spawned
 by the tracee will not run uncontrolled on any platform in Section \ref{safe-fork}.
 
-
 \chapter{Implementation}
 
 \section{Tracing a process}
@@ -442,10 +440,10 @@ and then \textbf{execve(2)} another process.
 
 As explained in the previous section, the parent issues a \textbf{fork(2)} call.
 The child then performs a \textbf{ptrace(2)} call, with the
-\textbf{PTRACE\_TRACEME} argument. The child then raises \textbf{SIGTRAP};
+\textit{PTRACE\_TRACEME} argument. The child then raises \textit{SIGTRAP};
 because the child is being traced by its parent, the child is then suspended
 until the parent performs a \textbf{wait(2)} followed by a call to ptrace to
-continue the process with the \textbf{PTRACE\_SYSCALL} argument to
+continue the process with the \textit{PTRACE\_SYSCALL} argument to
 \textbf{ptrace(2)}. The parent can inspect and change the child before it issues
 the continue call. The code demonstrating this can be found in
 Appendix \ref{appendix:createtrace}
@@ -480,7 +478,7 @@ Modifying system calls can be done at two points: before and after the
 system call is executed. Changing the system call ``after'' it has been executed
 does not undo the effect of said system call, but it allows the tracer to change
 result values of the system call.
-\footnote{The tracer can ofcourse change every register and the memory of the
+\footnote{The tracer can of course change every register and the memory of the
 tracee at any point when the tracee is suspended.}
 Changing values before the system call is executed is more exciting, as it
 allows the tracer to actually \textit{change} the system call. For example, by
@@ -495,6 +493,7 @@ system call number and later on the instruction pointer.
 % hoe wij het doen?
 
 \section{Event system}
+\label{event-system}
 
 Tracy is uses event-based system to report on activities on a tracee. This is
 particularly fitting as the \textbf{waitpid(2)} call blocks until an event
@@ -509,7 +508,7 @@ for asynchronous injection and may be used for other features in the future.
 
 \subsection{System call hooks}
 
-Users of the tracy libary can hook specific and even all system calls. For
+Users of the tracy library can hook specific and even all system calls. For
 each system call, the user provides a callback which will be called when
 the related system call occurs. The callback is provided with full access to
 event. The return value of the callback determines the action that tracy
@@ -521,7 +520,7 @@ system call that has not been hooked.
 Tracy supports injection system calls into any process that is being traced.
 
 The injection of a system call is the process of executing a system call in
-a specified tracee, without requiring said tracee to explicity call the
+a specified tracee, without requiring said tracee to explicitly call the
 system call.
 
 Theoretically it is possible to inject a system call at any point during
@@ -592,7 +591,7 @@ instead of simply waiting for process $A$ to finish.
 
 It should be noted that while asynchronous injection is usually preferred,
 synchronous injection is supported by tracy as well and used in tracy
-internally where asychronous injection simply isn't worth the extra work
+internally where asynchronous injection simply isn't worth the extra work
 and effort.
 
 \section{Memory access}
@@ -605,7 +604,7 @@ contents to monitoring, changing or even injecting new system calls with
 completely stand-alone data. Furthermore, in case of IO intensive operation
 this access should be fairly fast as well.
 
-Unfortunately as with most functions prace provides, memory access standards
+Unfortunately as with most functions ptrace provides, memory access standards
 differ from operating system to operating system and are also
 affected by architectural quirks. Tracy tries to hide these differences and
 provide a uniform, fast way to access memory.
@@ -670,7 +669,7 @@ tracing the target process, or super-user processes.
 Tracy obtains information about the signals directly from the
 \textbf{waitpid(2)} call. The waitpid call has an argument called
 \textit{status} which contains the information about the signal that was
-recieved. Retrieving the signal sent to the tracee is done using the
+received. Retrieving the signal sent to the tracee is done using the
 \textbf{WSTOPSIG} macro. \\
 
 To pass a signal to a tracee, tracy passes the signal number as data
@@ -697,12 +696,12 @@ to a newly create tracee if the automatically trace option is enabled.
 
 Linux 2.6 and onwards offer options to automatically trace all children
 created by \textbf{fork(2)}, \textbf{vfork(2)} and \textbf{clone(2)}.
-Respectively: PTRACE\_O\_TRACEVFORK, PTRACE\_O\_TRACEFORK,
-PTRACE\_O\_TRACECLONE.
+Respectively: \textit{PTRACE\_O\_TRACEVFORK}, \textit{PTRACE\_O\_TRACEFORK},
+\textit{PTRACE\_O\_TRACECLONE}.
 
 % TODO: CLONE_UNTRACED vs PTRACE_O_TRACECLONE
 
-% XXX: TODO: Friends?
+% XXX: Friends?
 \subsection{Safe execution of fork(2) and friends}
 \label{safe-fork}
 
@@ -746,10 +745,41 @@ original \textbf{fork(2)} call) and let both processes continue their execution.
 
 % Hoe werkt resource sharing? CLONE_VM, CLONE_FILES, unshare(2), etc.
 
+% Introductie naar threads. Wat beschrijft een thread nu?
+
+
+% Threads op Linux zijn processes die bepaalde resources sharen (CLONE_VM,
+% CLONE_FILES).
+
+% Waar wordt aangegeven wat ze delen? Hoe kan je dingen ``on delen''? (unshare)
+
+% Hoe kan je in Tracy threads detecteren? (TID group, etc)
+
+\section{Performance in ptrace(2)}
+\label{ptrace-perf-problems}
+
+When a tracee performs a lot of system calls, the overhead of \textbf{ptrace(2)}
+becomes very noticeable. The main issue is that for every system call the kernel
+has to perform four context switches. The first one is suspending the tracee
+and replacing the tracee with the tracer (tracy), then tracy issues a few
+(at least two) system calls, the kernel resumes the tracee (another context
+switch); once the system call of the tracee is completed, the tracee is
+suspended again and the tracer takes over (context switch number three),
+again performing at least two ptrace system calls and finally the tracee
+is resumed again (context switch number four). This entire process is
+repeated for every system call, be it the inexpensive \textbf{read(2)}
+system call or the fairly expensive \textbf{clone(2)} system call, they're
+all a lot slower for the tracee due to this overhead of suspending and
+resuming the tracee. The main issue here is that \textbf{ptrace(2)} does
+not allow the reporting of specific system calls only - the tracer has
+to handle every single system call event, even if the tracer will take no
+other action than resume the tracee on most of the system calls.
+
+We present a (theoretical) solution to this problem in
+Section \ref{ptrace-perf}.
 
 % Misschien verkeerde titel; maar dit zijn dingen waar we tegen aan liepen.
 % En dingen waar we op moeten letten.
-
 \section{Caveats}
 
 % TODO Dit mag niet leeg zijn.
@@ -757,7 +787,13 @@ original \textbf{fork(2)} call) and let both processes continue their execution.
 \subsection{Clone(2)}
 
 The Linux specific \textbf{clone(2)} system call is a bit problematic, for
-several reasons.
+several reasons. The clone system call interface differs per architecture;
+on x86 clone has one argument extra compared to AMD64; and Linux on x86
+also \textit{switches} two registers
+\footnote{This can be observed in \textit{arch/x86/kernel/entry\_32.S}
+and \textit{arch/x86/kernel/process.c}}.
+
+ % XXX: Welke ook alweer
 
 % x86: Args switched... Waarom? Misschien wel leuk om uit te zoeken.
 % x64: Argument minder dan x86
@@ -768,6 +804,10 @@ several reasons.
 
 % FIXME title sucks
 \subsection{32 bit ABI on 64 bit}
+
+As of yet, tracy does not support running 32 bit tracees with a 64 bit
+tracy instance.
+% XXX TODO
 
 % Future work entry. Willen we het hier ook nog? (Ja, kort)
 
@@ -904,7 +944,7 @@ different instruction to perform a system call than the 32 bit ABI; which
 means we can use that instruction to differentiate the two ABIs. There are a
 few caveats however: it is possible that the instruction in the program (memory)
 and the instruction in the cpu pipeline are not the same; a program could use
-another thread to intentionally whipe out or change the instruction that was
+another thread to intentionally wipe out or change the instruction that was
 used to invoke the system call, which would result in tracy reading a faulty
 or fake instruction. \\
 
@@ -914,7 +954,7 @@ only (not writable), which would make it impossible to change the contents of
 the memory without calling \textbf{mprotect(2)} to mark the memory as writable.
 Calling \textbf{mprotect(2)} from a tracee will however be noticed by tracy,
 upon which tracy can take appropriate actions (such as allow the memory to be
-written but mark it read and execute only after the write has occured and make
+written but mark it read and execute only after the write has occurred and make
 sure the cpu pipeline has is flushed by calling jmp).
 
 One could even go as far as cache the system call instructions of each tracee
@@ -965,14 +1005,14 @@ even when a tracee is not performing a system call: that is, when the tracee
 is not stopped. We can simply stop the tracee by sending it a signal will
 \textbf{kill(2)}; which will automatically suspend the tracee as
 \textbf{ptrace(2)} gives us complete control over the tracee.
-So, before the signal is actually recieved by the tracee, we have control
-over the tracee and we can resume it later while supressing the signal that
+So, before the signal is actually received by the tracee, we have control
+over the tracee and we can resume it later while suppressing the signal that
 should never be delivered as we only send the signal to suspend the tracee and
 gain control.
 
 Once the tracee is suspended, we can jump to some previously crafted assembly
 similar to our safe fork code (Section \ref{safe-fork}), and execute a system
-call by simplying invoking the system call instruction and modifying the
+call by simply invoking the system call instruction and modifying the
 arguments and system call instruction in tracy. Once the system call
 has completed we can store the return code and jump back to the original code,
 and the finally resume the tracee.
@@ -1006,6 +1046,45 @@ which means that in most cases the tracee is already stopped.
 
 \section{Improving ptrace(2) performance}
 \label{ptrace-perf}
+
+As previously discussed in Section \ref{ptrace-perf-problems}, the overhead
+of \textbf{ptrace(2)} is very noticeable when a tracee performs a lot of
+small and inexpensive system calls - they suddenly become very expensive.
+
+The problem boils down to the fact that \textbf{ptrace(2)} currently
+has no mechanism which allows the tracer to only get notified on specific
+system calls, so that other system calls can execute without requiring
+intervention from the tracer.
+
+It then follows that this performance
+issue can be solved by adding such an API to the Linux kernel. \\
+% TODO: We kunnen SECCOMP referencen.
+
+We wrote a simple Linux kernel patch (against Linux 3.4) to demonstrate
+our claim and we also added experimental support for this feature to tracy.
+
+However, the patch is incomplete and lacks features such as support for
+multiple ABIs (Section \ref{secure-abi}). \\
+
+The API is very basic and allows one to add (and delete) specific system
+calls to a list. This list can then either function as a whitelist or a
+blacklist, in other words, the Linux kernel either notifies the tracer of
+all the system calls in the list, or notifies the tracer of all system calls
+but the system calls in the list.
+
+% TODO: API verder beschrijven?
+
+Because tracy is aware of the all the system calls that are hooked by the
+program using tracy, tracy can make informed decisions about system calls
+that do not need to be received - as they would never result in a hook in
+the event system (Section \ref{event-system}) being execute.
+
+Unless tracy uses this particular system call internally, tracy could decide
+to tell the kernel to not notify tracy of in the event that a particular
+system call is executed.
+
+% TODO: Patch in appendix?
+
 
 %Applications
 %\begin{itemize}
