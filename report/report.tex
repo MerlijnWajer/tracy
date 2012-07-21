@@ -1077,10 +1077,10 @@ but the system calls in the list.
 Because tracy is aware of the all the system calls that are hooked by the
 program using tracy, tracy can make informed decisions about system calls
 that do not need to be received - as they would never result in a hook in
-the event system (Section \ref{event-system}) being execute.
+the event system (Section \ref{event-system}) being executed.
 
 Unless tracy uses this particular system call internally, tracy could decide
-to tell the kernel to not notify tracy of in the event that a particular
+to advice the kernel to not notify tracy of in the event that this particular
 system call is executed.
 
 % TODO: Patch in appendix?
