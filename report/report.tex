@@ -105,22 +105,23 @@ system calls of another program is said be to be ``tracing'' the other
 % XXX: other program
 program. However, ``tracing'' is a limited definition in the sense that
 the term does not mention the possibility to modify the program that is
-being traced.
-% We gaan onderzoeken wat je allemaal kan met het modifyen
+being traced. Using \textbf{ptrace} the program tracing another program
+can also modify the program being traced, including reading and writing
+to the memory of the program and changing the system calls.
 
 % AANLEIDING / MOTIVATIE
 
+% Aanleiding / Motivatie:
+% - Er zijn interessant praktische mogelijkheden: o.a. jailen en proxyfier.
+% - De ptrace API is matig (WE GEBRUIKEN HEM WEL) en LD_PRELOAD is prutje
 
-
-
-% Waarom onderzoeken? Waarom relevant?
-%
 % Relevant omdat het een nieuw soort manier van o.a. transparant modifyen
 % van programmas toestaat die niet mogelijk is met ldp en lastig is met
 % de raw ptrace api. Onderzoeken omdat je naast alleen ``tracen'' ook
 % leuke trucs uit kan halen (en die trucs maken het relevant want daar
 % kan je dan een boel mee)
-%
+
+
 % DOELSTELLING
 %
 % Vergemakkelijken van het tracen van processen door middel van het leveren van
@@ -148,17 +149,17 @@ being traced.
 % Opbouw
 %
 
-When tracing a process $A$, another process $B$ is notified when a system call
-is made by process $A$  and then allows process $A$ to continue with its
-execution. An example of a program that traces system calls is
-\textit{strace}\cite{strace}.
-
-Apart from \textit{tracing} system calls, it is also possible to
-\textit{change}
-(arguments of) system calls before they are executed. This allows for a range
-of other applications such as not allowing specific system calls and
-injecting system calls. Typically, the debugging api also allows reading and
-writing to the process being debugged.
+% When tracing a process $A$, another process $B$ is notified when a system call
+% is made by process $A$  and then allows process $A$ to continue with its
+% execution. An example of a program that traces system calls is
+% \textit{strace}\cite{strace}.
+% 
+% Apart from \textit{tracing} system calls, it is also possible to
+% \textit{change}
+% (arguments of) system calls before they are executed. This allows for a range
+% of other applications such as not allowing specific system calls and
+% injecting system calls. Typically, the debugging api also allows reading and
+% writing to the process being debugged.
 
 Some of the applications that can be realised with this particular feature set
 includes jailing programs, performance analysis tools and transparently
