@@ -39,15 +39,14 @@
 
 \tableofcontents
 
-% Probleemstelling / Motivatie
-% Wat is er al?
-% Hoe? Oplossing
-% Implementatie / Toepassing / Illustratie
-% Conclusie
-% Referenties / Further Work
+% TODO:
 %
-% XXX NOTES XXX
-%
+% - 
+
+
+
+
+
 % PTRACE_TRACE_{FORK,VFORK,CLONE} is a mess. If we simply want to be called on
 % clone() in case of a clone event, we must disable fork and vfork; otherwise it
 % may also instead return fork or vfork events. From the man page:
@@ -98,8 +97,9 @@ of most operating systems; it is a bridge between the hardware and programs.
 % er allemaal mee gedaan wordt? Het nut van het tracen van system calls in
 % debuggers, e.d.
 
-Inspecting the system calls performed by a program is done programmatically
-using the \textbf{ptrace} system call. A program inspecting the
+Inspecting (and modifying) the system calls performed by a program
+is done programmatically using the \textbf{ptrace} system call.
+A program inspecting the
 % TODO: ptrace(2), ptrace, textbf{ptrace}, etc? Nu clarifyen?
 system calls of another program is said be to be ``tracing'' the other
 program. The program that is being traced is called the ``tracee'' and the
@@ -112,41 +112,23 @@ made by the tracee.
 
 % AANLEIDING / MOTIVATIE
 
+\section{Motivation}
 The ability to modify the program memory and system call allows for a great
 variety of applications. A possible application is the so called ``jailing''
 of programs - only allow system calls that satisfy certain requirements thus
 restricting the access of a program to the system. Other applications are
 transparently routing or inspecting all the network traffic of a program.
+Being able to modify the system call arguments and return value also allows
+for extensive stress testing of programs, one could fake being out of available
+memory for example; or even randomly reject or fail system calls.
 
 As previously stated, tracing programs is done using the \textbf{ptrace}
 system call on UNIX systems. % Het is namelijk niet POSIX
 Using ptrace directly to trace a program has several downsides: the ptrace
-interface is not very programmer friendly. The interface is not standarised
+interface is not very programmer friendly. The interface is not standardised
 \footnote{ptrace is not part of the POSIX standard} and ptrace is not
 architecture agnostic, meaning a tracer requires architecture specific code.
 
-% meteen inleiding naar de centrale vraag?
-% xxx: lpd zit er nog niet in. willen we dat wel?
-
-
-% Aanleiding / Motivatie:
-% - Er zijn interessant praktische mogelijkheden: o.a. jailen en proxyfier.
-% - De ptrace API is matig (WE GEBRUIKEN HEM WEL) en LD_PRELOAD is prutje
-
-
-% DOELSTELLING
-%
-% Vergemakkelijken van het tracen van processen door middel van het leveren van
-% een uniforme interface
-%
-% PROBLEEMSTELLING
-%
-% Adviserende vraagstelling.
-%
-% Adviserende:
-% - Hoe kan system call tracing _beter_? (betere api e.d., maar je kan ptrace
-%   niet echt wegwerken of grondig aanpassen)
-%
 % Centrale vraag
 % - Hoe kan system call tracing worden verbeterd met betrekking tot API
 %   transparantie voor kernel versie en architectuur op Linux?
@@ -157,49 +139,64 @@ architecture agnostic, meaning a tracer requires architecture specific code.
 %   - Welke problemen zijn er met de ptrace API.
 %   - Wat voor effect heeft ptrace op de performance van programma's?
 %   - 
-%
-% Opbouw
-%
 
-% When tracing a process $A$, another process $B$ is notified when a system call
-% is made by process $A$  and then allows process $A$ to continue with its
-% execution. An example of a program that traces system calls is
-% \textit{strace}\cite{strace}.
-% 
-% Apart from \textit{tracing} system calls, it is also possible to
-% \textit{change}
-% (arguments of) system calls before they are executed. This allows for a range
-% of other applications such as not allowing specific system calls and
-% injecting system calls. Typically, the debugging api also allows reading and
-% writing to the process being debugged.
+% TODO: Programmer friendly? Perhaps emphasis?
+We researched the viability of a cross architecture, programmer friendly
+system call tracing and modification framework for the Linux kernel.
+During this research, we put emphasis on a few key areas.
+% Opmerken dat het niet alleen voor Linux hoeft te zijn?
 
-% Some of the applications that can be realised with this particular feature set
-% includes jailing programs, performance analysis tools and transparently
-% redirecting input and output of a program, such as proxifying network
-% traffic or virtualising filesystem access.
-% 
-% The debugger API on most UNIX operating systems is implemented using the
-% \textit{ptrace} system call. A huge downside of ptrace is that ptrace
-% has not been standardised and differs per platform and computer architecture.
-% Other shortcomings of ptrace will be discussed later on.
-% TODO: ^ Deze zin weglaten?
+\subsection{Problems with ptrace} % TODO
+First of all, we wanted to solve problems introduced by utilising ptrace
+directly. As we have previously noted, a particular problem with ptrace is that
+the ptrace interface to the programmer differs per platform. This means that
+ptrace code written for Linux will most likely not work on another UNIX such as
+FreeBSD.
 
-% One of the main reasons we created tracy was the lack of a proper library
-% for system call interception amongst the popular UNIX-like systems with
-% varying CPU architectures.
+Different UNIX platforms also support different ptrace features. FreeBSD offers
+a ptrace option to quickly read or write a large amount of memory of the
+tracee, whereas Linux does not support reading more than a processor word at a
+time. On the other hand, Linux has an ptrace option to automatically trace
+any child processes created by a tracee; FreeBSD currently does not offer such
+an option (Section \ref{safe-fork}). % strace manpage ref?
+
+% Dit is meteen wat diep duiken in de stof.
+The system call invocation differs per computer architecture.
+The assembly instruction to invoke a system call usually differs.
+Kernels like Linux and FreeBSD sometimes even support several ways to invoke
+system calls. ptrace does not provide a way for the tracer to detect how
+the tracee invoked the system call. This is problematic because the meaning
+of system call numbers differs per system call invocation thus leading to
+inevitable amiguity about the current system call being performed (Section
+\ref{secure-abi}).
+
+% TODO: Dit uitbreiden
+Due to ptrace being a very low-level system call, which operates on assembly
+level, it is not possible to simply ``change the return value'' of a system
+call. Each instruction set has its own registers and on top of that, operating
+systems often have different uses for each register.
+
+One would have to find out what register this is on each platform,
+keep track if the current ptrace event describes the start or end of a system
+call\footnote{If the process is about to execute a system call or has just
+executed a system call}, let alone perform some extra architecture-specific
+calls to ensure that the result is properly set.\footnote{ARM requires
+the programmer to call ptrace with the \textit{PTRACE\_SET\_SYSCALL} command
+to make the changes to the system call register permanent.}
+
+Finally, ptrace offers no mechanism to recieve events of specific system calls,
+rather than on every system call. This leads to performance issues (Section
+\ref{ptrace-perf}).
+
+% XXX: Injection en modification nu al meenemen?
+% \subsection{System call injection}
 % 
-% Tracy is a process tracing framework which uses ptrace but tries to provide
-% an API that is mostly platform and computer architecture independent,
-% allowing for much easier creation of cross platform tracing applications.
-% 
-% % XXX: While... while? :-(
-% While it is not possible to create a completely platform independent API while
-% not heavily reducing functionality, we strive to create a robust and powerful
-% API to trace processes in a more platform independent way.
-% 
-% To demonstrate the system call interception, injection and modification
-% we introduce Soxy (Chapter \ref{chapter:soxy}): an application to route network
-% traffic through a SOCKS 5 proxy using tracy.
+% As stated previously, ptrace allows the tracer to modify the system calls
+% and memory of a tracee. Being able to modify the memory and system calls
+% allows for a wide range of applications
+
+\subsection{Existing Solutions and Their Problems}
+
 
 % Oplossing voor problemen zoals:
 %   -   Jailing/Sandboxing
@@ -209,7 +206,7 @@ architecture agnostic, meaning a tracer requires architecture specific code.
 %   for example, vpn, socks proxy)
 %
 %   Bestaande tools:
-%   -   GDB, Valgrind
+%   -   GDB
 %   -   strace
 %   -   tsocks (maar limited)
 
@@ -218,14 +215,11 @@ architecture agnostic, meaning a tracer requires architecture specific code.
 % tools}, \textit{Jailing and Sandboxing tools} and \textit{Transparent routing of
 % data} (such as internet packets of user space filesystems).
 
-
 % Hopelijk is dit iets meer wat Leen bedoelt. Wat secties hier onder moeten we
 % omschrijven. Een beetje dubbel op informatie is geen probleem, daarvoor is het
 % een inleiding.
 % LD_PRELOAD is niet zo boeiend.
 %
-
-\section{Existing solutions and their problems}
 
 There are several ways to transparently intercept calls to a library or
 system calls. LD\_PRELOAD is one such method to intercept calls to a library.
@@ -233,7 +227,7 @@ This should not be confused with intercepting system calls; LD\_PRELOAD
 cannot intercept system calls; this is a reason not to use LD\_PRELOAD.
 % Raar stukje
 
-\subsection{LD\_PRELOAD}
+\subsubsection{LD\_PRELOAD}
 
 \textbf{LD\_PRELOAD} is a way to prioritize loading of certain libraries
 while creating and loading a process.
@@ -274,74 +268,30 @@ LD\_PRELOAD is not a viable solution when one wants to transparently capture
 all (specific) system calls of a process, independent on what kind of
 userspace libraries the process uses.
 
-\subsection{The ptrace(2) API}
+% XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX 
+% Tracy is a process tracing framework which uses ptrace but tries to provide
+% an API that is mostly platform and computer architecture independent,
+% allowing for much easier creation of cross platform tracing applications.
+% 
+% % XXX: While... while? :-(
+% While it is not possible to create a completely platform independent API while
+% not heavily reducing functionality, we strive to create a robust and powerful
+% API to trace processes in a more platform independent way.
+% 
+% To demonstrate the system call interception, injection and modification
+% we introduce Soxy (Chapter \ref{chapter:soxy}): an application to route network
+% traffic through a SOCKS 5 proxy using tracy.
 
-\textbf{ptrace(2)} allows a process to catch all of the system calls (or even
-step through every instruction, but we have no use for that in tracy)
-made by another process (called the \textit{tracee}), which makes ptrace system
-call tracing completely independent of user space helper libraries used by the
-tracee. In other words, ptrace does not suffer from the same limitation as
-LD\_PRELOAD.
+\section{Structure of This Document}
 
-ptrace has platform-specific extensions (to the API) and the
-implementation differs per platform.
-% FIXME: Wat voor extensions? (arm %setsyscall,etc)
-
-% XXX: Dit hieronder is fout. We vangen wel alles af; maar we weten niet of
-% het nummer 32 of 64 bit is.
-To actually accurately catch every single system call made by a process one has
-to perform all sorts of tricks\ref{secure-abi}, depending on the operating
-system and architecture. Tracy currently does not implement all of these
-tricks, but support is planned.
-
-Aside from functional differences, there are also differences in ptrace
-functionality.
-For example, BSD supports reading or writing a big chunk of the memory
-of the tracee at once using the ptrace API, while Linux only allows
-reading or writing only one processor word at a time.
-On the other hand, Linux has options to automatically trace
-children created by the tracee where BSD lacks support for
-this particular feature\footnote{Tracy will however support it on
-BSD\ref{safe-fork}}.
-
-Aside from the differences per operating system, there are also differences
-regarding the cpu architecture, because every architecture has its own
-instruction set.
-
-Due to ptrace being a very low-level system call, which operates on assembly
-level, it is not possible to simply ``change the return value'' of a system
-call. Each instruction set has its own registers and on top of that, operating
-systems often have different uses for each register.
-
-
-% Dit is niet te veel detail, het is een realisatie van echte ptrace problemen
-% en een goede inleiding naar de volgende alineas - namelijk dat ptrace niet
-% geschikt is om direct te gebruiken en dat tracy veel beter is.
-% XXX: Introduceren: Pre en Post system call event? Dit komt eerder niet
-% XXX: voorbij.
-One would have to find out what register this is on each platform,
-keep track if the current event is a pre (entry)- or post(exit)-system
-call event
-\footnote{If the process is about to execute a system call or has just
-executed a system call}, let alone
-perform some extra architecture-specific calls to ensure that the result is
-properly set\footnote{ARM requires extra changes to make the register
-modification of a system call number persistent.}.
-
-There is no way to hook into a specific system call, no way
-to simply inject a system call, it is not simple to change values of some
-variable/register in an architecture-agnostic way and it is not trivial
-to allocate or change memory in a child.
-
-Even though \textbf{ptrace(2)} provides all the functionality required to
-trace and intercept system calls\footnote{Which is why tracy uses ptrace},
-the functions provided by ptrace are very basic and only provide the
-essential building blocks for tracing applications.
-% Wat voor punt maken we hier? Dit moet een betere conclusie worden.
-
-All these separate issues add up, eventually making the \textit{ptrace(2)} API
-infeasible for large projects. % Ook raar; als ze tracy gebruiken gebruiken ze
-% toch ook ptrace?
+% TODO
+%
+%
+%
+%
+%
+%
+%
 
 \section{Enter: Tracy}
 
