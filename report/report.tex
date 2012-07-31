@@ -102,12 +102,13 @@ Inspecting the system calls performed by a program is done programmatically
 using the \textbf{ptrace} system call. A program inspecting the
 % TODO: ptrace(2), ptrace, textbf{ptrace}, etc? Nu clarifyen?
 system calls of another program is said be to be ``tracing'' the other
-% XXX: other program
-program. However, ``tracing'' is a limited definition in the sense that
-the term does not mention the possibility to modify the program that is
-being traced. Using \textbf{ptrace} the program tracing another program
-can also modify the program being traced, including reading and writing
-to the memory of the program and changing the system calls.
+program. The program that is being traced is called the ``tracee'' and the
+program tracing the ``tracee'' is called the ``tracer''.
+Tracing is a limited definition in the sense that the term does not
+mention the possibility to modify the program that is being traced.
+Using \textbf{ptrace} the tracer can also modify the tracee, including
+reading and writing to the memory of the tracee and changing the system calls
+made by the tracee.
 
 % AANLEIDING / MOTIVATIE
 
@@ -118,8 +119,12 @@ restricting the access of a program to the system. Other applications are
 transparently routing or inspecting all the network traffic of a program.
 
 As previously stated, tracing programs is done using the \textbf{ptrace}
-system call on UNIX™ systems. % Het is namelijk niet POSIX
-Directly using ptrace has several downsides … % die later pas aan bod komen
+system call on UNIX systems. % Het is namelijk niet POSIX
+Using ptrace directly to trace a program has several downsides: the ptrace
+interface is not very programmer friendly. The interface is not standarised
+\footnote{ptrace is not part of the POSIX standard} and ptrace is not
+architecture agnostic, meaning a tracer requires architecture specific code.
+
 % meteen inleiding naar de centrale vraag?
 % xxx: lpd zit er nog niet in. willen we dat wel?
 
@@ -179,22 +184,22 @@ Directly using ptrace has several downsides … % die later pas aan bod komen
 % Other shortcomings of ptrace will be discussed later on.
 % TODO: ^ Deze zin weglaten?
 
-One of the main reasons we created tracy was the lack of a proper library
-for system call interception amongst the popular UNIX-like systems with
-varying CPU architectures.
-
-Tracy is a process tracing framework which uses ptrace but tries to provide
-an API that is mostly platform and computer architecture independent,
-allowing for much easier creation of cross platform tracing applications.
-
-% XXX: While... while? :-(
-While it is not possible to create a completely platform independent API while
-not heavily reducing functionality, we strive to create a robust and powerful
-API to trace processes in a more platform independent way.
-
-To demonstrate the system call interception, injection and modification
-we introduce Soxy (Chapter \ref{chapter:soxy}): an application to route network
-traffic through a SOCKS 5 proxy using tracy.
+% One of the main reasons we created tracy was the lack of a proper library
+% for system call interception amongst the popular UNIX-like systems with
+% varying CPU architectures.
+% 
+% Tracy is a process tracing framework which uses ptrace but tries to provide
+% an API that is mostly platform and computer architecture independent,
+% allowing for much easier creation of cross platform tracing applications.
+% 
+% % XXX: While... while? :-(
+% While it is not possible to create a completely platform independent API while
+% not heavily reducing functionality, we strive to create a robust and powerful
+% API to trace processes in a more platform independent way.
+% 
+% To demonstrate the system call interception, injection and modification
+% we introduce Soxy (Chapter \ref{chapter:soxy}): an application to route network
+% traffic through a SOCKS 5 proxy using tracy.
 
 % Oplossing voor problemen zoals:
 %   -   Jailing/Sandboxing
