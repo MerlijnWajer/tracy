@@ -80,11 +80,73 @@
 % sshfs ergens noemen?
 % ---- STUFF -----
 
-\chapter{Motivation}
+\chapter{Introduction}
 
-When analysing or debugging programs it is customary to trace system calls made
-by a process. This often provides a useful insight in what the program is doing
-and possibly what the program is doing wrong.
+% AANTREKKELIJKE OPENING
+Programmers spend a rather large part of their time finding mistakes in their
+computer programs. Programmers usually refer to this routine as debugging.
+Programmers employ various tools to aid them in debugging programs.
+
+Several kinds of debugging exist. The most common debugging method is
+focussed around crashes in a program. Other types of debugging include
+performance analysis and analysis of system calls performed by the program.
+A system call is a method for a program to request a service from an operating
+system's kernel. The kernel of an operating system is the main component
+of most operating systems; it is a bridge between the hardware and programs.
+
+% XXX: Nog niet helemaal klaar, hier weer iets meer over system calls en wat
+% er allemaal mee gedaan wordt? Het nut van het tracen van system calls in
+% debuggers, e.d.
+
+Inspecting the system calls performed by a program is done programmatically
+using the special \textbf{ptrace} system call. A program inspecting the
+% TODO: ptrace(2), ptrace, textbf{ptrace}, etc? Nu clarifyen?
+system calls of another program is said be to be ``tracing'' the other
+% XXX: other program
+program. However, ``tracing'' is a limited definition in the sense that
+the term does not mention the possibility to modify the program that is
+being traced.
+% We gaan onderzoeken wat je allemaal kan met het modifyen
+
+% AANLEIDING / MOTIVATIE
+
+
+
+
+% Waarom onderzoeken? Waarom relevant?
+%
+% Relevant omdat het een nieuw soort manier van o.a. transparant modifyen
+% van programmas toestaat die niet mogelijk is met ldp en lastig is met
+% de raw ptrace api. Onderzoeken omdat je naast alleen ``tracen'' ook
+% leuke trucs uit kan halen (en die trucs maken het relevant want daar
+% kan je dan een boel mee)
+%
+% DOELSTELLING
+%
+% Vergemakkelijken van het tracen van processen door middel van het leveren van
+% een uniforme interface
+%
+% PROBLEEMSTELLING
+%
+% Adviserende vraagstelling.
+%
+% Adviserende:
+% - Hoe kan system call tracing _beter_? (betere api e.d., maar je kan ptrace
+%   niet echt wegwerken of grondig aanpassen)
+%
+% Centrale vraag
+% - Hoe kan system call tracing worden verbeterd met betrekking tot API
+%   transparantie voor kernel versie en architectuur op Linux?
+%
+% Deel vragen:
+%   - Welk effect heeft de architectuur op het interpreteren van system calls?
+%   - Welk effect heeft de architectuur op memory access?
+%   - Welke problemen zijn er met de ptrace API.
+%   - Wat voor effect heeft ptrace op de performance van programma's?
+%   - 
+%
+% Opbouw
+%
 
 When tracing a process $A$, another process $B$ is notified when a system call
 is made by process $A$  and then allows process $A$ to continue with its
@@ -1098,9 +1160,9 @@ system call is executed.
 %\end{itemize}
 
 
-\chapter{Related work}
-
-\section{strace}
+% \chapter{Related work}
+% 
+% \section{strace}
 
 % strace
 % gdb
