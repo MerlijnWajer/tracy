@@ -99,7 +99,7 @@ of most operating systems; it is a bridge between the hardware and programs.
 % debuggers, e.d.
 
 Inspecting the system calls performed by a program is done programmatically
-using the special \textbf{ptrace} system call. A program inspecting the
+using the \textbf{ptrace} system call. A program inspecting the
 % TODO: ptrace(2), ptrace, textbf{ptrace}, etc? Nu clarifyen?
 system calls of another program is said be to be ``tracing'' the other
 % XXX: other program
@@ -111,15 +111,22 @@ to the memory of the program and changing the system calls.
 
 % AANLEIDING / MOTIVATIE
 
+The ability to modify the program memory and system call allows for a great
+variety of applications. A possible application is the so called ``jailing''
+of programs - only allow system calls that satisfy certain requirements thus
+restricting the access of a program to the system. Other applications are
+transparently routing or inspecting all the network traffic of a program.
+
+As previously stated, tracing programs is done using the \textbf{ptrace}
+system call on UNIX™ systems. % Het is namelijk niet POSIX
+Directly using ptrace has several downsides … % die later pas aan bod komen
+% meteen inleiding naar de centrale vraag?
+% xxx: lpd zit er nog niet in. willen we dat wel?
+
+
 % Aanleiding / Motivatie:
 % - Er zijn interessant praktische mogelijkheden: o.a. jailen en proxyfier.
 % - De ptrace API is matig (WE GEBRUIKEN HEM WEL) en LD_PRELOAD is prutje
-
-% Relevant omdat het een nieuw soort manier van o.a. transparant modifyen
-% van programmas toestaat die niet mogelijk is met ldp en lastig is met
-% de raw ptrace api. Onderzoeken omdat je naast alleen ``tracen'' ook
-% leuke trucs uit kan halen (en die trucs maken het relevant want daar
-% kan je dan een boel mee)
 
 
 % DOELSTELLING
@@ -161,15 +168,15 @@ to the memory of the program and changing the system calls.
 % injecting system calls. Typically, the debugging api also allows reading and
 % writing to the process being debugged.
 
-Some of the applications that can be realised with this particular feature set
-includes jailing programs, performance analysis tools and transparently
-redirecting input and output of a program, such as proxifying network
-traffic or virtualising filesystem access.
-
-The debugger API on most UNIX operating systems is implemented using the
-\textit{ptrace} system call. A huge downside of ptrace is that ptrace
-has not been standardised and differs per platform and computer architecture.
-Other shortcomings of ptrace will be discussed later on.
+% Some of the applications that can be realised with this particular feature set
+% includes jailing programs, performance analysis tools and transparently
+% redirecting input and output of a program, such as proxifying network
+% traffic or virtualising filesystem access.
+% 
+% The debugger API on most UNIX operating systems is implemented using the
+% \textit{ptrace} system call. A huge downside of ptrace is that ptrace
+% has not been standardised and differs per platform and computer architecture.
+% Other shortcomings of ptrace will be discussed later on.
 % TODO: ^ Deze zin weglaten?
 
 One of the main reasons we created tracy was the lack of a proper library
