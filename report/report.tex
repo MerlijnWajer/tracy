@@ -195,51 +195,51 @@ rather than on every system call. This leads to performance issues (Section
 % and memory of a tracee. Being able to modify the memory and system calls
 % allows for a wide range of applications
 
-\subsection{Existing Solutions and Their Problems}
-
-% There are several ways to transparently intercept calls to a library or
-% system calls. LD\_PRELOAD is one such method to intercept calls to a library.
-% This should not be confused with intercepting system calls; LD\_PRELOAD
-% cannot intercept system calls; this is a reason not to use LD\_PRELOAD.
-
-\textbf{LD\_PRELOAD} is a way to prioritize loading of certain libraries
-while creating and loading a process.
-
-One can use this to load a shared object (a library) into a process,
-before any other libraries (such as glibc) are loaded;
-this makes it possible to (transparently) override functions typically
-provided by other libraries.
-
-For our example, this ``injected'' library would provide its own
-``recvfrom'' and ``sendto''\footnote{It should probably provide
-a lot more functions; but the example will not benefit from naming others.};
-and the program being run would instead call the functions provided by
-this library.
-
-One common proxyfier, \textbf{tsocks}, is an application that loads
-other applications with their own library that overwrites specific
-network functionality, thus allowing transparent network routing.
-
-However, because LD\_PRELOAD relies on the dynamic loader and the fact that
-programs have to make use of libraries, LD\_PRELOAD also has several downsides.
-
-One of these downsides is that LD\_PRELOAD simply does not work on all
-applications; some applications do not use the glibc methods and instead
-perform system calls directly. Another way to ``escape'' from LD\_PRELOAD
-is indeed to simply perform system calls in the program (using inline assembly
-or even the \textit{syscall(2)} system call) rather than using
-% XXX: syscall(2), is dat geen glibc functie? Ergo, kan je die niet wel afvangen
-% met LD_PRELOAD
-provided libraries such as glibc.
-
-There are some upcoming languages that do not even use glibc at all - languages
-like Go \cite{golang} talk to the kernel directly and thus perform their
-system calls by calling the kernel directly instead of
-relying on (g)libc functions which would in turn call the kernel.
-
-LD\_PRELOAD is not a viable solution when one wants to transparently capture
-all (specific) system calls of a process, independent on what kind of
-userspace libraries the process uses.
+% \subsection{Existing Solutions and Their Problems}
+% 
+% % There are several ways to transparently intercept calls to a library or
+% % system calls. LD\_PRELOAD is one such method to intercept calls to a library.
+% % This should not be confused with intercepting system calls; LD\_PRELOAD
+% % cannot intercept system calls; this is a reason not to use LD\_PRELOAD.
+% 
+% \textbf{LD\_PRELOAD} is a way to prioritize loading of certain libraries
+% while creating and loading a process.
+% 
+% One can use this to load a shared object (a library) into a process,
+% before any other libraries (such as glibc) are loaded;
+% this makes it possible to (transparently) override functions typically
+% provided by other libraries.
+% 
+% For our example, this ``injected'' library would provide its own
+% ``recvfrom'' and ``sendto''\footnote{It should probably provide
+% a lot more functions; but the example will not benefit from naming others.};
+% and the program being run would instead call the functions provided by
+% this library.
+% 
+% One common proxyfier, \textbf{tsocks}, is an application that loads
+% other applications with their own library that overwrites specific
+% network functionality, thus allowing transparent network routing.
+% 
+% However, because LD\_PRELOAD relies on the dynamic loader and the fact that
+% programs have to make use of libraries, LD\_PRELOAD also has several downsides.
+% 
+% One of these downsides is that LD\_PRELOAD simply does not work on all
+% applications; some applications do not use the glibc methods and instead
+% perform system calls directly. Another way to ``escape'' from LD\_PRELOAD
+% is indeed to simply perform system calls in the program (using inline assembly
+% or even the \textit{syscall(2)} system call) rather than using
+% % XXX: syscall(2), is dat geen glibc functie? Ergo, kan je die niet wel afvangen
+% % met LD_PRELOAD
+% provided libraries such as glibc.
+% 
+% There are some upcoming languages that do not even use glibc at all - languages
+% like Go \cite{golang} talk to the kernel directly and thus perform their
+% system calls by calling the kernel directly instead of
+% relying on (g)libc functions which would in turn call the kernel.
+% 
+% LD\_PRELOAD is not a viable solution when one wants to transparently capture
+% all (specific) system calls of a process, independent on what kind of
+% userspace libraries the process uses.
 
 % Oplossing voor problemen zoals:
 %   -   Jailing/Sandboxing
@@ -262,8 +262,12 @@ userspace libraries the process uses.
 \section{Structure of This Document}
 
 
+
+
+
 \chapter{ptrace(2) and Tracy}
 
+\section{Introduction to Tracy}
 Several UNIX and UNIX-like systems support the \textbf{ptrace(2)} system call.
 This system call allows one process to ``control'' another process - from now on
 called \textit{tracee}, enabling the controlling process to stop and inspect
@@ -347,8 +351,8 @@ tracee is paused. (Figure \ref{fig1})
 
 
 \begin{figure}
-\label{fig1}
 \includegraphics[scale=0.6]{ptrace.png}
+\label{fig1}
 \caption{Ptrace control flow}
 \end{figure}
 
@@ -411,9 +415,9 @@ immediately trace children on non-Linux platforms:
 }
 
 \begin{figure}
-\label{fig2}
 \includegraphics[scale=0.4]{ptrace2.png}
 \caption{One system call with ptrace}
+\label{fig2}
 \end{figure}
 
 We provide a solution to this problem in Tracy such that any children spawned
