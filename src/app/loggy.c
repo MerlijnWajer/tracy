@@ -184,7 +184,7 @@ int main(int argc, char** argv) {
     }
 
     argv++; argc--;
-    if (!tracy_exec(tracy, argc, argv)) {
+    if (!tracy_exec(tracy, argv)) {
         perror("tracy_exec returned NULL");
         return EXIT_FAILURE;
     }
