@@ -482,7 +482,7 @@ has to do some other internal bookkeeping.
 Modifying system calls can be done at two points: before and after the
 system call is executed. Changing the system call ``after'' it has been executed
 does not undo the effect of said system call, but it allows the tracer to change
-result values of the system call.
+result value of the system call.
 \footnote{The tracer can of course change every register and the memory of the
 tracee at any point when the tracee is suspended.}
 Changing values before the system call is executed is more exciting, as it
@@ -491,8 +491,8 @@ modifying the register that stores the system call number, it is possible to
 execute a completely different system call. This serves two purposes:
 ``denying'' system calls by changing the system call register to a harmless
 system call such as getpid and ``injecting'' system calls by changing the
-system call number and later on the instruction pointer.
-
+system call number and later on the instruction pointer (See Section
+ref{syscal-inject}).
 
 % TODO: Tracy specifiek stuk hier? Methode namen hoeft niet, maar wellicht wel
 % hoe wij het doen?
@@ -500,16 +500,20 @@ system call number and later on the instruction pointer.
 \section{Event system}
 \label{event-system}
 
-Tracy is uses event-based system to report on activities on a tracee. This is
+Tracy uses event-based system to report on activities on a tracee. This is
 particularly fitting as the \textbf{waitpid} call blocks until an event
-occurs. As a result of this Tracy also blocks until a new event occurs.
+occurs. As a result Tracy blocks until a new event occurs.
 
 Each signal and system call (pre and post) is an event.
-The Tracy function \textit{Tracy\_wait\_event} waits for a action on
-(a specific or) any child and returns a new Tracy event. Aside from
-events for signals and system calls, Tracy also exposes another event; an
-internal event which describes an internal Tracy event; this event is required
-for asynchronous injection and may be used for other features in the future.
+The Tracy function \textit{tracy\_wait\_event} waits for a action on
+(a specific or) any child and returns a new Tracy event.
+
+% XXX: Beetje diep ineens... Verhaal mist nog wat voordat het hiernaartoe
+% springt.
+Aside from events for signals and system calls, Tracy also exposes another
+event; an internal event which describes an internal Tracy event; this event
+is required for asynchronous injection and may be used for other features in
+the future.
 
 \subsection{System call hooks}
 
@@ -517,37 +521,38 @@ Users of the Tracy library can hook specific and even all system calls. For
 each system call, the user provides a callback which will be called when
 the related system call occurs. The callback is provided with full access to
 event. The return value of the callback determines the action that Tracy
-will take. A callback for signals also exists as well a callback for each
-system call that has not been hooked.
+will take. A callback for signals also exists as well a callback default
+callback that is called for all the system calls that are not hooked.
 
 \section{System call injection}
 \label{syscall-inject}
 
-Tracy supports injection system calls into any process that is being traced.
-
+% XXX: Vreemde plek.
+Tracy supports injecting system calls into any process that is being traced.
 The injection of a system call is the process of executing a system call in
 a specified tracee, without requiring said tracee to explicitly call the
 system call.
 
-Theoretically it is possible to inject a system call at any point during
+Theoretically a system call can be injected at any point during
 the execution (as discussed in Section \ref{instant-inject}),
-Tracy however can only inject system calls in a pre and post
+Tracy however can currently inject system calls in a pre and post
 system call state. In other words, one can currently only inject system calls
-when a tracee is stopped because it is currently trying to perform a system
-call. Luckily, this is hardly an issue before this is always the case in a
-Tracy system call hook; they can only be called upon a system call of a tracee.
+when a tracee is stopped due to the tracee executing a system call; not if
+the tracee is recieving a signal.
 
 Transparent injection of system calls is not possible, in the most strict sense.
 As most system calls indirectly affect the tracee (with the exception of system
 calls like \textbf{getpid} and \textbf{fstat}), the tracee will usually
 be left in a modified state. However, to perform system call injection as
-transparently as possible, we ensured that the registers before the injection,
+transparently as possible, we ensured that the registers before the injection
 are identical to the registers after the injection.
 
 Injecting system calls relies on that fact that the program counter (or
 instruction pointer) of the tracee can be modified. If the length of the system
 call instruction is known, it is possible to ``jump back'' to the system call
-instruction. % TODO: Add figure with asm + int 0x80 and arrows.
+instruction, see Figure \ref{fig:asm-jump}.
+% TODO: Add figure with asm + int 0x80 and arrows.
+
 
 The process of injecting a system call differs per system call state (pre or
 post).
@@ -559,6 +564,12 @@ post).
     \subfloat[Injection from a post state]{\label{fig:post-inj}\includegraphics[width=0.4\textwidth]{post.png}}
     \caption{Injection for pre and post system call states}
     \label{fig:injection}
+\end{figure}
+
+\begin{figure}
+    %\includegraphics[scale=1.0]{asm-jump}
+    \caption{} % TODO
+    \label{fig:asm-jump}
 \end{figure}
 
 % TODO: Jump naar pre en post uitleg.
@@ -582,23 +593,19 @@ the tracee to its original state. No system call returns instantly and it
 may be favourable to perform other tasks rather than waiting for the system
 call to complete.
 
-Asynchronous injection is method to start the injection of a system call in
-some process $A$, and then perform other tasks (such as injecting another
-system call in another process $B$) instead of waiting for the system call
-of $A$ to complete.
+Asynchronous injection is a way to inject system calls that allows Tracy to
+handle other system calls while Tracy is waiting for the injected system call
+to finish, this can be useful as some system calls can take quite some time.
 Once process $A$ has finished its (injected) system call, Tracy will store
 the return value and restore the process to its original state.
 
 Functionally this makes no difference to the injection of a system call, but
 it does allow Tracy to handle the requests of other (suspended) processes
-instead of simply waiting for process $A$ to finish.
-% De performance boost is niet helemaal duidelijk. Ik wil responsive zeggen,m
-% maar dat klinkt ook zo raar. XXX
+instead of simply waiting for the system call of the tracee to finish.
 
-It should be noted that while asynchronous injection is usually preferred,
-synchronous injection is supported by Tracy as well and used in Tracy
-internally where asynchronous injection simply isn't worth the extra work
-and effort.
+While asynchronous injection is usually preferred, synchronous injection is
+supported by Tracy as well and even used in Tracy internally where
+asynchronous injection simply isn't worth the extra work and effort.
 
 \section{Memory access}
 
@@ -607,13 +614,16 @@ and effort.
 Any program that uses the \textbf{ptrace} API will probably want to access the
 traced process' memory as well. Reasons can range from simply dumping pointer
 contents to monitoring, changing or even injecting new system calls with
-completely stand-alone data. Furthermore, in case of IO intensive operation
-this access should be fairly fast as well.
+completely stand-alone data.\
 
-Unfortunately as with most functions ptrace provides, memory access standards
+% Furthermore, in case of IO intensive operation this access should be fairly
+% fast as well.
+% XXX: Dit is niet echt goed geplaatst.
+
+Unfortunately as with most ptrace functionality, memory access standards
 differ from operating system to operating system and are also
-affected by architectural quirks. Tracy tries to hide these differences and
-provide a uniform, fast way to access memory.
+affected by architectural quirks. Tracy hides these differences and
+provides a uniform and fast way to access memory.
 
 \subsection{On Linux}
 On Linux Tracy achieves fast memory access by employing a feature of the
@@ -645,7 +655,7 @@ filesystem, used by a lot of utilities to provide information about kernel
 and process state can also be used to access arbitrary process memory,
 given certain (security related) requirements are met.
 Process information can usually be acquired by opening a folder
-named ``/proc/$<pid>$'' where ``$<pid>$'' must be substituted with a process
+named ``/proc/$<pid>$'' where ``$<pid>$'' must be substituted with the process
 identifier. In this folder several files, and folders, are contained which
 provide information on things such as, threads, open files, memory maps and
 memory contents.
@@ -660,8 +670,7 @@ of first reading a processor word. We can now read 4kB of memory with a
 single system call or any arbitrary amount of memory provided we can allocate
 a large enough buffer to contain the data.
 
-% XXX: Wat
-Obviously, one does not simply open the ``/proc/$<pid>$/mem'' file of any
+One cannot simply open the ``/proc/$<pid>$/mem'' file of any
 arbitrary process as this would cause a major security issue. The only
 processes capable of successfully opening this file are either processes
 tracing the target process, or super-user processes.
@@ -681,18 +690,9 @@ received. Retrieving the signal sent to the tracee is done using the
 To pass a signal to a tracee, Tracy passes the signal number as data
 argument to the ptrace \textit{PTRACE\_SYSCALL} api call. This will
 resume the execution of the tracee with said signal. If the data is
-left at zero, no signal will be delivered. This makes it possible to
+left at zero, no signal is delivered. This makes it possible to
 suppress certain signals by simply not passing them along to the tracee.
 
-% We could also talk about PTRACE_O_TRACEEXEC and PTRACE_O_TRACEVFORKDONE
-% and PTRACE_O_TRACEEXIT
-
-\subsection{Caveats}
-
-When the feature to automatically trace newly created children in Linux
-is turned on, every new child will initially be send a \textit{SIGSTOP}
-signal. For this reason, Tracy suppresses the first SIGSTOP that is sent
-to a newly create tracee if the automatically trace option is enabled.
 
 \section{Tracing children}
 
@@ -703,49 +703,55 @@ to a newly create tracee if the automatically trace option is enabled.
 Linux 2.6 and onwards offer options to automatically trace all children
 created by \textbf{fork}, \textbf{vfork} and \textbf{clone}.
 Respectively: \textit{PTRACE\_O\_TRACEVFORK}, \textit{PTRACE\_O\_TRACEFORK},
-\textit{PTRACE\_O\_TRACECLONE}.
-
+\textit{PTRACE\_O\_TRACECLONE} flags are passed to \textbf{ptrace} to enable
+tracing of children.
+% TODO: Wat kort
 % TODO: CLONE_UNTRACED vs PTRACE_O_TRACECLONE
 
-% XXX: Friends?
-\subsection{Safe execution of fork and friends}
+\subsection{Safe execution of fork, vfork}
 \label{safe-fork}
 
 On operating systems that do not support the \textit{PTRACE\_O\_TRACE*} options,
 another solution is required to ensure that all children are traced the moment
 they are created. To achieve this, the \textbf{fork}
-\footnote{and related: vfork, clone} system call must be executed in a
+(as well as vfork and clone) system call must be executed in a
 controlled manner.
 
 To implement this feature, we make use of system call injection as well as the
-ability to be able to allocate and write to pages in the child. We allocate a
-page in the child and write a few lines of assembly that will safely execute
-\textbf{fork} to the page. Once this is done, we deny the initial
+ability to be able to allocate and write to pages in the tracee. We allocate a
+page in the tracee and write a few lines of assembly that will safely execute
+\textbf{fork} to the page. \ref{safefork-asm}
+Once this the assembly has been written, we deny the initial
 \textbf{fork} call by changing the system call to \textbf{getpid}.
 In the POST-getpid callback, we change the Instruction Pointer
 (or Program Counter) to the first instruction in the newly allocated page.
+
+
 Once the tracee starts executing the instructions in this
-page, it will once again execute a system call - \textbf{fork} in this case,
-and this time we allow the call to proceed. However, after the \textbf{fork}
-and we stored the result of the call (pid), both the tracee and the child
-execute the rest of the instructions in the page. The only other instructions
-in the page are a busy while loop that calls the \textbf{sched\_yield}
-system call. Now that both the tracee and the child of the tracee are caught
+page, the tracee will once again execute a system call -
+\textbf{fork} in this case, and this time we allow the call to proceed.
+However, after the \textbf{fork} has completed
+and we have stored the result of the call (the process id), both the tracee
+and the child execute the rest of the instructions in the page.
+
+The only other instructions in the page are a busy while loop that
+calls the \textbf{sched\_yield} system call.
+Now that both the tracee and the child of the tracee are caught
 in this while loop.
 
-At this moment, we are still only tracing the tracee, but we can now use the
+At this point we are still only tracing the tracee, but we can now use the
 ``attach'' mechanism of ptrace to attach to the child of our tracee. Once we are
 tracing the child of the tracee as well, we can restore the Instruction Pointer
-(or Program Counter) to their original position (that is, just after the
-original \textbf{fork} call) and let both processes continue their execution.
+(or Program Counter) of each tracee to their original position
+(that is, just after the original \textbf{fork} call) and allow both
+processes continue their execution.
 
-% picture of the process. Just use dot.
+% picture of the process. Just use dot. (We also link to the code in the
+% appendix)
 
-% Assembly hier includen?
-% Signals e.d. hier noemen? Hoe we die gebruiken voor het verkrijgen van het pid
-% bij vfork.
-
-%
+% XXX: Signals e.d. hier noemen? Hoe we die gebruiken voor het verkrijgen
+% van het pid bij vfork. (want de returned niet in het parent totdat het child
+% dood is)
 
 \subsection{Children with threads}
 
@@ -761,31 +767,47 @@ original \textbf{fork} call) and let both processes continue their execution.
 
 % Hoe kan je in Tracy threads detecteren? (TID group, etc)
 
+% We could also talk about PTRACE_O_TRACEEXEC and PTRACE_O_TRACEVFORKDONE
+% and PTRACE_O_TRACEEXIT
+
+\subsection{Caveats}
+
+When the feature to automatically trace newly created children in Linux
+is turned on, the tracer will recieve a SIGSTOP signal event for the tracee
+that has just been created. This signal is not passed along to the tracee.
+For this reason, Tracy suppresses the first SIGSTOP that is sent
+to a newly create tracee if the automatically trace children option
+is enabled.
+
 \section{Performance in ptrace}
 \label{ptrace-perf-problems}
 
 When a tracee performs a lot of system calls, the overhead of \textbf{ptrace}
 becomes very noticeable. The main issue is that for every system call the kernel
-has to perform four context switches. The first one is suspending the tracee
+has to perform four context switches. The first switch is suspending the tracee
 and replacing the tracee with the tracer (Tracy), then Tracy issues a few
-(at least two) system calls, the kernel resumes the tracee (another context
-switch); once the system call of the tracee is completed, the tracee is
-suspended again and the tracer takes over (context switch number three),
-again performing at least two ptrace system calls and finally the tracee
-is resumed again (context switch number four). This entire process is
-repeated for every system call, be it the inexpensive \textbf{read}
-system call or the fairly expensive \textbf{clone} system call, they're
-all a lot slower for the tracee due to this overhead of suspending and
-resuming the tracee. The main issue here is that \textbf{ptrace} does
-not allow the reporting of specific system calls only - the tracer has
-to handle every single system call event, even if the tracer will take no
-other action than resume the tracee on most of the system calls.
+(at least two) system calls (which require entering kernel mode),
+the kernel then resumes the tracee (another context switch); once the system
+call of the tracee is completed, the tracee is suspended again and the tracer
+takes over (context switch number three), again performing at least two ptrace
+system calls and finally the tracee is resumed again (context switch number four).
+
+This entire process is repeated for every system call, be it the
+inexpensive \textbf{getpid} system call or the fairly expensive
+\textbf{clone} system call, they are all a lot slower for the tracee
+due to this overhead of suspending and resuming the tracee.
+
+The problem is that \textbf{ptrace} does not allow the reporting of specific
+system calls only - the tracer has to handle every single system call event,
+even if the tracer will take no other action than resume the tracee on most
+of the system calls.
 
 We present a (theoretical) solution to this problem in
 Section \ref{ptrace-perf}.
 
 % Misschien verkeerde titel; maar dit zijn dingen waar we tegen aan liepen.
 % En dingen waar we op moeten letten.
+% We hebben bij veel secties al een caveats subsectie...
 \section{Caveats}
 
 % TODO Dit mag niet leeg zijn.
@@ -806,19 +828,14 @@ and \textit{arch/x86/kernel/process.c}}.
 
 \subsection{vfork}
 
-% Problemen die we tegen kwamen met vfork? (Geen?)
+% Problemen die we tegen kwamen met vfork? (Het returned niet een pid
+% met safe-fork)
 
 % FIXME title sucks
-\subsection{32 bit ABI on 64 bit}
-
-As of yet, Tracy does not support running 32 bit tracees with a 64 bit
-Tracy instance.
-% XXX TODO
-
-% Future work entry. Willen we het hier ook nog? (Ja, kort)
-
-% Hoe detect je de mode? Dat is het probleem.
-% Beetje hetzelfde als Safe execution with diff ABIs
+%\subsection{32 bit ABI on 64 bit}
+%
+%As of yet, Tracy does not support running 32 bit tracees with a 64 bit
+%Tracy instance.
 
 
 \chapter{Soxy}
@@ -1162,6 +1179,10 @@ system call is executed.
     r = ptrace(PTRACE_SYSCALL, pid, NULL, 0);
 \end{lstlisting}
 
+\chapter{Safe fork}
 
+% XXX: Hierin/onder wat comments weghalen die niet passen
+% in een paper.
+\lstinputlisting{../src/tracy/trampy.c}
 
 \end{document}
