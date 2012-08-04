@@ -260,7 +260,6 @@ Hook return values
 System call modification
 ------------------------
 
-
 Changing the arguments
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -307,6 +306,26 @@ Synchronous injection
 
 Asynchronous injection
 ~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
+    int _write(struct tracy_event * e) {
+        if (e->child->inj.injected) {
+            printf("We just injected something. Result: %ld\n", e->args.return_code);
+            return 0;
+        }
+        if (e->child->pre_syscall) {
+            if (tracy_inject_syscall_pre_start(e->child, __NR_write,
+                    &(e->args), &_write))
+                return TRACY_HOOK_ABORT;
+        } else {
+            if (tracy_inject_syscall_post_start(e->child, __NR_write,
+                    &(e->args), &_write))
+                return TRACY_HOOK_ABORT;
+        }
+
+        return 0;
+    }
 
 Cleaning up
 -----------
