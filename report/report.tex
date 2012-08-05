@@ -57,24 +57,7 @@ and restrict program execution in a controlled environment.
 % - Misschien pre/post renamen naar syscall entry en exit?
 % - Overzicht van ptrace() opties en hoe Tracy ze gebruikt? (Tabel)
 %   - Op zijn minst PTRACE_SETOPTIONS noemen.
-
-% execve under ptrace:
-% When one thread in a multithreaded process calls execve, the kernel destroys all other threads in
-% the  process,  and  resets  the thread ID of the execing thread to the thread group ID (process ID).
-% (Or, to put things another way, when a multithreaded process does an execve, at completion of the
-% call,  it  appears  as though the execve occurred in the thread group leader, regardless of which
-% thread did the execve.)  This resetting of the thread ID looks very confusing to tracers:
-
-
-%
-% ---- STUFF -----
-% socketcall
-% KISS
-% Add SOCKS5 somewhere. (Probably related work)
-% UDP in the current SOCKS5 protocol
-% UDP over ssh ( :-( )
-% sshfs ergens noemen?
-% ---- STUFF -----
+% - sshfs ergens noemen?
 
 \chapter{Introduction}
 
@@ -236,8 +219,13 @@ userspace libraries the process uses.
 \section{Terminology}
 
 % System calls zijn bold
+% ptrace options/api call/name etc is in de tabel in de appendix te vinden. Deze
+% zijn emph?
 
 \chapter{Tracy and ptrace}
+
+This chapter provides a theoretical introduction to ptrace and its problems for
+cross platform and cross architecture programming.
 
 \section{Introduction to Tracy}
 Several UNIX and UNIX-like systems support the \textbf{ptrace} system call.
@@ -376,28 +364,25 @@ allocated pages and change the data stored in the pages just before the system
 call is executed and after the tracer has written data to the page. To safely
 share memory, see Section \ref{memory-share}.
 
-
-%TODO: Pages allocaten in child (wat voor beide RW is) is racy;
-%zie future work memory sharing oplossing.
-
 \section{Tracing children}
 
-% XXX: Hier staat nog geen rfork() bij.
 A tracee can spawn children by calling the \textbf{fork}\footnote{among
     other system calls: vfork, rfork (BSD), clone (Linux)} system call. \textbf{ptrace}
 does not automatically trace children of a tracee.
 
 In certain occasions, one may want to trace all the children of a tracee.
 To do this, Linux supports specific \textbf{ptrace} options to trace
-the tree of children spawned by the tracee as well (Section
+the tree of children spawned by the tracee as well (See Section
 \ref{syscall-trace}).
 
 However, other platforms do not support these options and tracing
 children of the tracee can be somewhat problematic.
-% XXX: Wat is het probleem dan? Zie strace quote hieronder.
-We provide a solution
-to this in Tracy such that any children spawned by the tracee will not
-run uncontrolled on any platform in Section \ref{safe-fork}.
+% XXX: Wat is het probleem dan? Zie strace quote hieronder. Maar eerst strace
+% introduceren!
+We provide a solution to this in Tracy such that any children
+spawned by the tracee will not run uncontrolled on any platform
+in Section \ref{safe-fork}.
+
 %\footnote{strace does not
 %immediately trace children on non-Linux platforms:
 %% Cite strace hier weer, man page citen? Waar komt de quote vandaan (man page)
@@ -419,11 +404,15 @@ run uncontrolled on any platform in Section \ref{safe-fork}.
 
 \chapter{Implementation}
 
+This chapter covers the implementation of Tracy using the ptrace api. Provided
+in Appendix \ref{ptrace-api} is an overview of most of the ptrace api.
+We will discuss problems we ran into while implementing Tracy, with a focus on
+ptrace limitations and caveats.
+
 \section{Tracing a process}
 
 Tracing a process can be done in two different ways. A process can either attach
 to another running process, or create a child process and consequently use
-% consequently? Weird.
 \textbf{ptrace} in the child to make the parent (the original process, soon to
 be the \textit{tracer}) trace the child after which the child will
 call \textbf{execve} to run another program.
@@ -435,11 +424,11 @@ The child then performs a \textbf{ptrace} call, with the \textit{PTRACE\_TRACEME
 
 % XXX: Het is hier niet duidelijk dat dit SIGTRAP alleen geraised wordt door
 % het tracy child en niet automagisch door ptrace oid.
-The child then sends itself a \textit{SIGTRAP} signal; because the child is being
-% XXX: de because hier is vreemd.
-traced by its parent, the child is then suspended until the parent performs
-a \textbf{wait} followed by a call to ptrace to continue the process with the
-\textit{PTRACE\_SYSCALL} argument to \textbf{ptrace}.
+The child then (by Tracy design)  sends itself a \textit{SIGTRAP} signal;
+and because the child is being traced by its parent, the child is then
+suspended until the parent performs a \textbf{wait} followed by a call
+to ptrace to continue the process with the \textit{PTRACE\_SYSCALL} argument
+to \textbf{ptrace}.
 The parent can inspect and change the child before it issues
 the continue call. The code demonstrating this can be found in
 Appendix \ref{appendix:createtrace}
@@ -599,7 +588,7 @@ instead of simply waiting for the system call of the tracee to finish.
 
 While asynchronous injection is usually preferred, synchronous injection is
 supported by Tracy as well and even used in Tracy internally where
-asynchronous injection simply isn't worth the extra work and effort.
+asynchronous injection simply is not worth the extra work and effort.
 
 \section{Memory access}
 
@@ -832,8 +821,15 @@ and \textit{arch/x86/kernel/process.c}}.
 
 
 \chapter{Soxy}
+
 \label{chapter:soxy}
 
+% ---- STUFF -----
+% socketcall
+% Add SOCKS5 somewhere. (Probably related work)
+% UDP in the current SOCKS5 protocol
+% UDP over ssh ( :-( )
+% ---- STUFF -----
 In order to show the power and features of Tracy, as well as finding bugs and
 improving the API, we have developed Soxy, a proxifier \footnote{An
 application which tunnels internet traffic through another server} on top of
@@ -1175,9 +1171,10 @@ system call is executed.
 \end{lstlisting}
 
 \chapter{ptrace(2) API}
+\label{ptrace-api}
 
 Every method except for \textit{PTRACE\_TRACEME} is called by the tracer.
-\begin{table}[position specifier]
+\begin{table}[h!]
     \centering
     \begin{tabular}{|l|p{8cm}|}
     \hline
@@ -1199,10 +1196,12 @@ Every method except for \textit{PTRACE\_TRACEME} is called by the tracer.
     \label{tab:ptrace-api}
 \end{table}
 
+\newpage
+
 The following table provides an overview of the Linux specific ptrace
 options set using PTRACE\_SETOPTIONS.
 
-\begin{table}[position specifier]
+\begin{table}[h!]
     \centering
     \begin{tabular}{|l|p{8cm}|}
     \hline
@@ -1221,7 +1220,7 @@ options set using PTRACE\_SETOPTIONS.
     and report the death of each thread. \\
         PTRACE\_O\_TRACEVFORKDONE & Stop the tracee (parent) at completion
     of the vfork call. \\
-        PTRACE\_O\_TRACEEXIT & Sto the tracee before exit. \\
+        PTRACE\_O\_TRACEEXIT & Stop the tracee before exit. \\
     \hline
     \end{tabular}
     \caption{Linux-specific ptrace options}
