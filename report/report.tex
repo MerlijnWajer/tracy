@@ -286,8 +286,8 @@ a system call is executed; or after a system call is executed.
 % waarde overschrijven.
 It can be useful to data pointed to by a system call argument of tracee.
 To transparently and safely change these additional hacks are required:
-both changing the contents directly as well as validating the value when the child
-can still change the value are bad ideas.
+both changing the contents directly as well as validating the value when the
+child can still change the value are bad ideas.
 % Bad ideas is een overdrijving.
 
 The first interferes with the normal execution of the process
@@ -435,9 +435,9 @@ Appendix \ref{appendix:createtrace}
 
 \subsection{Attaching}
 
+\textit{TODO}
+
 % TODO: How does one attach
-%
-% XXX: Noemen dat we attach ook gebruiken in safe-fork
 
 \section{System call tracing}
 \label{syscall-trace}
@@ -454,9 +454,8 @@ all the tracees.
 Tracy keeps track of each child; it has to store information about the state
 of the child: will the next stop be a system call entry or exit, or are we
 currently injecting a system call? Aside from those two states, Tracy also
-has to do some other internal bookkeeping.
-% XXX: Zonder voorbeeld/ref dit ^^ gewoon niet noemen.
-% vb: injected nr, etc
+has to do some other internal bookkeeping such as the number of the system
+call that is being denied.
 
 % Meer is niet nodig denk ik, er staat ook een hoop in het event system.
 
@@ -476,9 +475,6 @@ execute a completely different system call. This serves two purposes:
 system call such as getpid and ``injecting'' system calls by changing the
 system call number and later on the instruction pointer (See Section
 ref{syscal-inject}).
-
-% TODO: Tracy specifiek stuk hier? Methode namen hoeft niet, maar wellicht wel
-% hoe wij het doen?
 
 \section{Event system}
 \label{event-system}
@@ -559,11 +555,13 @@ post).
 
 \subsection{Pre-syscall injection}
 
+\textit{TODO}
 As seen in figure \ref{fig:pre-inj}
 
 \subsection{Post-syscall injection}
 
-As seen in figure \ref{fig:pre-inj}
+\textit{TODO}
+As seen in figure \ref{fig:post-inj}
 
 
 \subsection{Asynchronous injection in Tracy}
@@ -597,7 +595,7 @@ asynchronous injection simply is not worth the extra work and effort.
 Any program that uses the \textbf{ptrace} API will probably want to access the
 traced process' memory as well. Reasons can range from simply dumping pointer
 contents to monitoring, changing or even injecting new system calls with
-completely stand-alone data.\
+completely stand-alone data.
 
 % Furthermore, in case of IO intensive operation this access should be fairly
 % fast as well.
@@ -620,17 +618,14 @@ amount of data that can be transferred.
 These ptrace operations are used to respectively read and write individual
 processor words.
 
-% XXX: Hoezo weten we dat niet? Gewoon claimen of niet zeggen IMHO
-On Linux the "long" type has, as far as we know, the same size as the
+On Linux the C ``long'' type has the same size as the
 processor word size, so 32 bits on a 32-bit architecture and
 64 bits on a 64-bit architecture.
 
 This is where the trouble starts, not only is it not possible to simply read
 or write single bytes of memory, whenever one wants to access say 4kb of
 memory, depending on the architecture, this may require more than 1024
-calls to ptrace. Needless to say the amount of time spent in context switches
-and kernel code is enormous.
-% XXX: Context switches, waar? Het child is suspended.
+calls to ptrace. The amount of time spent performing ptrace system calls.
 
 \subsubsection{Alternative: through /proc}
 Linux provides another way to access memory of a process. The ``/proc''
@@ -645,8 +640,7 @@ memory contents.
 
 The ``/proc/$<pid>$/mem'' file is the one used by Tracy to access child memory.
 Opening this file will present child memory as one contiguous file which
-can be modified using the usual IO operations.
-% Contigous lare? What are the usual operations? Elaborate
+can be modified using \textbf{read} and \textbf{write}..
 
 This also means we can now write single bytes of memory without the need
 of first reading a processor word. We can now read 4kB of memory with a
@@ -657,10 +651,6 @@ One cannot simply open the ``/proc/$<pid>$/mem'' file of any
 arbitrary process as this would cause a major security issue. The only
 processes capable of successfully opening this file are either processes
 tracing the target process, or super-user processes.
-
-% XXX: Future work, memory mapped child access?
-% /proc/<pid>/mem
-% (PEEK|POKE)USER
 
 \section{Signals}
 
@@ -679,7 +669,7 @@ suppress certain signals by simply not passing them along to the tracee.
 
 \section{Tracing children}
 
-% TODO: This can't be empty
+\textit{TODO}
 
 \subsection{Linux}
 
@@ -738,6 +728,7 @@ processes continue their execution.
 
 \subsection{Children with threads}
 
+\textit{TODO}
 % Hoe werkt resource sharing? CLONE_VM, CLONE_FILES, unshare, etc.
 
 % Introductie naar threads. Wat beschrijft een thread nu?
@@ -792,6 +783,7 @@ Section \ref{ptrace-perf}.
 % We hebben bij veel secties al een caveats subsectie...
 \section{Caveats}
 
+\textit{TODO}
 % TODO Dit mag niet leeg zijn.
 
 \subsection{Clone}
@@ -803,22 +795,14 @@ also \textit{switches} two registers
 \footnote{This can be observed in \textit{arch/x86/kernel/entry\_32.S}
 and \textit{arch/x86/kernel/process.c}}.
 
- % XXX: Welke ook alweer
-
 % x86: Args switched... Waarom? Misschien wel leuk om uit te zoeken.
 % x64: Argument minder dan x86
 
 \subsection{vfork}
+\textit{TODO}
 
 % Problemen die we tegen kwamen met vfork? (Het returned niet een pid
 % met safe-fork)
-
-% FIXME title sucks
-%\subsection{32 bit ABI on 64 bit}
-%
-%As of yet, Tracy does not support running 32 bit tracees with a 64 bit
-%Tracy instance.
-
 
 \chapter{Soxy}
 
@@ -926,13 +910,14 @@ wait to increase the performance of Tracy with a lot of tracees.
 % link to arm? explain oabi and eabi?
 % Explain ABI (before this chapter?)
 On some platforms such as AMD64 and ARM Linux implements several ABIs.
-These ABIs are sometimes invoked differently (as is the case with AMD64)
-and it is not easy to tell what ABI is being used to issue the system call.
+These ABIs are invoked differently and for the tracer it is not easy to
+tell what ABI is being used to invoke the system call.
 The problem here is that each ABI (sometimes) has different system call
 numbers, which means that \textbf{read} on AMD64 ABI is not the same
 as the 32 bit ABI on the AMD64 platform. Tracy currently always assumes
-a x86\_64 ABI. This is not just a functional issue (not being able to
-properly identify a 32 bit ABI system call) but a security problem because it
+a x86\_64 ABI on 64 bit and the x86 abi on 32 bit.
+This is not just a functional issue (not being able to properly identify a 32
+bit ABI system call) but a security problem because it
 allows any tracee to ``fake'' Tracy into thinking it is doing system call $A$
 where it is in fact doing system call $B$; Tracy will not call the proper hook
 function and (if told to do so) may deny the wrong system call or even worse,
@@ -953,7 +938,10 @@ users of Tracy to install a very recent Linux kernel or even apply a patch
 to their current kernel. \\
 
 Another solution to the problem of identifying the ABI of the current
-system call would be to read the current assembly instruction. AMD64 uses a
+system call would be to read the current assembly instruction (that is,
+the assembly instruction at the instruction pointer).
+
+AMD64 uses a
 different instruction to perform a system call than the 32 bit ABI; which
 means we can use that instruction to differentiate the two ABIs. There are a
 few caveats however: it is possible that the instruction in the program (memory)
@@ -961,6 +949,7 @@ and the instruction in the cpu pipeline are not the same; a program could use
 another thread to intentionally wipe out or change the instruction that was
 used to invoke the system call, which would result in Tracy reading a faulty
 or fake instruction. \\
+% ARM gebruikt dezelfde asm instructie maar heeft andere reg contents.
 
 To prevent another thread in the process to change the instruction we can
 use the \textbf{mprotect} system call to mark the memory as read and execute
@@ -978,9 +967,9 @@ instructions.
 Even though now yet supporting identifying the ABIs is a serious security issue,
 it is also mainly important when someone wants to be completely sure that every
 single system call is traced. Most programs also do not usually modify their
-own instructions; nor do they create their own instructions (JITs do)
-% XXX: JIT reference, Java is jit, ofc, firefox js etc
+own instructions; nor do they create their own instructions
 that perform 32 bit system calls in a 64 bit process.
+% JIT noemen?
 
 \section{BSD Support}
 
@@ -988,10 +977,10 @@ Support for Tracy on the BSD variants is planned, but will require some
 additional work. We have not extensively examined \textbf{ptrace} and
 system calls in general on BSD variants, but a few things jumped out. \\
 
-BSD uses \textbf{rfork} instead of \textbf{clone} and BSD also does
+BSD uses \textbf{rfork} instead of Linux' \textbf{clone} and BSD also does
 not support automatically tracing processes created by a tracee. While
 we can emulate this effectively with Tracy's safe fork
-Section(\ref{safe-fork}) it will still require some work.
+Section(\ref{safe-fork}) the code will still require some work.
 
 Apart from this functional difference, there is also a difference in
 how BSD variants treat the system call arguments. Arguments of a system
@@ -1003,13 +992,15 @@ also support the Linux way of system calls, by passing the arguments in
 registers in the same manner as Linux.
 
 BSD also returns errors differently than Linux (although again, it supports
-Linux emulation). BSD sets the ``carry flag'' upon failure, whereas Linux
-returns a negative value upon error.
+Linux emulation). BSD sets the ``carry flag'' upon failure and sets the error
+in the register of the return code, whereas Linux sets the register of the
+return code to minus error number.
 
 \section{Memory sharing between tracer and tracee}
 \label{memory-share}
 
 % Need to do some shm magic.
+\textit{TODO}
 
 \section{Instant injection using signals}
 \label{instant-inject}
@@ -1039,24 +1030,11 @@ feature, we have postponed the feature due to time constraints. We also
 did not find the feature particularly useful because Tracy is event based,
 which means that in most cases the tracee is already stopped.
 
-% XXX: Dit kan onhandig zijn in combinatie met threaded tracing. Wat als
-% we een signal sturen en een andere thread die afvangt?
-
-
-%\textit{Netjes uitschrijven.}
-%\begin{itemize}
-%    \item Securing from mixed ABI using dynamic X\^W protection. (Including
-%        picture)
-%    \item Support more architectures and OSes.
-%    \item Sharing memory between tracer and children using mapped files.
-%    \item Instant injection of system calls using signals to stop the process.
-%    \item Multithreaded tracing.
-%    %\item Python bindings
-%\end{itemize}
-
 \section{Calling functions in the tracee}
+\textit{TODO}
 
 \section{Tracing 32 bit applications with a 64 bit tracer}
+\textit{TODO}
 
 \section{Improving ptrace performance}
 \label{ptrace-perf}
