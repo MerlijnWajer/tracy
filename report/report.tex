@@ -44,18 +44,19 @@ and restrict program execution in a controlled environment.
 % - PTRACE_O_TRACE{EXEC,VFORKDONE,EXIT}
 % - Noemen dat ptrace op een specifiek pid werkt altijd (is opzich logisch,
 %       staat nergens)
-
-
-% PTRACE_TRACE_{FORK,VFORK,CLONE} is a mess. If we simply want to be called on
-% clone() in case of a clone event, we must disable fork and vfork; otherwise it
-% may also instead return fork or vfork events. From the man page:
+% - PTRACE_TRACE_{FORK,VFORK,CLONE} is a mess. If we simply want to be called on
+%   clone() in case of a clone event, we must disable fork and vfork; otherwise it
+%   may also instead return fork or vfork events. From the man page:
 %
-% This  option  may not catch clone calls in all cases.  If the tracee calls clone
-% with  the  CLONE_VFORK  flag,  PTRACE_EVENT_VFORK  will  be   delivered   instead   if
-% PTRACE_O_TRACEVFORK  is set; otherwise if the tracee calls clone with the exit sig‐
-% nal set to SIGCHLD, PTRACE_EVENT_FORK will be delivered if PTRACE_O_TRACEFORK is set.
-
-% Gebruiken PTRACE_O_TRACESYSGOOD voor performance.
+%       This  option  may not catch clone calls in all cases.  If the tracee calls clone
+%       with  the  CLONE_VFORK  flag,  PTRACE_EVENT_VFORK  will  be   delivered   instead   if
+%       PTRACE_O_TRACEVFORK  is set; otherwise if the tracee calls clone with the exit sig‐
+%       nal set to SIGCHLD, PTRACE_EVENT_FORK will be delivered if PTRACE_O_TRACEFORK is set.
+%
+% - Gebruiken PTRACE_O_TRACESYSGOOD voor performance.
+% - Misschien pre/post renamen naar syscall entry en exit?
+% - Overzicht van ptrace() opties en hoe Tracy ze gebruikt? (Tabel)
+%   - Op zijn minst PTRACE_SETOPTIONS noemen.
 
 % execve under ptrace:
 % When one thread in a multithreaded process calls execve, the kernel destroys all other threads in
@@ -64,9 +65,6 @@ and restrict program execution in a controlled environment.
 % call,  it  appears  as though the execve occurred in the thread group leader, regardless of which
 % thread did the execve.)  This resetting of the thread ID looks very confusing to tracers:
 
-% Misschien pre/post renamen naar syscall entry en exit?
-
-% XXX END NOTES XXX
 
 %
 % ---- STUFF -----
@@ -80,7 +78,6 @@ and restrict program execution in a controlled environment.
 
 \chapter{Introduction}
 
-% AANTREKKELIJKE OPENING
 Programmers spend a rather large part of their time finding mistakes in their
 computer programs. Programmers usually refer to this routine as debugging.
 Programmers employ various tools to aid them in debugging programs.
@@ -99,7 +96,6 @@ of most operating systems; it is a bridge between the hardware and programs.
 Inspecting (and modifying) the system calls performed by a program
 is done programmatically using the \textbf{ptrace} system call.
 A program inspecting the
-% TODO: ptrace, ptrace, textbf{ptrace}, etc? Nu clarifyen?
 system calls of another program is said be to be ``tracing'' the other
 program. The program that is being traced is called the ``tracee'' and the
 program tracing the ``tracee'' is called the ``tracer''.
@@ -108,8 +104,6 @@ mention the possibility to modify the program that is being traced.
 Using \textbf{ptrace} the tracer can also modify the tracee by
 reading and writing to the memory of the tracee or even changing the
 system calls made by the tracee.
-
-% AANLEIDING / MOTIVATIE
 
 \section{Motivation}
 The ability to modify the program memory and registers
@@ -144,13 +138,12 @@ architecture agnostic, meaning a tracer requires architecture specific code.
 %   - Wat voor effect heeft ptrace op de performance van programma's?
 %   - 
 
-% TODO: Programmer friendly? Perhaps emphasis?
 We researched the viability of a cross architecture, programmer friendly
 system call tracing and modification framework for the Linux kernel.
 During this research, we put emphasis on a few key areas.
 % Opmerken dat het niet alleen voor Linux hoeft te zijn?
 
-\subsection{Problems with ptrace} % TODO
+\subsection{Problems with ptrace}
 First of all, we wanted to solve problems introduced by utilising ptrace
 directly. As we have previously noted, a particular problem with ptrace is that
 the ptrace interface to the programmer differs per platform. This means that
@@ -175,6 +168,7 @@ inevitable amiguity about the current system call being performed (Section
 \ref{secure-abi}).
 
 % TODO: Dit uitbreiden
+% Operates on assembly level?
 Due to ptrace being a very low-level system call, which operates on assembly
 level, it is not possible to simply ``change the return value'' of a system
 call. Each instruction set has its own registers and on top of that, operating
@@ -193,11 +187,6 @@ rather than on every system call. This leads to performance issues (Section
 \ref{ptrace-perf}).
 
 \subsection{LD\_PRELOAD}
-% 
-% % There are several ways to transparently intercept calls to a library or
-% % system calls. LD\_PRELOAD is one such method to intercept calls to a library.
-% % This should not be confused with intercepting system calls; LD\_PRELOAD
-% % cannot intercept system calls; this is a reason not to use LD\_PRELOAD.
 
 \textit{LD\_PRELOAD} is a way to prioritize loading of certain libraries
 while creating and loading a process. The \textit{LD\_PRELOAD} environment
@@ -237,6 +226,11 @@ all (specific) system calls of a process, independent on what kind of
 userspace libraries the process uses.
 
 \section{Structure of This Document}
+
+% Termen introduceren
+% ptrace introduceren, tracy introduceren
+% tracy analyseren, design keuzes toelichten
+% future work
 
 
 \section{Terminology}
@@ -719,13 +713,13 @@ controlled manner.
 
 To implement this feature, we make use of system call injection as well as the
 ability to be able to allocate and write to pages in the tracee. We allocate a
-page in the tracee and write a few lines of assembly that will safely execute
-\textbf{fork} to the page. \ref{safefork-asm}
+page in the tracee and write a few lines of assembly (Appendix
+\ref{appendix:safefork-asm}) that will safely execute
+\textbf{fork} to the page.
 Once this the assembly has been written, we deny the initial
 \textbf{fork} call by changing the system call to \textbf{getpid}.
 In the POST-getpid callback, we change the Instruction Pointer
 (or Program Counter) to the first instruction in the newly allocated page.
-
 
 Once the tracee starts executing the instructions in this
 page, the tracee will once again execute a system call -
@@ -758,7 +752,6 @@ processes continue their execution.
 % Hoe werkt resource sharing? CLONE_VM, CLONE_FILES, unshare, etc.
 
 % Introductie naar threads. Wat beschrijft een thread nu?
-
 
 % Threads op Linux zijn processes die bepaalde resources sharen (CLONE_VM,
 % CLONE_FILES).
@@ -918,7 +911,7 @@ proxy connection.
 As the number of tracees for a single Tracy instance increases, the
 likelyhood of Tracy becoming a bottleneck increases. Since Tracy is
 single threaded, it is very possible a lot of tracees will have to wait
-on Tracy to perform a system call. \\
+on Tracy to resume their execution. \\
 
 We believe that it is possible to add multithreading support to Tracy where
 each thread can perform its own \textbf{waitpid}. Access to certain
@@ -926,9 +919,11 @@ datastructures in Tracy will have to be guarded with semaphores, but
 we think multithreading will be both viable to program and an effective
 wait to increase the performance of Tracy with a lot of tracees.
 
+% Interne sync en async kan wel misgaan hierdoor. Je wil bepaalde threads alleen
+% maar bepaalde pids laten doen eigenlijk.
+
 \section{Secure ABI mixing}
 \label{secure-abi}
-
 
 % TODO: integrate https://en.wikipedia.org/wiki/W%5EX
 % link to AMD ?
@@ -1179,10 +1174,64 @@ system call is executed.
     r = ptrace(PTRACE_SYSCALL, pid, NULL, 0);
 \end{lstlisting}
 
-\chapter{Safe fork}
+\chapter{ptrace(2) API}
 
-% XXX: Hierin/onder wat comments weghalen die niet passen
-% in een paper.
-\lstinputlisting{../src/tracy/trampy.c}
+Every method except for \textit{PTRACE\_TRACEME} is called by the tracer.
+\begin{table}[position specifier]
+    \centering
+    \begin{tabular}{|l|p{8cm}|}
+    \hline
+        PTRACE\_TRACEME & Called by a process to make the parent of the process
+        a tracer. This is forcibly called by the first child that is
+        spawned by Tracy. \\
+        PTRACE\_ATTACH & Attach to process. \\
+        PTRACE\_DETACH & Detach from a tracee. \\
+        PTRACE\_SYSCALL & Continue the execution of the tracee,
+        stopping at the next system call or signal event. \\
+        PTRACE\_PEEKDATA & Read a word (long) from a tracee. \\
+        PTRACE\_POKEDATA & Write a word (long) to a tracee. \\
+        PTRACE\_GETREGS & Returns the cpu registers of a tracee. \\
+        PTRACE\_SETREGS & Set the cpu registers of a tracee. \\
+        PTRACE\_SETOPTIONS & Set a ptrace option of a tracee. \\
+    \hline
+    \end{tabular}
+    \caption{Basic ptrace api}
+    \label{tab:ptrace-api}
+\end{table}
+
+The following table provides an overview of the Linux specific ptrace
+options set using PTRACE\_SETOPTIONS.
+
+\begin{table}[position specifier]
+    \centering
+    \begin{tabular}{|l|p{8cm}|}
+    \hline
+        PTRACE\_O\_TRACESYSGOOD & When delivering a system call trap, bit 7 in
+    the signal is set: SIGTRAP$|$0x80.\\
+        PTRACE\_O\_TRACEFORK & Stop the tracee at the next fork event and
+    automatically tracee any children created. The child is started with
+    SIGSTOP. \\
+        PTRACE\_O\_TRACEVFORK & Stop the tracee at the next vfork event and
+    automatically tracee any children created. The child is started with
+    SIGSTOP. \\
+        PTRACE\_O\_TRACECLONE & Stop the tracee at the next clone event and
+    automatically tracee any children created. The child is started with
+    SIGSTOP. \\
+        PTRACE\_O\_TRACEEXEC & Stop the tracee at the next execve system call
+    and report the death of each thread. \\
+        PTRACE\_O\_TRACEVFORKDONE & Stop the tracee (parent) at completion
+    of the vfork call. \\
+        PTRACE\_O\_TRACEEXIT & Sto the tracee before exit. \\
+    \hline
+    \end{tabular}
+    \caption{Linux-specific ptrace options}
+    \label{tab:ptrace-opt}
+\end{table}
+
+
+\chapter{Safe fork}
+\label{appendix:safefork-asm}
+
+% XXX: Hier een simpel stukje asm?
 
 \end{document}
