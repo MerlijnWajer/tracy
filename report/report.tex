@@ -994,7 +994,7 @@ registers in the same manner as Linux.
 BSD also returns errors differently than Linux (although again, it supports
 Linux emulation). BSD sets the ``carry flag'' upon failure and sets the error
 in the register of the return code, whereas Linux sets the register of the
-return code to minus error number.
+return code to the negative equivalent of the error number\ref{bsdasm}.
 
 \section{Memory sharing between tracer and tracee}
 \label{memory-share}
