@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <fcntl.h>
 
 #include "soxy.h"
 
@@ -45,7 +46,7 @@ static void get_proxy_server(struct sockaddr *addr, socklen_t *proxy_addr_len)
         struct sockaddr_in *addr4 = (struct sockaddr_in *) &_addr;
         addr4->sin_family = AF_INET;
         addr4->sin_addr.s_addr = 0x0100007f;
-        addr4->sin_port = htons(2222);
+        addr4->sin_port = htons(9050);
         first = 1;
     }
 
@@ -102,6 +103,7 @@ static int soxy_connect_proxy_server(struct tracy_event *e, int fd)
         0, 0, 0, 0, 0, 0};
     if(tracy_inject_syscall(e->child, __NR_connect, &args, &ret) != 0 ||
             ret < 0) {
+        fprintf(stderr, "connect-proxy-server: ret = %ld\n", ret);
         perror("tracy_inject_syscall(connect-proxy-server)");
         return -1;
     }
@@ -348,6 +350,13 @@ static int soxy_hook_socket(struct tracy_event *e)
 
 static int soxy_hook_connect(struct tracy_event *e)
 {
+    long flags;
+    int fd;
+    int nonblocking;
+    long ret;
+
+    ret = 0;
+
     if(e->child->pre_syscall) {
         struct sockaddr_in6 addr;
         if(
@@ -363,10 +372,36 @@ static int soxy_hook_connect(struct tracy_event *e)
             tracy_read_mem(e->child, &addr, (tracy_parent_addr_t) e->args.a1,
                 e->args.a2) == e->args.a2
         ) {
+            fd = e->args.a0;
+
             proxy_t *proxy = proxy_find(e, e->args.a0);
             proxy->change_return_code = 1;
             // by default we return failure
             proxy->return_code = -1;
+
+            struct tracy_sc_args fcntl_args = {fd, F_GETFL, 0,
+                0, 0, 0, 0, 0, 0, 0};
+            if (tracy_inject_syscall(e->child, __NR_fcntl, &fcntl_args, &flags)) {
+                fprintf(stderr, "F_GETFL failed\n");
+                return 0;
+            }
+            fprintf(stderr, "fcntl returns: %ld\n", flags);
+
+            nonblocking = (flags & O_NONBLOCK) > 0;
+            if (nonblocking) {
+                fprintf(stderr, "Socket is nonblocking!\n");
+                flags = (flags & ~O_NONBLOCK);
+
+                struct tracy_sc_args fcntl_args = {fd, F_SETFL, flags,
+                    0, 0, 0, 0, 0, 0, 0};
+                if (tracy_inject_syscall(e->child, __NR_fcntl, &fcntl_args, &ret)) {
+                    fprintf(stderr, "F_GETFL failed\n");
+                    return 0;
+                }
+                fprintf(stderr, "fcntl returns: %ld\n", ret);
+            } else {
+                fprintf(stderr, "Socket is blocking\n");
+            }
 
             // establish a connection to the proxy server.
             if(soxy_connect_proxy_server(e, e->args.a0) < 0) {
@@ -378,6 +413,18 @@ static int soxy_hook_connect(struct tracy_event *e)
             if(soxy_connect_addr(e, e->args.a0, (struct sockaddr *) &addr)
                     < 0) {
                 return 0;
+            }
+
+            if (nonblocking) {
+                flags = (flags | O_NONBLOCK);
+
+                struct tracy_sc_args fcntl_args = {fd, F_SETFL, flags,
+                    0, 0, 0, 0, 0, 0, 0};
+                if (tracy_inject_syscall(e->child, __NR_fcntl, &fcntl_args, &ret)) {
+                    fprintf(stderr, "F_GETFL failed\n");
+                    return 0;
+                }
+                fprintf(stderr, "fcntl returns: %ld\n", ret);
             }
 
             if(tracy_deny_syscall(e->child)) {
@@ -422,6 +469,7 @@ static int soxy_hook_close(struct tracy_event *e)
 
 int main(int argc, char *argv[])
 {
+    //struct tracy *tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE | TRACY_VERBOSE_SYSCALL | TRACY_VERBOSE_SIGNAL);
     struct tracy *tracy = tracy_init(TRACY_TRACE_CHILDREN);
     (void)argc;
 

@@ -22,7 +22,8 @@ success. Possible options for *opt*:
 -   *TRACY_TRACY_CHILDREN* (Trace children of the tracee created with fork,
     vfork or clone.)
 -   *TRACY_USE_SAFE_TRACE* (Do not rely on Linux' auto-trace on fork abilities
-    and instead use our own safe implementation)
+    and instead use our own safe implementation.)
+-   *TRACY_MEMORY_FALLBACK* (Use fallback mechanism is fast memory access fails.)
 
 Returns the tracy record created.
 
