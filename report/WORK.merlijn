@@ -1,4 +1,4 @@
-Hours worked: 271 (Approximately...)
+Hours worked: 301 (Approximately...)
 
 Proposal:   15 hours.
 
@@ -32,6 +32,8 @@ Code: (Time spent writing only)
     -   safe-fork-fix-1: clone quirks: 8 hours. (13-15 June)
     -   Source clean up and fixes: 5 hours. (15 July - 16 July)
     -   Debug improvements + bugfix for safe-fork: 1 hour. (20 July)
+    -   Asynchronous sockets for soxy: 1 hour. (6 Aug)
+    -   ARM support for soxy, tracy ARM fixes: 8 hours. (6-9 Aug)
 
 Report:
     -   Initial work on report: 25 hours. (16 March - 1 April)
@@ -40,6 +42,10 @@ Report:
     -   Fixes, Ch. 3, Ch. 5: 25 hours. (15 July - 19 July)
     -   Signal section: 1 hour. (20 July)
     -   Ptrace performance chapter: 2 hours. (21 July)
+    -   Rewrites, new intro: 6 hours (31 July)
+    -   More work on Ch. 1: 4 hours. (1 Aug)
+    -   QA: 8 hours. (4 Aug)
+    -   Small changes: 2 hours. (5-6 Aug)
 
 Tracy tests:
     -   Loggy: 3 hours. (11 March)
