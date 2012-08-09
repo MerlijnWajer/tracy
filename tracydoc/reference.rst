@@ -362,25 +362,48 @@ call this function. In fact, you shouldn't.
 
 Returns 0 on success; -1 on failure.
 
-tracy_modify_syscall
---------------------
+System call modification
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+tracy_modify_syscall_args
+-------------------------
 
 .. code-block:: c
 
-    int tracy_modify_syscall(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a);
+    int tracy_modify_syscall_args(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a);
 
 .. **
 
 This function allows you to change the system call number and arguments of a
-paused child. You can use it to change a0..a5, return_code and the ip.
+paused child. You can use it to change a0..a5
+
+Changes the system call number to *syscall_number* and if *a* is not NULL,
+changes the argument registers of the system call to the contents of *a*.
+
+Returns 0 on success, -1 on failure.
+
+tracy_modify_syscall_regs
+-------------------------
+
+.. code-block:: c
+
+    int tracy_modify_syscall_regs(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a);
+
+.. **
+
+This function allows you to change the system call number and arguments of a
+paused child.
+Changes the system call number to *syscall_number* and if *a* is not NULL,
+changes the registers of the system call to the contents of *a*. These
+registers currently include: ip, sp, return_code.
+
 Changing the IP is particularly important when doing system call injection.
 Make sure that you set it to the right value when passing args to this
 function.
 
-Changes the system call number to *syscall_number* and if *a* is not NULL,
-changes the arguments/registers of the system call to the contents of *a*.
-
 Returns 0 on success, -1 on failure.
+
+
 
 tracy_deny_syscall
 ------------------

@@ -79,7 +79,8 @@ static int tracy_internal_syscall(struct tracy_event *s) {
 
         /* Finally update child registers */
         /* TODO: Check return value? */
-        tracy_modify_syscall(s->child, s->args.syscall, &s->args);
+        tracy_modify_syscall_regs(s->child, s->args.syscall, &s->args);
+        tracy_modify_syscall_args(s->child, s->args.syscall, &s->args);
     }
 
     if (!s->child->pre_syscall)
@@ -392,8 +393,13 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             s->args.return_code = -EPERM;
             s->args.sp = regs.TRACY_STACK_POINTER;
 
-            if (tracy_modify_syscall(s->child, s->child->denied_nr, &(s->args))) {
-                fprintf(stderr, "tracy_modify_syscall failed\n");
+            if (tracy_modify_syscall_regs(s->child, s->child->denied_nr, &(s->args))) {
+                fprintf(stderr, "tracy_modify_syscall_regs failed\n");
+                tracy_backtrace();
+                /* TODO: Kill child? */
+            }
+            if (tracy_modify_syscall_args(s->child, s->child->denied_nr, &(s->args))) {
+                fprintf(stderr, "tracy_modify_syscall_args failed\n");
                 tracy_backtrace();
                 /* TODO: Kill child? */
             }

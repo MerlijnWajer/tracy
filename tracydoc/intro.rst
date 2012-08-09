@@ -272,7 +272,7 @@ Changing the arguments
             if (e->args.a0 == 2) {
                 memcpy(&a, &(e->args), sizeof(struct tracy_sc_args));
                 a.a0 = 1;
-                if (tracy_modify_syscall(e->child, a.syscall, &a)) {
+                if (tracy_modify_syscall_args(e->child, a.syscall, &a)) {
                     return TRACY_HOOK_ABORT;
                 }
             }
