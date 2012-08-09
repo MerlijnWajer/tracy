@@ -36,6 +36,8 @@
 
 #include "soxy.h"
 
+long boe, ba;
+
 // resolves the address of the proxy server into `addr'
 static void get_proxy_server(struct sockaddr *addr, socklen_t *proxy_addr_len)
 {
@@ -46,7 +48,7 @@ static void get_proxy_server(struct sockaddr *addr, socklen_t *proxy_addr_len)
         struct sockaddr_in *addr4 = (struct sockaddr_in *) &_addr;
         addr4->sin_family = AF_INET;
         addr4->sin_addr.s_addr = 0x0100007f;
-        addr4->sin_port = htons(9050);
+        addr4->sin_port = htons(2222);
         first = 1;
     }
 
@@ -57,6 +59,7 @@ static void get_proxy_server(struct sockaddr *addr, socklen_t *proxy_addr_len)
 static proxy_t *proxy_find(struct tracy_event *e, int fd)
 {
     struct tracy_ll_item *p = ll_find((struct tracy_ll *) e->child->custom, fd);
+
     return (p != NULL) ? (proxy_t *) p->data : NULL;
 }
 
@@ -77,7 +80,8 @@ static void soxy_child_create(struct tracy_child *child)
 
 static int soxy_connect_proxy_server(struct tracy_event *e, int fd)
 {
-    struct sockaddr proxy_addr; socklen_t proxy_addr_len;
+    struct sockaddr proxy_addr;
+    socklen_t proxy_addr_len;
     get_proxy_server(&proxy_addr, &proxy_addr_len);
 
     proxy_t *proxy = proxy_find(e, fd);
@@ -92,7 +96,7 @@ static int soxy_connect_proxy_server(struct tracy_event *e, int fd)
 
     // write the proxy server's sockaddr
     if(tracy_write_mem(e->child, proxy->map, &proxy_addr, proxy_addr_len)
-            != proxy_addr_len) {
+            != (ssize_t) proxy_addr_len) {
         perror("tracy_write_mem(proxy-sockaddr)");
         return -1;
     }
@@ -101,8 +105,8 @@ static int soxy_connect_proxy_server(struct tracy_event *e, int fd)
     long ret = 0;
     struct tracy_sc_args args = {fd, (long) proxy->map, proxy_addr_len, 0,
         0, 0, 0, 0, 0, 0};
-    if(tracy_inject_syscall(e->child, __NR_connect, &args, &ret) != 0 ||
-            ret < 0) {
+    
+    if (tracy_inject_syscall(e->child, __NR_connect, &args, &ret) != 0 || ret < 0) {
         fprintf(stderr, "connect-proxy-server: ret = %ld\n", ret);
         perror("tracy_inject_syscall(connect-proxy-server)");
         return -1;
@@ -220,25 +224,27 @@ static int soxy_connect_addr(struct tracy_event *e, int fd,
         0, 0, 0};
     if(tracy_inject_syscall(e->child, __NR_read, &args1, &ret) != 0 ||
             ret != sizeof(soxy_ipv4_reply_t)) {
+        printf("ret = %ld\n", ret);
         perror("tracy_inject_syscall(read-ipv4-reply)");
         return -1;
     }
 
-    soxy_ipv4_reply_t reply;
-    if(tracy_read_mem(e->child, &reply, proxy->map, sizeof(reply))
-            != sizeof(reply)) {
+    soxy_ipv4_reply_t *reply = malloc(sizeof(soxy_ipv4_reply_t));
+    if(tracy_read_mem(e->child, reply, proxy->map, sizeof(soxy_ipv4_reply_t))
+            != sizeof(soxy_ipv4_reply_t)) {
         perror("tracy_read_mem(read-ipv4-reply)");
         return -1;
     }
 
-    if(reply.ver != 0x05 || reply.rep != 0x00 || reply.rsv != 0x00 ||
-            reply.atyp != 0x01) {
+    if(reply->ver != 0x05 || reply->rep != 0x00 || reply->rsv != 0x00 ||
+            reply->atyp != 0x01) {
         fprintf(stderr, "Received an error!\n");
         return -1;
     }
 
-    proxy->addr = reply.addr;
-    proxy->port = reply.port;
+    proxy->addr = reply->addr;
+    proxy->port = reply->port;
+    free(reply);
     return 0;
 }
 
@@ -323,7 +329,8 @@ static int soxy_hook_socket(struct tracy_event *e)
         if((e->args.a0 == AF_INET || e->args.a0 == AF_INET6) &&
                 e->args.a1 == SOCK_STREAM) {
 #else
-        if(e->args.a0 == AF_INET && e->args.a1 == SOCK_STREAM) {
+        if(boe  == AF_INET && ba == SOCK_STREAM) {
+        //if(e->args.a0 == AF_INET && e->args.a1 == SOCK_STREAM) {
 #endif
 
             // store data about this fd (ie, it's memory map) in a linked list
@@ -336,16 +343,20 @@ static int soxy_hook_socket(struct tracy_event *e)
             // this fd is relevant to us.
             proxy_set(e, e->args.return_code, proxy);
         }
+    } 
+    else { 
+        boe = e->args.a0;
+        ba = e->args.a1;
     }
 #ifdef _SOXY_IPV6_
     else {
         if(e->args.a0 == AF_INET6) {
             e->args.a0 = AF_INET;
-            tracy_modify_syscall(e->child, __NR_socket, &e->args);
+            tracy_modify_syscall_args(e->child, __NR_socket, &e->args);
         }
     }
 #endif
-    return 0;
+    return TRACY_HOOK_CONTINUE;
 }
 
 static int soxy_hook_connect(struct tracy_event *e)
@@ -358,11 +369,15 @@ static int soxy_hook_connect(struct tracy_event *e)
     ret = 0;
 
     if(e->child->pre_syscall) {
-        struct sockaddr_in6 addr;
+        struct sockaddr_in addr;
+
         if(
             // check if the size of the address object is correct
-            (unsigned long) e->args.a2 >= sizeof(struct sockaddr_in) &&
+            (unsigned long) e->args.a2 == sizeof(struct sockaddr_in) &&
+            //(unsigned long) e->args.a2 >= sizeof(struct sockaddr_in) &&
+#ifdef _SOXY_IPV6_
             (unsigned long) e->args.a2 <= sizeof(struct sockaddr_in6) &&
+#endif
 
             // if proxy_find() returns NULL, then we are not interested in
             // this fd (could be udp, etc.)
@@ -407,6 +422,7 @@ static int soxy_hook_connect(struct tracy_event *e)
             if(soxy_connect_proxy_server(e, e->args.a0) < 0) {
                 return 0;
             }
+            fprintf(stderr, "Soxy connect proxy server succeeded.\n");
 
             // we have now successfully "authed" to the proxy server, now it's
             // time to give the proxy server the information where to connect.
@@ -414,6 +430,8 @@ static int soxy_hook_connect(struct tracy_event *e)
                     < 0) {
                 return 0;
             }
+
+            fprintf(stderr, "Soxy connect addr succeeded.\n");
 
             if (nonblocking) {
                 flags = (flags | O_NONBLOCK);
@@ -441,9 +459,10 @@ static int soxy_hook_connect(struct tracy_event *e)
 
         proxy = proxy_find(e, e->args.a0);
         if(proxy != NULL && proxy->change_return_code != 0) {
+            // Set arguments
             memcpy(&args, &e->args, sizeof(args));
             args.return_code = proxy->return_code;
-            tracy_modify_syscall(e->child, __NR_connect, &args);
+            tracy_modify_syscall_regs(e->child, __NR_connect, &args);
         }
     }
     return 0;
