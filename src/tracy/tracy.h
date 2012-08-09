@@ -407,7 +407,9 @@ int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_numb
 int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code);
 
 /* Modification and rejection */
-int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
+int tracy_modify_syscall_args(struct tracy_child *child, long syscall_number,
+        struct tracy_sc_args *a);
+int tracy_modify_syscall_regs(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a);
 int tracy_deny_syscall(struct tracy_child* child);
 
