@@ -296,6 +296,7 @@ tracy_inject_syscall_async
 --------------------------
 
 .. code-block:: c
+
     int tracy_inject_syscall_async(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a, tracy_hook_func callback);
 
 .. **
