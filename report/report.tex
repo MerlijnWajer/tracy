@@ -882,7 +882,84 @@ proxy connection.
 
 \subsection{Asynchronous Sockets}
 
-\subsection{Proxifying UDP Traffic}
+Sockets are synchronous by default, also known as \textit{blocking} sockets.
+When performing an operation on a blocking socket, the thread will hang until
+the operation has been finished or an error code can be returned. Applications
+which handle multiple sockets at once, however, tend to use asynchronous
+sockets, also known as \textit{non-blocking} sockets. Non-blocking sockets
+return immediately when operating on them, which allows an application to
+handle multiple sockets at once, without hanging the application.
+
+For Soxy this means that the \textit{connect} system call returns immediately.
+However, Soxy attempts to establish a connection to the proxy server and
+perform authentication as well as to send over the destination address before
+returning from the connect system call to the application. In order not to
+make the underlying algorithms of Soxy too complex, Soxy makes the socket
+blocking until the SOCKS5 authentication has been performed (either
+successfully or with an error code.) After the socket has been initialized
+with success, Soxy makes the socket non-blocking again.
+
+The state of a socket can be obtained and altered using the \textit{fcntl}
+\footnote{\href{http://linux.die.net/man/2/fcntl}{fcntl - manipulate file
+descriptor}} system call, using the \textit{F\_GETFL} and \textit{F\_SETFL}
+commands respectively. In order to make a socket non-blocking, the
+\textit{O\_NONBLOCK} flag should be set. By checking the state of the socket
+against the O\_NONBLOCK flag, Soxy determines whether a socket is blocking.
+
+\subsection{Differences in Architectures}
+
+There are two major differences between the x86 and x64 architecture. Namely
+the fact that x86 has one system call to perform all socket operations,
+whereas x64 has different system calls for different operations.
+(That is, x86 has the \textit{socketcall}
+\footnote{\href{http://linux.die.net/man/2/socketcall}{socketcall - socket
+system calls on x86}} system call.)
+
+For x64 support Soxy only intercepts three different system calls;
+\textit{socket}, \textit{connect}, and \textit{close}. For x86 support Soxy
+intercepts the \textit{socketcall} system call, upon intercepting a
+socketcall system call Soxy determines the type of operation (socket, connect,
+close, or something else) and, if it's one of the socket, connect, or close
+system calls it then retrieves the arguments to the function and calls the
+according function (as if it had been a system call intercepted on the x64
+platform.)
+
+% arm?
+
+\subsection{Future Work: Proxifying UDP Traffic}
+
+Although currently not implemented, Soxy aims to support UDP traffic as well.
+However, there are barely any SOCKS5 daemons which support tunneling UDP
+traffic (e.g. \textit{sshd} does not support tunneling UDP.)
+
+Proxifying UDP traffic offers another interesting challenge. Because one can
+set the address and port of an UDP packet when sending the packet itself, the
+SOCKS5 protocol works accordingly. When tunneling UDP traffic, the data of
+every regular UDP message is prefixed with the destination address and port.
+Soxy working on a client-parent basis requires the parent to write extra data
+in the client, however, not only does Soxy have to write the address and port,
+it also has to move the original buffer. This is because of the fact that the
+buffer which will be sent over UDP has got to be continous. In other words,
+Soxy allocates memory in the child, writes the address and port, and appends
+the original packet data to the data in the allocated memory.
+
+There is no good solution to this problem, but possible techniques include.
+
+\begin{itemize}
+\item Allocate enough memory every time an UDP memory is sent
+\item Keep a list of allocated memory maps
+\item Perform UDP traffic synchronous
+\end{itemize}
+
+Whereas the first technique remains low on memory, it might be quite slow
+because every read and write operation involving UDP makes Soxy allocate
+memory in the child and free it afterwards (i.e. two extra system calls and a
+lot of extra overhead.) The second technique, however, might exhaust the
+application and/or system of memory, because it pre-allocates a certain amount
+of memory pages. And, finally, the third technique is a trade-off in speed; it
+doesn't require much memory and performing one operation on an UDP socket is
+fairly cheap, but it may become slow especially when there is a lot of UDP
+traffic.
 
 \chapter{Future work}
 
