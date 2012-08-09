@@ -292,75 +292,93 @@ system call.
 
 Returns 0 on success; -1 on failure.
 
-tracy_inject_syscall_pre_start
-------------------------------
+tracy_inject_syscall_async
+--------------------------
 
 .. code-block:: c
-
-    int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a, tracy_hook_func callback);
+    int tracy_inject_syscall_async(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a, tracy_hook_func callback);
 
 .. **
 
-Change the system call, its arguments and the other registers to inject
-a system call. Doesn't continue the execution of the child.
+Inject a system call in process defined by tracy_child *child*.
+The syscall_number is the number of the system call; use *SYS_foo* or
+*__NR_foo* to retrieve these numbers. *a* is a pointer to the system
+call arguments.
 
-Call tracy_inject_syscall_pre_end to reset registers and retrieve the return
-value.
+The injection will be asynchronous; meaning that this function will return
+before the injection has finished. To be notified when injection has
+finished, pass a value other than NULL as *callback*.
 
-Returns 0 on success; -1 on failure.
-
-tracy_inject_syscall_pre_end
-----------------------------
-
-.. code-block:: c
-
-    int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code);
-
-.. **
-
-Call this after having called tracy_inject_syscall_pre_start, tracy_continue
-and waitpid on the child. This function will reset the registers to the
-proper values and store the return value in *return_code*.
-
-If you use tracy's event structure (you probably do), then you do not need to
-call this function. In fact, you shouldn't.
-
-Returns 0 on success; -1 on failure.
-
-tracy_inject_syscall_post_start
--------------------------------
-
-.. code-block:: c
-
-    int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a, tracy_hook_func callback);
-
-.. **
-
-Change the system call, its arguments and the other registers to inject
-a system call. Doesn't continue the execution of the child.
-
-Call tracy_inject_syscall_post_end to reset registers and retrieve the return
-value.
-
-Returns 0 on success; -1 on failure.
-
-tracy_inject_syscall_post_end
------------------------------
-
-.. code-block:: c
-
-    int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code);
-
-.. **
-
-Call this after having called tracy_inject_syscall_post_start, tracy_continue
-and waitpid on the child. This function will reset the registers to the
-proper values and store the return value in *return_code*.
-
-If you use tracy's event structure (you probably do), then you do not need to
-call this function. In fact, you shouldn't.
-
-Returns 0 on success; -1 on failure.
+..
+    tracy_inject_syscall_pre_start
+    ------------------------------
+    
+    .. code-block:: c
+    
+        int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a, tracy_hook_func callback);
+    
+    .. **
+    
+    Change the system call, its arguments and the other registers to inject
+    a system call. Doesn't continue the execution of the child.
+    
+    Call tracy_inject_syscall_pre_end to reset registers and retrieve the return
+    value.
+    
+    Returns 0 on success; -1 on failure.
+    
+    tracy_inject_syscall_pre_end
+    ----------------------------
+    
+    .. code-block:: c
+    
+        int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code);
+    
+    .. **
+    
+    Call this after having called tracy_inject_syscall_pre_start, tracy_continue
+    and waitpid on the child. This function will reset the registers to the
+    proper values and store the return value in *return_code*.
+    
+    If you use tracy's event structure (you probably do), then you do not need to
+    call this function. In fact, you shouldn't.
+    
+    Returns 0 on success; -1 on failure.
+    
+    tracy_inject_syscall_post_start
+    -------------------------------
+    
+    .. code-block:: c
+    
+        int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a, tracy_hook_func callback);
+    
+    .. **
+    
+    Change the system call, its arguments and the other registers to inject
+    a system call. Doesn't continue the execution of the child.
+    
+    Call tracy_inject_syscall_post_end to reset registers and retrieve the return
+    value.
+    
+    Returns 0 on success; -1 on failure.
+    
+    tracy_inject_syscall_post_end
+    -----------------------------
+    
+    .. code-block:: c
+    
+        int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code);
+    
+    .. **
+    
+    Call this after having called tracy_inject_syscall_post_start, tracy_continue
+    and waitpid on the child. This function will reset the registers to the
+    proper values and store the return value in *return_code*.
+    
+    If you use tracy's event structure (you probably do), then you do not need to
+    call this function. In fact, you shouldn't.
+    
+    Returns 0 on success; -1 on failure.
 
 System call modification
 ~~~~~~~~~~~~~~~~~~~~~~~~

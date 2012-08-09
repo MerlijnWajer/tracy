@@ -382,22 +382,14 @@ int tracy_debug_current_pid(pid_t pid);
 void tracy_backtrace(void);
 
 /* Synchronous injection */
-
-/*
- * tracy_inject_syscall
- *
- * Inject a system call in process defined by tracy_child *child*.
- * The syscall_number is the number of the system call; use *SYS_foo* or
- * *__NR_foo* to retrieve these numbers. *a* is a pointer to the system
- * call arguments. The *return_code* will be set to the return code of the
- * system call.
- *
- * Returns 0 on success; -1 on failure.
- */
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code);
 
 /* Asynchronous injection */
+int tracy_inject_syscall_async(struct tracy_child *child, long syscall_number,
+        struct tracy_sc_args *a, tracy_hook_func callback);
+
+/* These should be used interally only */
 int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback);
 int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code);

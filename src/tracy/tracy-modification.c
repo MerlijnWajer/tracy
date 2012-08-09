@@ -29,6 +29,16 @@
  * denial.
  */
 
+/*
+ * tracy_inject_syscall
+ *
+ * Inject a system call in process defined by tracy_child *child*.
+ * The syscall_number is the number of the system call; use *SYS_foo* or
+ * *__NR_foo* to retrieve these numbers. *a* is a pointer to the system
+ * call arguments. The *return_code* will be set to the return code of the
+ * system call.
+ *
+ */
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code) {
     /* We use the async injection functions, but we simply wait() on
@@ -59,6 +69,28 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         waitpid(child->pid, NULL, __WALL);
 
         return tracy_inject_syscall_post_end(child, return_code);
+    }
+}
+
+/*
+ * tracy_inject_syscall_async
+ *
+ * Inject a system call in process defined by tracy_child *child*.
+ * The syscall_number is the number of the system call; use *SYS_foo* or
+ * *__NR_foo* to retrieve these numbers. *a* is a pointer to the system
+ * call arguments.
+ *
+ * The injection will be asynchronous; meaning that this function will return
+ * before the injection has finished. To be notified when injection has
+ * finished, pass a value other than NULL as *callback*.
+ *
+ */
+int tracy_inject_syscall_async(struct tracy_child *child, long syscall_number,
+        struct tracy_sc_args *a, tracy_hook_func callback) {
+    if (child->pre_syscall) {
+        return tracy_inject_syscall_pre_start(child, syscall_number, a, callback);
+    } else {
+        return tracy_inject_syscall_post_start(child, syscall_number, a, callback);
     }
 }
 
