@@ -137,7 +137,7 @@ During this research, we put emphasis on a few key areas:
 \end{itemize}
 % TODO: Omzetten / vertalen naar vragen?
 
-\subsection{Problems with ptrace}
+\subsection{Problems With Ptrace}
 First of all, we wanted to solve problems introduced by utilising ptrace
 directly. As we have previously noted, a particular problem with ptrace is that
 the ptrace interface to the programmer differs per platform. This means that
@@ -208,8 +208,8 @@ if the programs have to make use of the libraries being loaded.
 A downside to this approach is that \textit{LD\_PRELOAD} simply does not work
 on all programs; some programs do not use glibc methods and instead perform
 system calls directly, for example by directly using assembly in their program.
-Other programs are simply statically linked. %TODO Uitleggen waarom statically
-% linked uitmaakt, en wat het is?
+Other programs are simply statically linked.
+%TODO Uitleggen waarom statically linked uitmaakt en wat het is.
 
 There are some upcoming languages that do not even use glibc at all - languages
 like Go \cite{golang} talk to the kernel directly and thus perform their
@@ -249,7 +249,7 @@ of the paper, with a focus on goals set by the Tracy research project.
 % ptrace options/api call/name etc is in de tabel in de appendix te vinden. Deze
 % zijn emph?
 
-\chapter{Tracy and ptrace}
+\chapter{Tracy and Ptrace}
 
 This chapter provides a theoretical introduction to ptrace and its problems for
 cross platform and cross architecture programming.
@@ -326,7 +326,7 @@ space and continue the system call as normal.
 % XXX: Moet je nog wel mprotect enzo gaan doen. SYSV Shmem is een
 % andere oplossing.
 
-\section{System call tracing, modification and injection}
+\section{System Call Tracing, Modification and Injection}
 
 \textbf{ptrace} suspends the tracee and signals the tracer right before
 the tracee executes a system call as well as just after the tracee has
@@ -359,7 +359,7 @@ the tracer can:
 \item Modify the return value of the system call.
 \end{itemize}
 
-\section{Memory access}
+\section{Memory Access}
 
 To be able to fully modify a tracee, the tracer needs to be able to
 read and write the tracee's memory. If the tracer is to change
@@ -386,7 +386,7 @@ allocated pages and change the data stored in the pages just before the system
 call is executed and after the tracer has written data to the page. To safely
 share memory, see Section \ref{memory-share}.
 
-\section{Tracing children}
+\section{Tracing Children}
 
 A tracee can spawn children by calling the \textbf{fork}\footnote{among
     other system calls: vfork, rfork (BSD), clone (Linux)} system call. \textbf{ptrace}
@@ -433,7 +433,7 @@ in Appendix \ref{ptrace-api} is an overview of most of the ptrace api.
 We will discuss problems we ran into while implementing Tracy, with a focus on
 ptrace limitations and caveats.
 
-\section{Tracing a process}
+\section{Tracing a Process}
 
 Tracing a process can be done in two different ways. A process can either attach
 to another running process, or create a child process and consequently use
@@ -441,7 +441,7 @@ to another running process, or create a child process and consequently use
 be the \textit{tracer}) trace the child after which the child will
 call \textbf{execve} to run another program.
 
-\subsection{Fork and trace}
+\subsection{Fork and Trace}
 
 As explained in the previous section, the parent issues a \textbf{fork} call.
 The child then performs a \textbf{ptrace} call, with the \textit{PTRACE\_TRACEME} argument.
@@ -461,7 +461,7 @@ Appendix \ref{appendix:createtrace}.
 
 % TODO: How does one attach
 
-\section{System call tracing}
+\section{System Call Tracing}
 \label{syscall-trace}
 
 % TODO: Mist nog wat diepte. Hoe krijgen we precies notifications? (waitpid)
@@ -481,7 +481,7 @@ call that is being denied.
 
 % Meer is niet nodig denk ik, er staat ook een hoop in het event system.
 
-\section{System call modification}
+\section{System Call Modification}
 
 Modifying system calls can be done at two points: before and after the
 system call is executed. Changing the system call ``after'' it has been executed
@@ -498,7 +498,7 @@ system call such as getpid and ``injecting'' system calls by changing the
 system call number and later on the instruction pointer (See Section
 ref{syscal-inject}).
 
-\subsection{System call hooks}
+\subsection{System Call Hooks}
 
 Users of the Tracy library can hook specific and even all system calls. For
 each system call, the user provides a callback which will be called when
@@ -507,7 +507,7 @@ event. The return value of the callback determines the action that Tracy
 will take. A callback for signals also exists as well a callback default
 callback that is called for all the system calls that are not hooked.
 
-\section{System call injection}
+\section{System Call Injection}
 \label{syscall-inject}
 
 % XXX: Vreemde plek.
@@ -557,18 +557,18 @@ post).
 
 % TODO: Jump naar pre en post uitleg.
 
-\subsection{Pre-syscall injection}
+\subsection{Pre Syscall Injection}
 
 \textit{TODO}
 As seen in figure \ref{fig:pre-inj}
 
-\subsection{Post-syscall injection}
+\subsection{Post Syscall Injection}
 
 \textit{TODO}
 As seen in figure \ref{fig:post-inj}
 
 
-\subsection{Asynchronous injection in Tracy}
+\subsection{Asynchronous Injection in Tracy}
 
 Tracy supports asynchronous injection. Typically, when injecting a system call
 in a tracee, Tracy waits for the system call that is being injected to complete
@@ -592,7 +592,7 @@ While asynchronous injection is usually preferred, synchronous injection is
 supported by Tracy as well and even used in Tracy internally where
 asynchronous injection simply is not worth the extra work and effort.
 
-\section{Memory access}
+\section{Memory Access}
 
 % TODO: process_vm_{read,write}v noemen.
 
@@ -631,7 +631,7 @@ or write single bytes of memory, whenever one wants to access say 4kb of
 memory, depending on the architecture, this may require more than 1024
 calls to ptrace. The amount of time spent performing ptrace system calls.
 
-\subsubsection{Alternative: through /proc}
+\subsubsection{Alternative: Using /proc}
 Linux provides another way to access memory of a process. The ``/proc''
 filesystem, used by a lot of utilities to provide information about kernel
 and process state can also be used to access arbitrary process memory,
@@ -656,7 +656,7 @@ arbitrary process as this would cause a major security issue. The only
 processes capable of successfully opening this file are either processes
 tracing the target process, or super-user processes.
 
-\section{Event system}
+\section{Event System}
 \label{event-system}
 
 Tracy uses an event-based system to report on activities on a tracee. This is
@@ -688,7 +688,7 @@ resume the execution of the tracee with said signal. If the data is
 left at zero, no signal is delivered. This makes it possible to
 suppress certain signals by simply not passing them along to the tracee.
 
-\section{Tracing children}
+\section{Tracing Children}
 
 Tracing the child processes of a tracee very useful; it allows a tracer to truly
 trace everything a process (and its descendants) does. On Linux, tracing all the
@@ -704,7 +704,7 @@ tracing of children.
 % TODO: Wat kort
 % TODO: CLONE_UNTRACED vs PTRACE_O_TRACECLONE
 
-\subsection{Safe execution of fork, vfork}
+\subsection{Safe Execution of fork, vfork}
 \label{safe-fork}
 
 On operating systems that do not support the \textit{PTRACE\_O\_TRACE*} options,
@@ -758,25 +758,41 @@ For this reason, Tracy suppresses the first SIGSTOP that is sent
 to a newly create tracee if the automatically trace children option
 is enabled.
 
-\subsection{Threaded tracees}
+\subsection{Threaded Tracees}
 
-\textit{TODO}
+% Thread group introduceren?
+Threads on Linux are processes that share the same memory space and file
+descriptor table.
+If a thread in a thread group of which all the threads are being traced
+is suspended by ptrace; none of the other threads in the thread group are
+suspended. This may seem counter intuitive, but that's the way threads are
+implemented on Linux. % TODO: Hoe is het op BSD?
+
+Threads (and thus, processes) on Linux are created using the Linux-specific
+\textbf{clone} system call\footnote{glibc uses clone() if the user invokes
+fork()}. The \textbf{clone} system call allows the programmer to specify if the
+created process shares certain attributes with its parent, such as the memory
+spare, file descriptor tables and file system attributes.
+
+To reliably trace opened files and sockets, programmers need to know what
+threads (or more general: processes) share file descriptor tables and memory. To
+complicate matters, the \textbf{unshare} system call allows a process to
+seperate its file descriptor table as well as its file system attributes.
+% XXX: Zeggen dat Tracy hier nog niets mee doet? (Ja, moet het dan ook in future
+% work? Ja)
+
 % Hoe werkt resource sharing? CLONE_VM, CLONE_FILES, unshare, etc.
-
-% Introductie naar threads. Wat beschrijft een thread nu?
-
-% Threads op Linux zijn processes die bepaalde resources sharen (CLONE_VM,
-% CLONE_FILES).
-
-% Waar wordt aangegeven wat ze delen? Hoe kan je dingen ``on delen''? (unshare)
-
 % Hoe kan je in Tracy threads detecteren? (TID group, etc)
+
+
+
+
 
 % We could also talk about PTRACE_O_TRACEEXEC and PTRACE_O_TRACEVFORKDONE
 % and PTRACE_O_TRACEEXIT
 
 
-\section{Performance in ptrace}
+\section{Performance in Ptrace}
 \label{ptrace-perf-problems}
 
 When a tracee performs a lot of system calls, the overhead of \textbf{ptrace}
@@ -853,7 +869,7 @@ The server which will be used as proxy server must be configured to accept and
 tunnel SOCKS5 data. There are several proxy daemons available, including
 \verb=ssh=.
 
-\section{Python bindings}
+\section{Python Bindings}
 
 % socketcall x86 vs native syscalls on x64 in caveats
 
@@ -944,14 +960,14 @@ For AMD64 support Soxy only intercepts three different system calls;
 \textit{socket}, \textit{connect}, and \textit{close}. For x86 support Soxy
 intercepts the \textit{socketcall} system call, upon intercepting a
 socketcall system call Soxy determines the type of operation (socket, connect,
-close, or something else) and, if it's one of the socket, connect, or close
+close, or something else) and, if it is one of the socket, connect, or close
 system calls it then retrieves the arguments to the function and calls the
 according function (as if it had been a system call intercepted on the AMD64 
 platform.)
 
 % arm?
 
-\subsection{Future Work: Proxifying UDP Traffic}
+\subsection{Proxifying UDP Traffic}
 
 Although currently not implemented, Soxy aims to support UDP traffic as well.
 However, there are barely any SOCKS5 daemons which support tunneling UDP
@@ -982,19 +998,21 @@ memory in the child and free it afterwards (i.e. two extra system calls and a
 lot of extra overhead.) The second technique, however, might exhaust the
 application and/or system of memory, because it pre-allocates a certain amount
 of memory pages. And, finally, the third technique is a trade-off in speed; it
-doesn't require much memory and performing one operation on an UDP socket is
+does nt require much memory and performing one operation on an UDP socket is
 fairly cheap, but it may become slow especially when there is a lot of UDP
 traffic.
 
-\chapter{Future work}
+\chapter{Future Work}
 
-\section{Secure ABI mixing}
+This chapter elaborates on features that are currently lacking in Tracy to
+achieve the set goals by the research project as well as features that we would
+like to see in the future.
+
+\section{Secure ABI Mixing}
 \label{secure-abi}
 
-% TODO: integrate https://en.wikipedia.org/wiki/W%5EX
 % link to AMD ?
 % link to arm? explain oabi and eabi?
-% Explain ABI (before this chapter?)
 On some platforms such as AMD64 and ARM Linux implements several ABIs.
 These ABIs are invoked differently and for the tracer it is not easy to
 tell what ABI is being used to invoke the system call.
@@ -1037,6 +1055,7 @@ used to invoke the system call, which would result in Tracy reading a faulty
 or fake instruction. \\
 % ARM gebruikt dezelfde asm instructie maar heeft andere reg contents.
 
+% TODO: integrate https://en.wikipedia.org/wiki/W%5EX (W^X)
 To prevent another thread in the process to change the instruction we can
 use the \textbf{mprotect} system call to mark the memory as read and execute
 only (not writable), which would make it impossible to change the contents of
@@ -1058,17 +1077,17 @@ own instructions; nor do they create their own instructions
 that perform 32 bit system calls in a 64 bit process.
 % JIT noemen?
 
-\section{Memory sharing between tracer and tracee}
+\section{Memory Sharing Between Tracer and Tracee}
 \label{memory-share}
 
 \textit{TODO}
 
 % Need to do some shm magic.
 
-\section{Tracing 32 bit applications with a 64 bit tracer}
+\section{Tracing 32 bit Applications With a 64 bit Tracer}
 \textit{TODO}
 
-\section{Instant injection using signals}
+\section{Instant Injection Using Signals}
 \label{instant-inject}
 
 An interesting addition to Tracy would be the ability to inject a system call
@@ -1096,7 +1115,7 @@ feature, we have postponed the feature due to time constraints. We also
 did not find the feature particularly useful because Tracy is event based,
 which means that in most cases the tracee is already stopped.
 
-\section{Improving ptrace performance}
+\section{Improving Ptrace Performance}
 \label{ptrace-perf}
 
 As previously discussed in Section \ref{ptrace-perf-problems}, the overhead
@@ -1137,7 +1156,7 @@ system call is executed.
 
 % TODO: Patch in appendix?
 
-\section{Threaded tracer}
+\section{Threaded Tracer}
 
 As the number of tracees for a single Tracy instance increases, the
 likelyhood of Tracy becoming a bottleneck increases. Since Tracy is
@@ -1178,7 +1197,7 @@ Linux emulation). BSD sets the ``carry flag'' upon failure and sets the error
 in the register of the return code, whereas Linux sets the register of the
 return code to the negative equivalent of the error number\ref{bsdasm}.
 
-\section{Calling functions in the tracee}
+\section{Calling Functions in the Tracee}
 \textit{TODO}
 
 %Applications
