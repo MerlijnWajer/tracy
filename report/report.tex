@@ -32,7 +32,8 @@
 \begin{abstract}
 Presented is a uniform interface to trace the behaviour of programs
 by means of the system calls they perform. Tracing by the user is done without
-regard to kernel version, operating platform or processor architecture.
+% XXX operating system specifyen? atm alleen linux, intentie is meer.
+regard to kernel version, operating system or processor architecture.
 The interface, called Tracy, provides a means to watch, modify, augment
 and restrict program execution in a controlled environment.
 \end{abstract}
@@ -53,17 +54,16 @@ and restrict program execution in a controlled environment.
 %       PTRACE_O_TRACEVFORK  is set; otherwise if the tracee calls clone with the exit sig‐
 %       nal set to SIGCHLD, PTRACE_EVENT_FORK will be delivered if PTRACE_O_TRACEFORK is set.
 %
-% - Gebruiken PTRACE_O_TRACESYSGOOD voor performance.
+% - Gebruiken PTRACE_O_TRACESYSGOOD voor performance. (scheelt wat ptrace calls)
 % - Misschien pre/post renamen naar syscall entry en exit?
-% - Overzicht van ptrace() opties en hoe Tracy ze gebruikt? (Tabel)
-%   - Op zijn minst PTRACE_SETOPTIONS noemen.
 % - sshfs ergens noemen?
+% - arm r0 reg is hetzelfde als arm return code reg. (CAVEAT)
 
 \chapter{Introduction}
 
-Programmers spend a rather large part of their time finding mistakes in their
-computer programs. Programmers usually refer to this routine as debugging.
-Programmers employ various tools to aid them in debugging programs.
+Programmers spend rather a large part of their time finding mistakes in their
+computer programs. They usually refer to this routine as debugging and
+they employ various tools to aid them in debugging programs.
 
 Several kinds of debugging exist. The most common debugging method is
 focussed around crashes in a program. Other types of debugging include
@@ -119,12 +119,22 @@ architecture agnostic, meaning a tracer requires architecture specific code.
 %   - Welk effect heeft de architectuur op memory access?
 %   - Welke problemen zijn er met de ptrace API.
 %   - Wat voor effect heeft ptrace op de performance van programma's?
-%   - 
 
-We researched the viability of a cross architecture, programmer friendly
-system call tracing and modification framework for the Linux kernel.
-During this research, we put emphasis on a few key areas.
-% Opmerken dat het niet alleen voor Linux hoeft te zijn?
+The Tracy research project has as its aim the the production of a cross
+architecture, programmer friendly system call tracing and modification
+framework for the Linux kernel.
+During this research, we put emphasis on a few key areas:
+\begin{itemize}
+\item Safely tracing a program. A program should not be able execute code that
+    is not detected (properly). % VAAG XXX
+\item Creation of an API that is simple to use; yet provides very powerful
+    functionality such as the injection of system calls.
+\item Aforementioned API should be cpu architecture agnostic.
+\item Aforementioned API should be operating system agnostic, with the only
+    limitation that the operating system is a modern, UNIX-like operating
+    system with support for the ptrace system call.
+\end{itemize}
+% TODO: Omzetten / vertalen naar vragen?
 
 \subsection{Problems with ptrace}
 First of all, we wanted to solve problems introduced by utilising ptrace
@@ -169,6 +179,7 @@ Finally, ptrace offers no mechanism to recieve events of specific system calls,
 rather than on every system call. This leads to performance issues (Section
 \ref{ptrace-perf}).
 
+% TODO: Dit niet op hetzelfde niveau als ptrace? (Leen)
 \subsection{LD\_PRELOAD}
 
 \textit{LD\_PRELOAD} is a way to prioritize loading of certain libraries
@@ -210,6 +221,16 @@ userspace libraries the process uses.
 
 \section{Structure of This Document}
 
+In Chapter 2 we introduce Tracy, our ptrace based system call tracing and
+modification library. An in depth explanation on how we implemented Tracy and
+worked around ptrace issues is presented in Chapter 3. In Chapter 4, we present
+an application of Tracy called Soxy: a transparent SOCKS5 proxifier.
+Chapter 5 presents an overview of feature that Tracy currently lacks and features
+we would like to see implemented in Tracy. We end the paper with recap of
+the paper, with a focus on goals set by the Tracy research project.
+% TODO: We sluiten het paper af met een samenvatting/overzicht van wat we nu
+% kunnen, wat er nog moet gebeuren e.d. (Discussie)
+
 % Termen introduceren
 % ptrace introduceren, tracy introduceren
 % tracy analyseren, design keuzes toelichten
@@ -217,6 +238,11 @@ userspace libraries the process uses.
 
 
 \section{Terminology}
+
+% ABI
+% System call
+% Tracer
+% Tracee
 
 % System calls zijn bold
 % ptrace options/api call/name etc is in de tabel in de appendix te vinden. Deze
@@ -228,6 +254,8 @@ This chapter provides a theoretical introduction to ptrace and its problems for
 cross platform and cross architecture programming.
 
 \section{Introduction to Tracy}
+
+% Deze alinea is eigenlijk dubbel; gewoon weghalen?
 Several UNIX and UNIX-like systems support the \textbf{ptrace} system call.
 This system call allows one process to ``control'' another process - from now on
 called \textit{tracee}, enabling the controlling process to stop and inspect
@@ -402,7 +430,7 @@ in Section \ref{safe-fork}.
 \end{figure}
 
 
-\chapter{Implementation}
+\chapter{Tracy Implementation}
 
 This chapter covers the implementation of Tracy using the ptrace api. Provided
 in Appendix \ref{ptrace-api} is an overview of most of the ptrace api.
@@ -1035,7 +1063,8 @@ the memory without calling \textbf{mprotect} to mark the memory as writable.
 Calling \textbf{mprotect} from a tracee will however be noticed by Tracy,
 upon which Tracy can take appropriate actions (such as allow the memory to be
 written but mark it read and execute only after the write has occurred and make
-sure the cpu pipeline has is flushed by calling jmp).
+sure the cpu pipeline is flushed).
+% TODO: Invalidate de context switch niet al de instructies?
 
 One could even go as far as cache the system call instructions of each tracee
 so they do not have to be read again until a tracee changes its own
@@ -1179,6 +1208,11 @@ system call is executed.
 
 % Discussie is re-capture van alles weg gezegd hebben
 \chapter{Discussion}
+
+% Key areas van 1.1 meenemen; in hoeverre kan je nu safe tracen, in hoeverre
+% is het nu echt cross platform, in hoeverre is de API nu simpel om te
+% gebruiken, etc.
+% Caveats gebruiken  ^ hierbij. Bijv ARM r0 en return_cod as poss.
 
 % Performance sectie / chapter ergens?
 % Viability
