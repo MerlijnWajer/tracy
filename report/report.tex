@@ -161,8 +161,6 @@ of system call numbers differs per system call invocation thus leading to
 inevitable amiguity about the current system call being performed (Section
 \ref{secure-abi}).
 
-% TODO: Dit uitbreiden
-% Operates on assembly level?
 The fact is that ptrace is a very low-level system call, which operates on
 assembly level, therefore it is not possible to simply ``change the return
 value'' of a system call. Each instruction set has its own registers and on
@@ -208,8 +206,11 @@ if the programs have to make use of the libraries being loaded.
 A downside to this approach is that \textit{LD\_PRELOAD} simply does not work
 on all programs; some programs do not use glibc methods and instead perform
 system calls directly, for example by directly using assembly in their program.
-Other programs are simply statically linked.
-%TODO Uitleggen waarom statically linked uitmaakt en wat het is.
+Other programs are simply statically linked; which means libraries were linked
+into the program at the time of the programs creation rather than when the
+program is loaded; this makes \textit{LD\_PRELOAD} useless in this case.
+Theoretically it should be able to prioritize library loading even with
+statically linked libraries, but this is beyond the scope of this research.
 
 There are some upcoming languages that do not even use glibc at all - languages
 like Go \cite{golang} talk to the kernel directly and thus perform their
@@ -225,18 +226,11 @@ userspace libraries the process uses.
 In Chapter 2 we introduce Tracy, our ptrace based system call tracing and
 modification library. An in depth explanation on how we implemented Tracy and
 worked around ptrace issues is presented in Chapter 3. In Chapter 4, we present
-an application of Tracy called Soxy: a transparent SOCKS5 proxifier. % XXX: SOCKS5
-Chapter 5 presents an overview of features that Tracy currently lacks and
-features we would like to see implemented in Tracy. We end the paper with recap
-of the paper, with a focus on goals set by the Tracy research project.
-% TODO: We sluiten het paper af met een samenvatting/overzicht van wat we nu
-% kunnen, wat er nog moet gebeuren e.d. (Discussie)
-
-% Termen introduceren
-% ptrace introduceren, tracy introduceren
-% tracy analyseren, design keuzes toelichten
-% future work
-
+an application of Tracy called Soxy: a transparent SOCKS5 (Section \ref{socks5}
+proxifier Chapter 5 presents an overview of features that Tracy currently lacks
+and features we would like to see implemented in Tracy.
+We complete the paper with recap of the research, with a focus on goals set by
+the Tracy research project.
 
 \section{Terminology}
 
@@ -244,8 +238,10 @@ of the paper, with a focus on goals set by the Tracy research project.
 % System call
 % Tracer
 % Tracee
+% pid
 
 % System calls zijn bold
+% Aangeven dat wat UNIX kennis nodig is? Signals e.d.?
 % ptrace options/api call/name etc is in de tabel in de appendix te vinden. Deze
 % zijn emph?
 
@@ -555,8 +551,6 @@ post).
     \label{fig:asm-jump}
 \end{figure}
 
-% TODO: Jump naar pre en post uitleg.
-
 \subsection{Pre Syscall Injection}
 
 \textit{TODO}
@@ -594,16 +588,12 @@ asynchronous injection simply is not worth the extra work and effort.
 
 \section{Memory Access}
 
-% TODO: process_vm_{read,write}v noemen.
+% XXX: process_vm_{read,write}v noemen.
 
 Any program that uses the \textbf{ptrace} API will probably want to access the
 traced process' memory as well. Reasons can range from simply dumping pointer
 contents to monitoring, changing or even injecting new system calls with
 completely stand-alone data.
-
-% Furthermore, in case of IO intensive operation this access should be fairly
-% fast as well.
-% XXX: Dit is niet echt goed geplaatst.
 
 Unfortunately as with most ptrace functionality, memory access standards
 differ from operating system to operating system and are also
@@ -702,7 +692,6 @@ Respectively: \textit{PTRACE\_O\_TRACEVFORK}, \textit{PTRACE\_O\_TRACEFORK},
 \textit{PTRACE\_O\_TRACECLONE} flags are passed to \textbf{ptrace} to enable
 tracing of children.
 % TODO: Wat kort
-% TODO: CLONE_UNTRACED vs PTRACE_O_TRACECLONE
 
 \subsection{Safe Execution of fork, vfork}
 \label{safe-fork}
@@ -758,39 +747,34 @@ For this reason, Tracy suppresses the first SIGSTOP that is sent
 to a newly create tracee if the automatically trace children option
 is enabled.
 
-\subsection{Threaded Tracees}
+\section{Threaded Tracees}
 
 % Thread group introduceren?
 Threads on Linux are processes that share the same memory space and file
 descriptor table.
 If a thread in a thread group of which all the threads are being traced
 is suspended by ptrace; none of the other threads in the thread group are
-suspended. This may seem counter intuitive, but that's the way threads are
-implemented on Linux. % TODO: Hoe is het op BSD?
-
+suspended. Each thread in the thread group have the same process ID but a unique
+thread ID; see the manual page of \textbf{gettid}.
 Threads (and thus, processes) on Linux are created using the Linux-specific
 \textbf{clone} system call\footnote{glibc uses clone() if the user invokes
 fork()}. The \textbf{clone} system call allows the programmer to specify if the
 created process shares certain attributes with its parent, such as the memory
-spare, file descriptor tables and file system attributes.
+space, file descriptor tables and file system attributes.
 
 To reliably trace opened files and sockets, programmers need to know what
-threads (or more general: processes) share file descriptor tables and memory. To
-complicate matters, the \textbf{unshare} system call allows a process to
-seperate its file descriptor table as well as its file system attributes.
-% XXX: Zeggen dat Tracy hier nog niets mee doet? (Ja, moet het dan ook in future
-% work? Ja)
+threads (or more general: processes) share file descriptor tables (and memory).
+To complicate matters, the \textbf{unshare} system call allows a process to
+venerate its file descriptor table as well as its file system attributes. When a
+process (thread) separates its file descriptor table, all the file descriptors
+are cloned into a new table, which is then unique to the calling process.
 
-% Hoe werkt resource sharing? CLONE_VM, CLONE_FILES, unshare, etc.
-% Hoe kan je in Tracy threads detecteren? (TID group, etc)
+At the time of writing Tracy does yet implement helper functions to easily find
+out how processes relate to each other and what resources they share with
+other processes. We plan to add such functionality, as described in
+Section \ref{future-threaded-tracees}.
 
-
-
-
-
-% We could also talk about PTRACE_O_TRACEEXEC and PTRACE_O_TRACEVFORKDONE
-% and PTRACE_O_TRACEEXIT
-
+% TODO: execve() + not main thread? (wrt exit events, zie ook PTRACE_O_TRACEEXIT)
 
 \section{Performance in Ptrace}
 \label{ptrace-perf-problems}
@@ -832,17 +816,24 @@ The Linux specific \textbf{clone} system call is a bit problematic, for
 several reasons. The clone system call interface differs per architecture;
 on x86 clone has one argument extra compared to AMD64; and Linux on x86
 also \textit{switches} two registers
-\footnote{This can be observed in \textit{arch/x86/kernel/entry\_32.S}
+\footnote{This can be observed in Linux 3.4 \textit{arch/x86/kernel/entry\_32.S}
 and \textit{arch/x86/kernel/process.c}}.
 
 % x86: Args switched... Waarom? Misschien wel leuk om uit te zoeken.
 % x64: Argument minder dan x86
 
 \subsection{vfork}
-\textit{TODO}
 
-% Problemen die we tegen kwamen met vfork? (Het returned niet een pid
-% met safe-fork)
+We ran into a slight problem with vfork in our safe execution (Section
+\ref{safe-fork}) feature: vfork only returns the pid of the child after the
+child has executed an \textbf{exevce} call; our safe execution of fork feature
+relied on the fact that we could imprison both the parent and then child, first
+read the pid from the return value of fork (and clone). With vfork, we had to
+perform additional hacks. We modified the execution environment of the child
+to include a call to \textbf{kill} with Tracy as a target (and the signal set to
+\textit{SIGUSR1} to notify Tracy (the tracer) of the pid of the new child,
+after which we attach to the child and remove it from the safe execution
+environment as normal.
 
 \chapter{Soxy}
 
@@ -892,6 +883,7 @@ def hook_write(child, event, args):
 \section{Soxy Internals}
 
 \subsection{SOCKS5}
+\label{socks5}
 
 Complete documentation of the SOCKS5 algorithm can be found in
 RFC 1928 \footnote{\href{http://www.ietf.org/rfc/rfc1928.txt}
@@ -1055,7 +1047,7 @@ used to invoke the system call, which would result in Tracy reading a faulty
 or fake instruction. \\
 % ARM gebruikt dezelfde asm instructie maar heeft andere reg contents.
 
-% TODO: integrate https://en.wikipedia.org/wiki/W%5EX (W^X)
+% TODO: integrate  (W^X)
 To prevent another thread in the process to change the instruction we can
 use the \textbf{mprotect} system call to mark the memory as read and execute
 only (not writable), which would make it impossible to change the contents of
@@ -1063,7 +1055,8 @@ the memory without calling \textbf{mprotect} to mark the memory as writable.
 Calling \textbf{mprotect} from a tracee will however be noticed by Tracy,
 upon which Tracy can take appropriate actions (such as allow the memory to be
 written but mark it read and execute only after the write has occurred and make
-sure the cpu pipeline is flushed).
+sure the cpu pipeline is flushed). A related technique is called W\^X\footnote{
+\url{https://en.wikipedia.org/wiki/W\%5EX}}.
 % TODO: Invalidate de context switch niet al de instructies?
 
 One could even go as far as cache the system call instructions of each tracee
@@ -1073,9 +1066,9 @@ instructions.
 Even though now yet supporting identifying the ABIs is a serious security issue,
 it is also mainly important when someone wants to be completely sure that every
 single system call is traced. Most programs also do not usually modify their
-own instructions; nor do they create their own instructions
-that perform 32 bit system calls in a 64 bit process.
-% JIT noemen?
+own instructions; nor do they create their own instructions that perform 32 bit
+system calls in a 64 bit process.
+% JIT noemen
 
 \section{Memory Sharing Between Tracer and Tracee}
 \label{memory-share}
@@ -1083,6 +1076,10 @@ that perform 32 bit system calls in a 64 bit process.
 \textit{TODO}
 
 % Need to do some shm magic.
+
+\section{Threaded tracees}?
+\label{future-threaded-tracees}
+% XXX: Appendix met wat shared en unshared kan worden?
 
 \section{Tracing 32 bit Applications With a 64 bit Tracer}
 \textit{TODO}
@@ -1127,9 +1124,8 @@ has no mechanism which allows the tracer to only get notified on specific
 system calls, so that other system calls can execute without requiring
 intervention from the tracer.
 
-It then follows that this performance
-issue can be solved by adding such an API to the Linux kernel. \\
-% TODO: We kunnen SECCOMP referencen.
+It then follows that this performance issue can be solved by adding such
+an API to the Linux kernel. \\
 
 We wrote a simple Linux kernel patch (against Linux 3.4) to demonstrate
 our claim and we also added experimental support for this feature to Tracy.
@@ -1169,6 +1165,7 @@ datastructures in Tracy will have to be guarded with semaphores, but
 we think multithreading will be both viable to program and an effective
 wait to increase the performance of Tracy with a lot of tracees.
 
+% XXX
 % Interne sync en async kan wel misgaan hierdoor. Je wil bepaalde threads alleen
 % maar bepaalde pids laten doen eigenlijk.
 
@@ -1197,8 +1194,11 @@ Linux emulation). BSD sets the ``carry flag'' upon failure and sets the error
 in the register of the return code, whereas Linux sets the register of the
 return code to the negative equivalent of the error number\ref{bsdasm}.
 
-\section{Calling Functions in the Tracee}
-\textit{TODO}
+% \section{Calling Functions in the Tracee}
+% \textit{TODO}
+
+
+
 
 %Applications
 %\begin{itemize}
@@ -1220,7 +1220,6 @@ return code to the negative equivalent of the error number\ref{bsdasm}.
 % gdb
 % jail?
 % ltrace? (is niet ptrace based)
-
 
 % Discussie is re-capture van alles weg gezegd hebben
 \chapter{Discussion}
