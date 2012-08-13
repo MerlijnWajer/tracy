@@ -944,6 +944,7 @@ against the O\_NONBLOCK flag, Soxy determines whether a socket is blocking.
 
 % Dit moet in caveats.
 \subsection{Differences in Architectures}
+\label{soxy-arch-diff}
 
 There are two major differences between the x86 and AMD64 architecture. Namely
 the fact that x86 has one system call to perform all socket operations,
@@ -1059,8 +1060,8 @@ the memory without calling \textbf{mprotect} to mark the memory as writable.
 Calling \textbf{mprotect} from a tracee will however be noticed by Tracy,
 upon which Tracy can take appropriate actions (such as allow the memory to be
 written but mark it read and execute only after the write has occurred and make
-sure the cpu pipeline is flushed). A related technique is called W\^X\footnote{
-\url{https://en.wikipedia.org/wiki/W\%5EX}}.
+sure the cpu pipeline is flushed). A related technique is called
+W \textasciicircum X \footnote{\url{https://en.wikipedia.org/wiki/W\%5EX}}.
 % TODO: Invalidate de context switch niet al de instructies?
 
 One could even go as far as cache the system call instructions of each tracee
@@ -1081,12 +1082,13 @@ system calls in a 64 bit process.
 
 % Need to do some shm magic.
 
-\section{Threaded tracees}
+\section{Threaded Tracees}
 \label{future-threaded-tracees}
 % XXX: Appendix met wat shared en unshared kan worden?
 \textit{TODO}
 
 \section{Tracing 32 bit Applications With a 64 bit Tracer}
+\label{diff-abi-trace}
 \textit{TODO}
 
 \section{Instant Injection Using Signals}
@@ -1175,6 +1177,7 @@ wait to increase the performance of Tracy with a lot of tracees.
 % maar bepaalde pids laten doen eigenlijk.
 
 \section{BSD Support}
+\label{bsd-support}
 
 Support for Tracy on the BSD variants is planned, but will require some
 additional work. We have not extensively examined \textbf{ptrace} and
@@ -1183,7 +1186,7 @@ system calls in general on BSD variants, but a few things jumped out. \\
 BSD uses \textbf{rfork} instead of Linux' \textbf{clone} and BSD also does
 not support automatically tracing processes created by a tracee. While
 we can emulate this effectively with Tracy's safe fork
-Section(\ref{safe-fork}) the code will still require some work.
+Section(\ref{safe-fork}) the Tracy code still requires some work.
 
 Apart from this functional difference, there is also a difference in
 how BSD variants treat the system call arguments. Arguments of a system
@@ -1228,18 +1231,71 @@ return code to the negative equivalent of the error number\cite{bsdasm}.
 % Discussie is re-capture van alles weg gezegd hebben
 \chapter{Discussion}
 
+As stated on Section \ref{secure-abi}, Tracy is not yet able to safely trace
+processes, the solution presented in Section \ref{secure-abi} should however
+eliminate all currently known ways to ``escape'' from Tracy. Implementation the
+aforementioned solution will also require the ability to ``understand'' multiple
+ABIs as presented in Section \ref{diff-abi-trace}. % Nog iets meer over hoe
+% Tracy informatie gaat geven over de ABI? (event->abi ofzo?)
+We believe that upon completion of features ``Secure ABI Mixing'' (Section
+\ref{secure-abi}) and
+``Threaded Tracees'' (Section \ref{future-threaded-tracees}),
+Tracy will be fit for creating programs which require safe tracing,
+such as a \textit{jail}. % valt een beetje uit de lucht
 
+We believe that the Tracy API is relatively simple: a brief overview of
+the current API can be found in Appendix \ref{tracy-api}. The API provides
+functionality that is not easily implemented using ptrace and also provides a
+solid and platform agnostic base for tracing applications. As mentioned in
+Section \ref{future-threaded-tracees} the API will be extended to support
+thread detection and the ability to query what resources are shared amongst
+specific processes. \\
 
+Creating a completely cpu architecture agnostic program is possible with Tracy,
+but we have found that in certain cases, such as Section \ref{soxy-arch-diff},
+it is simply not possible to create code that works on all architectures without
+architecture specific code, because the Linux system call API differs per
+architecture. This makes it impossible to inject a system call such as
+\textbf{socket} without writing architecture specific code.
+Normal programs are not hindered by this design flaw as they mostly rely on
+\textit{glibc}, which works around architecture specific quirks. We do not plan
+to extend the Tracy API to cover this kind of architectural differences. As a
+result, some programs that rely on Tracy will still need architecture specific
+code. % Nog een plan hoe we dit simpeler gaan maken?
 
-% Key areas van 1.1 meenemen; in hoeverre kan je nu safe tracen, in hoeverre
-% is het nu echt cross platform, in hoeverre is de API nu simpel om te
-% gebruiken, etc.
-% Caveats gebruiken  ^ hierbij. Bijv ARM r0 en return_cod as poss.
-%
-% Soxy caveat (socketcall vs socket direct)
+Writing operating system independent code should be viable once Tracy works on
+a BSD variant (see Section \ref{bsd-support}). However, if a programmer decides
+to rely on (or inject) operating system dependant system calls, the resulting
+program will obviously not work on all platforms. However, we believe that the
+tracing and system call modification and injecting part of Tracy should work on
+all platforms Tracy supports without architecture specific code on the users
+end.
 
-% Performance sectie / chapter ergens?
-% Viability
+The fact that the Tracy API is not completely architecture and operating system
+agnostic raises the question of the impact on supporting several architectures
+in one code base. We believe that most architecture quirks will be due to
+differences in the Linux system call API. However, the changes required to work
+around these issues should be relatively small in comparison to writing code
+which utilises ptrace directly for each architecture. \\
+
+% Performance (met \ref{ptrace-perf} en \ref{ptrace-perf-problems}
+The performance of a tracee is highly dependent on the amount of system calls
+the tracer performs. As noted previously (Section \ref{ptrace-perf-problems},
+Section \ref{ptrace-perf}) the performance of a tracee suffers when the tracee
+performs a lot of system calls. We have presented a possible (simplistic)
+solution but we see no short-term solution to the performance issues. However,
+the performance issues should be neglectable when tracing a program that doesn't
+perform a lot of IO. \\
+
+% TODO: References naar curl, etc.
+The viability of a cross platform tracing framework is demonstrated by Soxy,
+which implements a ptrace-based proxifier in three hundred lines of C
+code. Soxy can trace relatively simple programs such as \textit{curl} and
+\textit{irssi}, but it also succesfully traces complex programs such as
+\textit{firefox} and \textit{ssh}.
+
+Once we support more architectures\footnote{We currently support ARM, x86 and
+AMD64}, we will be able to further investigate the cross architecture promise.
 
 \bibliography{report}
 
@@ -1368,6 +1424,9 @@ options set using PTRACE\_SETOPTIONS.
 
 \chapter{Safe fork}
 \label{appendix:safefork-asm}
+
+\chapter{Tracy API overview}n
+\label{tracy-api}
 
 % XXX: Hier een simpel stukje asm?
 
