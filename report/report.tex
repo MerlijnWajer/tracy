@@ -1231,17 +1231,18 @@ return code to the negative equivalent of the error number\cite{bsdasm}.
 % Discussie is re-capture van alles weg gezegd hebben
 \chapter{Discussion}
 
-As stated on Section \ref{secure-abi}, Tracy is not yet able to safely trace
+As stated in Section \ref{secure-abi}, Tracy is not yet able to safely trace
 processes, the solution presented in Section \ref{secure-abi} should however
-eliminate all currently known ways to ``escape'' from Tracy. Implementation the
-aforementioned solution will also require the ability to ``understand'' multiple
-ABIs as presented in Section \ref{diff-abi-trace}. % Nog iets meer over hoe
-% Tracy informatie gaat geven over de ABI? (event->abi ofzo?)
+eliminate all currently known ways to ``escape'' from Tracy. Implementation of 
+the aforementioned solution will also require the ability to ``understand''
+multiple ABIs as presented in Section \ref{diff-abi-trace}. % Nog iets
+% meer over hoe Tracy informatie gaat geven over de ABI? (event->abi ofzo?)
 We believe that upon completion of features ``Secure ABI Mixing'' (Section
-\ref{secure-abi}) and
-``Threaded Tracees'' (Section \ref{future-threaded-tracees}),
+\ref{secure-abi}) and ``Threaded Tracees'' (Section
+\ref{future-threaded-tracees}),
 Tracy will be fit for creating programs which require safe tracing,
-such as a \textit{jail}. % valt een beetje uit de lucht
+such as a \textit{jail}. 
+% TODO valt een beetje uit de lucht, wat is een jail, etc
 
 We believe that the Tracy API is relatively simple: a brief overview of
 the current API can be found in Appendix \ref{tracy-api}. The API provides
@@ -1255,7 +1256,7 @@ Creating a completely cpu architecture agnostic program is possible with Tracy,
 but we have found that in certain cases, such as Section \ref{soxy-arch-diff},
 it is simply not possible to create code that works on all architectures without
 architecture specific code, because the Linux system call API differs per
-architecture. This makes it impossible to inject a system call such as
+architecture. This makes it impossible to inject or hook a system call such as
 \textbf{socket} without writing architecture specific code.
 Normal programs are not hindered by this design flaw as they mostly rely on
 \textit{glibc}, which works around architecture specific quirks. We do not plan
@@ -1271,7 +1272,7 @@ tracing and system call modification and injecting part of Tracy should work on
 all platforms Tracy supports without architecture specific code on the users
 end.
 
-The fact that the Tracy API is not completely architecture and operating system
+The fact that Tracy programs are not completely architecture and operating system
 agnostic raises the question of the impact on supporting several architectures
 in one code base. We believe that most architecture quirks will be due to
 differences in the Linux system call API. However, the changes required to work
@@ -1280,12 +1281,12 @@ which utilises ptrace directly for each architecture. \\
 
 % Performance (met \ref{ptrace-perf} en \ref{ptrace-perf-problems}
 The performance of a tracee is highly dependent on the amount of system calls
-the tracer performs. As noted previously (Section \ref{ptrace-perf-problems},
+the tracee performs. As noted previously (Section \ref{ptrace-perf-problems},
 Section \ref{ptrace-perf}) the performance of a tracee suffers when the tracee
 performs a lot of system calls. We have presented a possible (simplistic)
-solution but we see no short-term solution to the performance issues. However,
-the performance issues should be neglectable when tracing a program that doesn't
-perform a lot of IO. \\
+solution but we see no short-term solution to the performance issues.
+The performance issues however should be neglectable when tracing a program
+that doesn't perform a lot of IO. \\
 
 % TODO: References naar curl, etc.
 The viability of a cross platform tracing framework is demonstrated by Soxy,
