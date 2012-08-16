@@ -58,6 +58,7 @@ and restrict program execution in a controlled environment.
 % - Misschien pre/post renamen naar syscall entry en exit?
 % - sshfs ergens noemen?
 % - arm r0 reg is hetzelfde als arm return code reg. (CAVEAT)
+% - ARM64 ?
 
 \chapter{Introduction}
 
@@ -89,7 +90,7 @@ reading and writing to the memory of the tracee or even changing the
 system calls made by the tracee.
 
 \section{Motivation}
-\label{sec:motivation}
+\label{motivation}
 The ability to modify the program memory and registers
 \footnote{Changing cpu registers allows for system call modification}
 allows for a great variety of applications.
@@ -126,8 +127,8 @@ architecture, programmer friendly system call tracing and modification
 framework for the Linux kernel.
 During this research, we put emphasis on a few key areas:
 \begin{itemize}
-\item Safely tracing a program. A program should not be able execute code that
-    is not detected (properly). % VAAG XXX
+\item Safely tracing a program. A program should not be able execute system
+    calls that undetected.
 \item Creation of an API that is simple to use; yet provides very powerful
     functionality such as the injection of system calls.
 \item Aforementioned API should be cpu architecture agnostic.
@@ -253,7 +254,7 @@ cross platform and cross architecture programming.
 \section{Introduction to Tracy}
 
 Several UNIX and UNIX-like systems support the \textbf{ptrace} system call, as
-introduced in 
+introduced in Section \ref{motivation}.
 
 % This system call allows one process to ``control'' another process - from now on
 % called \textit{tracee}, enabling the controlling process to stop and inspect
@@ -287,8 +288,8 @@ x86 should be nearly (if not completely) the same.
 Tracy elegantly works around most architecture specific issues and implements
 functionality required to trace programs on several operating systems.
 % XXX: weten mensen al dat dit linux en bsd limitations zijn?
-(This includes fast memory read/write on Linux and in the future safely tracing
-children on BSD)
+% (This includes fast memory read/write on Linux and in the future safely tracing
+% children on BSD)
 
 Tracy introduces an API that allows a programmer to hook into specific system
 calls, rather than every system call as is the case with ptrace; ptrace does
@@ -370,8 +371,6 @@ child and copy the data to those pages, change the argument to point to the new
 pages and continue the system call. After the system call has completed, the
 pages can be freed again. This way the child's original arguments are left
 untouched, and for a reason: the child may want to re-use the memory later on.
-% XXX: Ook hier is ``arguments'' de data waar de pointer argumenten naar
-% wijzen, moet een duidelijke distinctie krijgen.
 
 Allocating pages in the tracee as described above is problematic if one wants
 to make sure the tracee does not change the memory contents. ptrace suspends
@@ -453,9 +452,11 @@ Appendix \ref{appendix:createtrace}.
 
 \subsection{Attaching}
 
-\textit{TODO}
+Attaching to an existing process is done using the \textit{PTRACE\_ATTACH}
+mechanism, which will attach a running process specified by the process
+id, granted that the user has sufficient permissions to trace the process.
 
-% TODO: How does one attach
+% XXX: Noemen dat dit ook in safe-fork gebruikt wordt?
 
 \section{System Call Tracing}
 \label{syscall-trace}
@@ -472,8 +473,8 @@ all the tracees.
 Tracy keeps track of each child; it has to store information about the state
 of the child: will the next stop be a system call entry or exit, or are we
 currently injecting a system call? Aside from those two states, Tracy also
-has to do some other internal bookkeeping such as the number of the system
-call that is being denied.
+has to do some other internal bookkeeping such as store the number of
+the system call that is being denied.
 
 % Meer is niet nodig denk ik, er staat ook een hoop in het event system.
 
@@ -506,7 +507,6 @@ callback that is called for all the system calls that are not hooked.
 \section{System Call Injection}
 \label{syscall-inject}
 
-% XXX: Vreemde plek.
 Tracy supports injecting system calls into any process that is being traced.
 The injection of a system call is the process of executing a system call in
 a specified tracee, without requiring said tracee to explicitly call the
@@ -529,24 +529,36 @@ are identical to the registers after the injection.
 Injecting system calls relies on that fact that the program counter (or
 instruction pointer) of the tracee can be modified. If the length of the system
 call instruction is known, it is possible to ``jump back'' to the system call
-instruction, as can be observed in \ref{example-asm-x86}.
+instruction, as can be observed in Listing \ref{example-asm-x86}.
+Once the ``int 80h'' has finished; the system call has completed;
+if we put the process instruction pointer back 2 bytes
+(the size of the ``int 80h'' instruction), the program will execute
+another system call. The system call is determined from
+the contents of the \textit{eax} register (which we can change),
+therefore we can execute any system call by simply changing the contents
+of the \textit{eax} registers and is required the registers that hold the
+system call arguments.
 
 \lstset{
     language={[x86masm]Assembler},
-    caption={Intel x86 Assembly that performs a system call}
+    caption={Intel x86 Assembly that performs an ``exit'' system call.
+Taken from \url{http://www.fizik.itu.edu.tr/turhan/asm/mnasm.html}}
 }
-% TODO: Needs more asm + explanation
 \begin{lstlisting}[numbers=left,label=example-asm-x86]
-int 0x80
+    mov eax,1            ; 'exit' system call
+    mov ebx,0            ; exit with error code 0
+    int 80h              ; call the kernel
 \end{lstlisting}
 \lstset{
     language=Python,
     caption=
 }
 
-The process of injecting a system call slightly differs per system
-call state (pre or post).
-% TODO: Lelijke zin
+While the process of injecting a system call varies for each system call state -
+pre or post - the idea is the same. Figure \ref{fig:injection} shows the
+injection process for both pre and post system call states. ``Modify IP/PC''
+represents jumping back to the system call instruction. Note that this
+instruction and the size of the instruction differ per platform.
 
 \begin{figure}
     \centering
@@ -557,15 +569,13 @@ call state (pre or post).
     \label{fig:injection}
 \end{figure}
 
-\subsection{Pre Syscall Injection}
-
-\textit{TODO}
-As seen in figure \ref{fig:pre-inj}
-
-\subsection{Post Syscall Injection}
-
-\textit{TODO}
-As seen in figure \ref{fig:post-inj}
+% \subsection{Pre Syscall Injection}
+% 
+% As seen in figure \ref{fig:pre-inj}
+% 
+% \subsection{Post Syscall Injection}
+% 
+% As seen in figure \ref{fig:post-inj}
 
 \subsection{Asynchronous Injection in Tracy}
 
