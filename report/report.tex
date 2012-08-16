@@ -13,6 +13,7 @@
 \usepackage{wrapfig}
 \usepackage{color}
 \usepackage[utf8]{inputenc}
+%\usepackage[final]{pdfpages}
 
 \definecolor{MidnightBlue}{rgb}{0, 0, 0.95}
 \lstset{language=C,
@@ -235,16 +236,20 @@ the Tracy research project.
 
 \section{Terminology}
 
-% ABI
-% System call
-% Tracer
-% Tracee
-% pid
+We introduce a few terms that the reader will encounter throughout the
+document. We assume that the reader is a least a bit familiar with the UNIX
+family of operating systems.
 
-% System calls zijn bold
-% Aangeven dat wat UNIX kennis nodig is? Signals e.d.?
-% ptrace options/api call/name etc is in de tabel in de appendix te vinden. Deze
-% zijn emph?
+\begin{itemize}
+    \item ABI: Application Binary Interface. Describes the low-level interface
+        between computer programs and the kernel.
+    \item Tracer: The program tracing other programs.
+    \item Tracee: A program that is being traced by a Tracer.
+\end{itemize}
+
+Throughout the document, all system calls are identified by being bold.
+ptrace options are typically italic and can their description can be found in
+Appendix \ref{ptrace-api} or in the ptrace manual page.
 
 \chapter{Tracy and Ptrace}
 
@@ -328,9 +333,9 @@ space and continue the system call as normal.
 \textbf{ptrace} suspends the tracee and signals the tracer right before
 the tracee executes a system call as well as just after the tracee has
 executed a system call. When the tracee is stopped before a system call,
-we say that the tracee is in \textbf{pre} system call state; if the system
+we say that the tracee is in \textit{pre} system call state; if the system
 call has executed and the tracee has once again
-been suspended we say that the tracee is in \textbf{post} system call state.
+been suspended we say that the tracee is in \textit{post} system call state.
 While the tracer is inspecting the tracee, the execution of the
 tracee is paused. (Figure \ref{fig1})
 
@@ -718,9 +723,8 @@ controlled manner.
 
 To implement this feature, we make use of system call injection as well as the
 ability to be able to allocate and write to pages in the tracee. We allocate a
-page in the tracee and write a few lines of assembly (Appendix
-\ref{appendix:safefork-asm}) that will safely execute
-\textbf{fork} to the page.
+page in the tracee and write a few lines of assembly
+ that will safely execute \textbf{fork} to the page.
 Once this the assembly has been written, we deny the initial
 \textbf{fork} call by changing the system call to \textbf{getpid}.
 In the POST-getpid callback, we change the Instruction Pointer
@@ -762,6 +766,7 @@ to a newly create tracee if the automatically trace children option
 is enabled.
 
 \section{Threaded Tracees}
+\label{threaded-tracees}
 
 % Thread group introduceren?
 Threads on Linux are processes that share the same memory space and file
@@ -785,10 +790,10 @@ are cloned into a new table, which is then unique to the calling process.
 
 At the time of writing Tracy does yet implement helper functions to easily find
 out how processes relate to each other and what resources they share with
-other processes. We plan to add such functionality, as described in
-Section \ref{future-threaded-tracees}.
+other processes. We plan to add such functionality in the future.
+% , as described in Section \ref{future-threaded-tracees}.
 
-% TODO: execve() + not main thread? (wrt exit events, zie ook PTRACE_O_TRACEEXIT)
+% O: execve() + not main thread? (wrt exit events, zie ook PTRACE_O_TRACEEXIT)
 
 \section{Performance in Ptrace}
 \label{ptrace-perf-problems}
@@ -821,15 +826,18 @@ Section \ref{ptrace-perf}.
 % We hebben bij veel secties al een caveats subsectie...
 \section{Caveats}
 
-\textit{TODO}
-% TODO Dit mag niet leeg zijn.
+While implementing Tracy and more specifically our ``Safe Execution of fork
+and vfork'' (Section \ref{safe-fork}) code, we ran into a few problems. The
+clone system call does not take the same arguments on different Linux
+platforms and retrieving the process id from the vfork system call proved to be
+another challenge.
 
 \subsection{Clone}
 
 The Linux specific \textbf{clone} system call is a bit problematic, for
 several reasons. The clone system call interface differs per architecture;
 on x86 clone has one argument extra compared to AMD64; and Linux on x86
-also \textit{switches} two registers
+also \textit{swaps} two argument registers
 \footnote{This can be observed in Linux 3.4 \textit{arch/x86/kernel/entry\_32.S}
 and \textit{arch/x86/kernel/process.c}}.
 
@@ -845,7 +853,7 @@ relied on the fact that we could imprison both the parent and then child, first
 read the pid from the return value of fork (and clone). With vfork, we had to
 perform additional hacks. We modified the execution environment of the child
 to include a call to \textbf{kill} with Tracy as a target (and the signal set to
-\textit{SIGUSR1} to notify Tracy (the tracer) of the pid of the new child,
+\textit{SIGUSR1} to notify Tracy the tracer) of the pid of the new child,
 after which we attach to the child and remove it from the safe execution
 environment as normal.
 
@@ -1062,7 +1070,6 @@ used to invoke the system call, which would result in Tracy reading a faulty
 or fake instruction. \\
 % ARM gebruikt dezelfde asm instructie maar heeft andere reg contents.
 
-% TODO: integrate  (W^X)
 To prevent another thread in the process to change the instruction we can
 use the \textbf{mprotect} system call to mark the memory as read and execute
 only (not writable), which would make it impossible to change the contents of
@@ -1072,7 +1079,7 @@ upon which Tracy can take appropriate actions (such as allow the memory to be
 written but mark it read and execute only after the write has occurred and make
 sure the cpu pipeline is flushed). A related technique is called
 W \textasciicircum X \footnote{\url{https://en.wikipedia.org/wiki/W\%5EX}}.
-% TODO: Invalidate de context switch niet al de instructies?
+% XXX: Invalidate de context switch niet al de instructies?
 
 One could even go as far as cache the system call instructions of each tracee
 so they do not have to be read again until a tracee changes its own
@@ -1082,24 +1089,44 @@ Even though now yet supporting identifying the ABIs is a serious security issue,
 it is also mainly important when someone wants to be completely sure that every
 single system call is traced. Most programs also do not usually modify their
 own instructions; nor do they create their own instructions that perform 32 bit
-system calls in a 64 bit process.
-% JIT noemen
+system calls in a 64 bit process. Examples of programs that do create
+instructions on the fly are Just In Time (JIT) compilers.
+% XXX: JIT reference.
 
 \section{Memory Sharing Between Tracer and Tracee}
 \label{memory-share}
 
-\textit{TODO}
+When one wants to inject a system call into a tracee; the tracee needs to be
+able to read the arguments and the data that arguments may point to. One way to
+make the data available in the tracee is by simply allocating memory in the
+tracee and have the arguments point to the newly allocate memory to which the
+data is written. This approach is sensitive to race conditions, as threads (that
+are not currently suspended) may be able to read (and perhaps even write) to
+the newly allocated memory. A solution to this problem is presented in
+\cite{Noordende_asecure} and we plan to implement such as solution and add it
+to the Tracy API.
 
-% Need to do some shm magic.
 
 \section{Threaded Tracees}
 \label{future-threaded-tracees}
-% XXX: Appendix met wat shared en unshared kan worden?
-\textit{TODO}
 
-\section{Tracing 32 bit Applications With a 64 bit Tracer}
-\label{diff-abi-trace}
-\textit{TODO}
+As discussed previously in Section \ref{threaded-tracees}, Tracy needs an API to
+describe what resources are shared amongst tracees. To Tracy, each thread is a
+new tracee. When managing resources of tracees, it is pertinent to know exactly
+what resources (file descriptors, memory) are shared. Tracy will in the near
+future support an API to query what resources a tracee shares with other
+tracees.
+
+%\section{Tracing 32 bit Applications With a 64 bit Tracer}
+%\label{diff-abi-trace}
+%
+%To properly trace a 32 bit process we need to be able to identify the
+%architecture (instruction set) of the process.
+% /usr/include/elf.h
+% LD_SHOW_AUXV=1
+% /proc/<pid>/auxv
+% Kan je ze zelf aanpassen (als programma)?
+% http://www.win.tue.nl/~aeb/linux/lk/lk-4.html
 
 \section{Instant Injection Using Signals}
 \label{instant-inject}
@@ -1243,7 +1270,7 @@ return code to the negative equivalent of the error number\cite{bsdasm}.
 
 As stated in Section \ref{secure-abi}, Tracy is not yet able to safely trace
 processes, the solution presented in Section \ref{secure-abi} should however
-eliminate all currently known ways to ``escape'' from Tracy. Implementation of 
+eliminate all currently known ways to ``escape'' from Tracy. Implementation of
 the aforementioned solution will also require the ability to ``understand''
 multiple ABIs as presented in Section \ref{diff-abi-trace}. % Nog iets
 % meer over hoe Tracy informatie gaat geven over de ABI? (event->abi ofzo?)
@@ -1251,11 +1278,11 @@ We believe that upon completion of features ``Secure ABI Mixing'' (Section
 \ref{secure-abi}) and ``Threaded Tracees'' (Section
 \ref{future-threaded-tracees}),
 Tracy will be fit for creating programs which require safe tracing,
-such as a \textit{jail}. 
-% TODO valt een beetje uit de lucht, wat is een jail, etc
+such as a \textit{jail}.
 
-We believe that the Tracy API is relatively simple: a brief overview of
-the current API can be found in Appendix \ref{tracy-api}. The API provides
+We believe that the Tracy API is relatively simple.
+% a brief overview of the current API can be found in Appendix \ref{tracy-api}.
+The API provides
 functionality that is not easily implemented using ptrace and also provides a
 solid and platform agnostic base for tracing applications. As mentioned in
 Section \ref{future-threaded-tracees} the API will be extended to support
@@ -1433,12 +1460,7 @@ options set using PTRACE\_SETOPTIONS.
 \end{table}
 
 
-\chapter{Safe fork}
-\label{appendix:safefork-asm}
-
-\chapter{Tracy API overview}n
-\label{tracy-api}
-
-% XXX: Hier een simpel stukje asm?
+% \includepdf[pages=-]{Tracy.pdf}
+% \label{tracy-api}
 
 \end{document}
