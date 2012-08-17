@@ -30,7 +30,7 @@ static void get_proxy_server(struct sockaddr *addr, socklen_t *proxy_addr_len) {
         struct sockaddr_in *addr4 = (struct sockaddr_in *) &_addr;
         addr4->sin_family = AF_INET;
         addr4->sin_addr.s_addr = 0x0100007f;
-        addr4->sin_port = htons(2222);
+        addr4->sin_port = htons(9050);
         first = 1;
     }
 
@@ -70,14 +70,13 @@ static int soxy_hook_socketcall(struct tracy_event *e) {
         e->args.a0 = args[0];
         e->args.a1 = args[1];
         e->args.a2 = args[2];
-        soxy_hook_socket(e);
+        return soxy_hook_socket(e);
     } else {
         e->args.a0 = args[0];
         e->args.a1 = args[1];
         e->args.a2 = args[2];
-        soxy_hook_connect(e);
+        return soxy_hook_connect(e);
     }
-    return 0;
 }
 #endif
 
