@@ -70,14 +70,13 @@ static int soxy_hook_socketcall(struct tracy_event *e) {
         e->args.a0 = args[0];
         e->args.a1 = args[1];
         e->args.a2 = args[2];
-        soxy_hook_socket(e);
+        return soxy_hook_socket(e);
     } else {
         e->args.a0 = args[0];
         e->args.a1 = args[1];
         e->args.a2 = args[2];
-        soxy_hook_connect(e);
+        return soxy_hook_connect(e);
     }
-    return 0;
 }
 #endif
 
@@ -157,21 +156,23 @@ static int soxy_hook_socket(struct tracy_event *e) {
     return TRACY_HOOK_CONTINUE;
 }
 
-static int soxy_set_blocking(struct tracy_event *e, int fd) {
-    long flags, ret;
+static int soxy_set_blocking(struct tracy_event *e, int fd, long *flags) {
+    long ret;
+    long nonblocking;
     struct tracy_sc_args fcntl_args = {fd, F_GETFL, 0,
         0, 0, 0, 0, 0, 0, 0};
-    if (tracy_inject_syscall(e->child, __NR_fcntl, &fcntl_args, &flags)) {
+    if (tracy_inject_syscall(e->child, __NR_fcntl, &fcntl_args, flags)) {
         fprintf(stderr, "F_GETFL failed\n");
         return 0;
     }
-    fprintf(stderr, "fcntl returns: %ld\n", flags);
+    fprintf(stderr, "fcntl returns: %ld\n", *flags);
 
-    if ((flags & O_NONBLOCK) > 0) {
+    nonblocking = (*flags & O_NONBLOCK) > 0;
+    if (nonblocking) {
         fprintf(stderr, "Socket is nonblocking!\n");
-        flags = (flags & ~O_NONBLOCK);
+        *flags = (*flags & ~O_NONBLOCK);
 
-        struct tracy_sc_args fcntl_args = {fd, F_SETFL, flags,
+        struct tracy_sc_args fcntl_args = {fd, F_SETFL, *flags,
             0, 0, 0, 0, 0, 0, 0};
         if (tracy_inject_syscall(e->child, __NR_fcntl, &fcntl_args, &ret)) {
             fprintf(stderr, "F_GETFL failed\n");
@@ -182,7 +183,7 @@ static int soxy_set_blocking(struct tracy_event *e, int fd) {
         fprintf(stderr, "Socket is blocking\n");
     }
 
-    return flags;
+    return nonblocking;
 }
 
 static int soxy_set_nonblocking(struct tracy_event *e, int fd, int flags) {
@@ -199,6 +200,7 @@ static int soxy_set_nonblocking(struct tracy_event *e, int fd, int flags) {
 
 static int soxy_hook_connect(struct tracy_event *e) {
     long flags;
+    long nonblocking;
     int fd;
     long ret;
 
@@ -227,7 +229,7 @@ static int soxy_hook_connect(struct tracy_event *e) {
             // by default we return failure
             proxy->return_code = -1;
 
-            flags = soxy_set_blocking(e, fd);
+            nonblocking = soxy_set_blocking(e, fd, &flags);
 
             // establish a connection to the proxy server.
             if(soxy_connect_proxy_server(e, e->args.a0) < 0) {
@@ -243,7 +245,7 @@ static int soxy_hook_connect(struct tracy_event *e) {
             }
 
             fprintf(stderr, "Soxy connect addr succeeded.\n");
-            if ((flags & O_NONBLOCK) > 0) {
+            if (nonblocking) {
                 flags = (flags | O_NONBLOCK);
                 soxy_set_nonblocking(e, fd, flags);
             }
@@ -265,7 +267,7 @@ static int soxy_hook_connect(struct tracy_event *e) {
             // Set arguments
             memcpy(&args, &e->args, sizeof(args));
             args.return_code = proxy->return_code;
-#ifdef i686
+#ifdef __i686__
             tracy_modify_syscall_regs(e->child, __NR_socketcall, &args);
 #else
             tracy_modify_syscall_regs(e->child, __NR_connect, &args);
