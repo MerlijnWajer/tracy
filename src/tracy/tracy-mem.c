@@ -170,7 +170,7 @@ static ssize_t tracy_ppm_read_mem(struct tracy_child *c,
 char* tracy_read_string(struct tracy_child *c,
         tracy_child_addr_t src) {
     char *buf, *curr, *bufwalk;
-    int bp, lim, go;
+    int bp, lim;
 
     bp = 0; /* Buffer pos */
     lim = 4096 * sizeof(char); /* Buffer size */
@@ -190,7 +190,7 @@ char* tracy_read_string(struct tracy_child *c,
     }
 
     printf("%s\n", buf);
-    /*buf = realloc(buf, bp * sizeof(char));*/
+    buf = realloc(buf, bp * sizeof(char));
     return buf;
 }
 
