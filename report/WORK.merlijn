@@ -1,4 +1,4 @@
-Hours worked: 301 (Approximately...)
+Hours worked: 335 (Approximately...)
 
 Proposal:   15 hours.
 
@@ -34,6 +34,11 @@ Code: (Time spent writing only)
     -   Debug improvements + bugfix for safe-fork: 1 hour. (20 July)
     -   Asynchronous sockets for soxy: 1 hour. (6 Aug)
     -   ARM support for soxy, tracy ARM fixes: 8 hours. (6-9 Aug)
+    -   Change modification API design flaw, ARM injection and modification
+    works a lot better now. Excerpt from bug:
+        Right now tracy_modify_syscall will always override the first argument with the return code. This is problematic; since the user will have to set the return_code to the value of the first argument. We need to think of a way to allow a user to set specific registers only. Also, make sure that people also will not be able to set the IP,SP,PC etc by accident. Currently the IP is always set as well, which is silly.
+        4 hours. (9 Aug)
+
 
 Report:
     -   Initial work on report: 25 hours. (16 March - 1 April)
@@ -46,6 +51,11 @@ Report:
     -   More work on Ch. 1: 4 hours. (1 Aug)
     -   QA: 8 hours. (4 Aug)
     -   Small changes: 2 hours. (5-6 Aug)
+    -   QA, Future work: 6 hours. (12 Aug)
+    -   QA, Threads: 6 hours. (13 Aug)
+    -   Discussion: 6 hours. (14 Aug)
+    -   Report QA: 6 hours. (16-17 Aug)
+    -   Soxy rewrite: 10 hours. (17-19 Aug)
 
 Tracy tests:
     -   Loggy: 3 hours. (11 March)
