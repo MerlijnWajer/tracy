@@ -76,6 +76,8 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     siginfo_t info;
     int is_vforking = 0;
 
+    child_pid = -1;
+
     tracy_debug_current(c);
 
 /*

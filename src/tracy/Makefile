@@ -1,6 +1,6 @@
 .PHONY: default clean check-inject tests
 
-CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror -pipe
+CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror -Wno-unused-result -pipe
 CFLAGS+=-D_POSIX_SOURCE -D_GNU_SOURCE
 CFLAGS+=-pthread
 
