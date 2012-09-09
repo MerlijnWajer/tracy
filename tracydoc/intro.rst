@@ -1,417 +1,332 @@
-Description
-===========
+Introduction to Tracy
+=====================
 
-This section contains documentation on all public functions exported by Tracy.
+Tracy is a library written in C that makes it easy to trace and modify system
+calls on a UNIX platform. Currently the only supported platform is Linux, but
+we're working on supporting other platforms.
 
-Tracy object
-~~~~~~~~~~~~
+Creating a Tracy instance
+-------------------------
 
-tracy_init
-----------
 .. code-block:: c
 
-    struct tracy *tracy_init(void);
+    struct tracy *tracy;
+
+    tracy = tracy_init(options);
 
 .. **
 
-tracy_init creates the tracy record and returns a pointer to this record on
-success. Possible options for *opt*:
+Tracy options
+~~~~~~~~~~~~~
 
--   *TRACY_TRACY_CHILDREN* (Trace children of the tracee created with fork,
-    vfork or clone.)
--   *TRACY_USE_SAFE_TRACE* (Do not rely on Linux' auto-trace on fork abilities
-    and instead use our own safe implementation)
+Tracy has several options that affect the tracing process.
+Options are passed to :ref:`rtracy_init` in a bitwise manner.
 
-Returns the tracy record created.
+The following tracy options are available:
 
-tracy_free
-----------
+- **TRACY_TRACE_CHILDREN**
+
+  If this option is set, tracy will automatically trace all children of the
+  process.
+
+- **TRACY_VERBOSE**
+
+  Tracy will be verbose and print information about events and internal logic.
+
+- **TRACY_VERBOSE_SIGNAL**
+
+  Tracy will print information relating to signals.
+
+- **TRACY_VERBOSE_SYSCALL**
+
+  Tracy will print information relating to system calls.
+
+- **TRACY_MEMORY_FALLBACK**
+
+  Enable a ptrace based (slow) memory fallback if the fast memory access
+  method is not available.
+
+- **TRACY_USE_SAFE_TRACE**
+
+  Enable experimental tracing of all created children; instead of relying on
+  Linux' mechanism to automatically tracy all created children, we utilise our
+  own safe tracing mechanism. Theoretically this should also work on BSD
+  platforms.
+
+Tracing a process
+~~~~~~~~~~~~~~~~~
+
+To start a process, use :ref:`rtracy_exec`. Pass a **NULL** terminated
+string array as **argv**.
 
 .. code-block:: c
 
-    void tracy_free(struct tracy *t);
+    int main(int argc, char** argv) {
+        struct tracy *tracy;
+
+        tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE |
+                TRACY_VERBOSE_SIGNAL | TRACY_VERBOSE_SYSCALL);
+
+        if (argc < 2) {
+            printf("Usage: ./example <program-name>\n");
+            return EXIT_FAILURE;
+        }
+
+        argv++; argc--;
+
+        /* Start child */
+        if (!tracy_exec(tracy, argc, argv)) {
+            perror("tracy_exec");
+            return EXIT_FAILURE;
+        }
+
+        /* Default event-loop */
+        tracy_main(tracy);
+    
+        /* Free tracy */
+        tracy_free(tracy);
+    
+        return 0;
+
+    }
 
 .. **
 
-tracy_free frees all the data associated with tracy:
-
--   Any children being traced are either detached (if we attached) or killed
-    if tracy started them.
-
--   Datastructures used internally.
-
-tracy_quit
-----------
-
-.. code-block:: c
-
-    void tracy_quit(struct tracy* t, int exitcode);
-
-tracy_quit frees all the structures, kills or detaches from all the
-children and then calls exit() with *exitcode*. Use tracy_free if you want to
-gracefully free tracy.
-
-tracy_main
-----------
-
-.. code-block:: c
-
-    int tracy_main(struct tracy *tracy);
-
-.. **
-
-tracy_main is a simple tracy-event loop.
-Helper for RAD Tracy deployment
-
-fork_trace_exec
----------------
-
-.. code-block:: c
-
-    struct tracy_child *fork_trace_exec(struct tracy *t, int argc, char **argv);
-
-.. **
-
-fork_trace_exec is the function tracy offers to actually start tracing a
-process. fork_trace_exec safely forks, asks to be traced in the child and
-then executes the given process with possible arguments.
-
-Returns the first tracy_child. You don't really need to store this as each
-event will be directly coupled to a child.
-
-tracy_attach
-------------
-
-.. code-block:: c
-
-    struct tracy_child *tracy_attach(struct tracy *t, pid_t pid);
-
-.. **
-
-tracy_attach attaches to a running process specified by pid.
-
-Returns the structure of the attached child.
-
-tracy_wait_event
-----------------
-
-.. code-block:: c
-
-    struct tracy_event *tracy_wait_event(struct tracy *t, pid_t pid);
-
-.. **
-
-tracy_wait_event waits for an event to occur on any child when pid is -1;
-else on a specific child.
-
-tracy_wait_event will detect any new children and automatically add them to
-the appropriate datastructures.
-
-An *event* is either a signal or a system call. tracy_wait_event populates
-events with the right data; arguments; system call number, etc.
-
-Returns an event pointer or NULL.
-
-If NULL is returned, you should probably kill all the children and stop
-tracy; NULL indicates something went wrong internally such as the inability
-to allocate memory or an unsolvable ptrace error.
-
-tracy_continue
---------------
-
-.. code-block:: c
-
-    int tracy_continue(struct tracy_event *s, int sigoverride);
-
-.. **
-
-tracy_continue continues the execution of the child that owns event *s*.
-If the event was caused by a signal to the child, the signal
-is passed along to the child, unless *sigoverride* is set to nonzero.
-
-tracy_kill_child
-----------------
-
-tracy_kill_child attemps to kill the child *c*; it does so using ptrace with
-the PTRACE_KILL argument.
-
-Return 0 upon success, -1 upon failure.
-
-check_syscall
--------------
-
-.. TODO REMOVE?
-
-.. code-block:: c
-
-    int check_syscall(struct tracy_event *s);
-
-.. **
-
-get_syscall_name
-----------------
-
-.. code-block:: c
-
-    char* get_syscall_name(int syscall);
-
-get_signal_name
----------------
-
-.. code-block:: c
-
-    char* get_signal_name(int signal);
-
-tracy_set_hook
---------------
-
-.. code-block:: c
-
-    int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func);
-
-.. **
-
-Set the hook for a system call.
-
-Returns 0 on success, -1 on failure.
-
-tracy_set_signal_hook
+Handling Tracy events
 ---------------------
 
-.. code-block:: c
+Generally, you shouldn't care about the specifics of tracy events
+and you can just use `tracy_main`_ instead. However, now follows
+a quick description of each event in Tracy's event system.
 
-    int tracy_set_signal_hook(struct tracy *t, tracy_hook_func f);
+- **TRACY_EVENT_SYSCALL**
 
-.. **
+    This event indicates that a tracee is trying to perform
+    (or has just performed) a system call.
 
-Set the signal hook. Called on each signal[1].
+- **TRACY_EVENT_SIGNAL**
 
-Returns 0 on success.
+    This event indicates that a signal is to be delivered
+    to a tracee.
 
-[1] Called on every signal that the tracy user should recieve,
-the SIGTRAP's from ptrace are not sent, and neither is the first
-SIGSTOP.
-Possible return values by the tracy_hook_func for the signal:
+- **TRACY_EVENT_INTERNAL**
 
-    -   TRACY_HOOK_CONTINUE will send the signal and proceed as normal
-    -   TRACY_HOOK_SUPPRESS will not send a signal and process as normal
-    -   TRACY_HOOK_KILL_CHILD if the child should be killed.
-    -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
+    This indicates an internal event in Tracy. This event is used
+    in asynchronous system calls and possibly other features in the
+    future.
 
+- **TRACY_EVENT_QUIT**
 
-tracy_set_default_hook
-----------------------
+    This indicates that a tracee has been stopped or killed.
 
-.. code-block:: c
+- **TRACY_EVENT_NONE**
 
-    int tracy_set_default_hook(struct tracy *t, tracy_hook_func f);
+    A none event is returned on error, or simply when there are no tracees
+    left.
 
-.. **
+tracy_main
+~~~~~~~~~~
 
-tracy_set_default_hook
+The :ref:`rtracy_main` procedure is the default way to use Tracy events.
+The method does not return until all children have died. It honours the
+signal and system call hooks, but does not provide a lot of control over
+the event system. If you need more direct control, you could write your own
+version of :ref:`rtracy_main`.
 
-Set the default hook. (Called when a syscall occurs and no hook is installed
-for the system call. *func* is the function to be set as hook.
-
-Returns 0 on success.
-
-
-tracy_execute_hook
-------------------
-
-.. code-block:: c
-
-    int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e);
-
-.. **
-
-Returns the return value of the hook. Hooks should return:
-
-    -   TRACY_HOOK_CONTINUE if everything is fine.
-    -   TRACY_HOOK_KILL_CHILD if the child should be killed.
-    -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
-    -   TRACY_HOOK_NOHOOK is no hook is in place for this system call.
-
-
-Memory manipulation
+Your own event loop
 ~~~~~~~~~~~~~~~~~~~
 
-tracy_peek_word
----------------
+A very simple version:
 
 .. code-block:: c
 
-    int tracy_peek_word(struct tracy_child *c, long from, long* word);
+    int tracy_main(struct tracy * tracy) {
+        struct tracy_event * e;
 
-tracy_read_mem
---------------
+        main_loop_go_on = 1;
+
+        while (main_loop_go_on) {
+            e = tracy_wait_event(tracy, -1);
+            if (!e) {
+                fprintf(stderr, "tracy_main: tracy_wait_Event returned NULL\n");
+                continue;
+            }
+
+            if (e->type == TRACY_EVENT_NONE) {
+                break;
+            } else if (e->type == TRACY_EVENT_INTERNAL) {
+            } else if (e->type == TRACY_EVENT_SIGNAL) {
+            } else if (e->type == TRACY_EVENT_SYSCALL) {
+            } else if (e->type == TRACY_EVENT_QUIT) {
+                printf(_b("EVENT_QUIT from %d with signal %s (%ld)\n"),
+                        e->child->pid, get_signal_name(e->signal_num),
+                        e->signal_num);
+                if (e->child->pid == tracy->fpid) {
+                    printf(_g("Our first child died.\n"));
+                }
+
+                tracy_remove_child(e->child);
+                continue;
+            }
+
+            if (!tracy_children_count(tracy)) {
+                break;
+            }
+
+            tracy_continue(e, 0);
+        }
+
+        return 0;
+    }
+
+
+Tracy hooks
+-----------
+
+Tracy allows one hooking into any signal sent to a tracee as
+well as any system call executed by a tracee.
+The return values of the hooks (callbacks) determine the action that
+tracy will take.
+
+See `Signal hook`_ and `System call hooks`_ for examples.
+
+Signal hook
+~~~~~~~~~~~
+
+Tracy allows hooking into signals as well. One can hook
+into any signal to a tracee like this:
 
 .. code-block:: c
 
-    ssize_t tracy_read_mem(struct tracy_child *c, tracy_parent_addr_t dest, tracy_child_addr_t src, size_t n);
+    int hook_sig(struct tracy_event * e) {
+        if (e->signal_num == SIGTERM) {
+            return TRACY_HOOK_SUPPRESS;
+        }
+        return TRACY_HOOK_CONTINUE;
+    }
 
-.. **
+    struct tracy * t = tracy_init(…);
+    tracy_set_signal_hook(t, hook_sig);
 
-tracy_poke_word
----------------
 
-.. code-block:: c
-
-    int tracy_poke_word(struct tracy_child *c, long to, long word);
-
-.. **
-
-tracyy_write_mem
-----------------
+System call hooks
+~~~~~~~~~~~~~~~~~
 
 .. code-block:: c
 
-    ssize_t tracy_write_mem(struct tracy_child *c, tracy_child_addr_t dest, tracy_parent_addr_t src, size_t n);
+    int hook_write(struct tracy_event * e) {
+        if (e->child->pre_syscall) {
+            printf("Pre-write system call\n");
+        } else {
+            printf("Pre-write system call\n");
+        }
+        return TRACY_HOOK_CONTINUE;
+    }
 
-.. **
+    struct tracy * t = tracy_init(…);
+    tracy_set_hook(t, "write", hook_write);
 
-System call injection
+Hook return values
+~~~~~~~~~~~~~~~~~~
+
+- **TRACY_HOOK_CONTINUE**
+
+    Return this inside a hook when you want the execution to resume normally.
+
+- **TRACY_HOOK_KILL_CHILD**
+
+    Return this inside a hook if you want the child to be killed on hook return.
+
+- **TRACY_HOOK_ABORT**
+
+    Return this to completely kill tracy. Currently tracy will kill all the
+    children and then generate a **TRACY_EVENT_NONE**.
+
+    Currently tracy kills its own process as well by calling exit().
+
+- **TRACY_HOOK_SUPPRESS**
+
+    Return this *only* from a signal hook. This will cause the signal that
+    would normally be sent to be suppressed instead.
+
+- **TRACY_HOOK_DENY**
+
+    Return this **only** from a system call hook. This will cause the
+    current system call to be denied.
+
+    The system call will be replaced by a getpid(2) and the return value will
+    be set to **-ENOSYS**.
+
+System call modification
+------------------------
+
+Changing the arguments
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: c
+
+    int hook_write(struct tracy_event * e) {
+        struct tracy_sc_args a;
+
+        if (e->child->pre_syscall) {
+            if (e->args.a0 == 2) {
+                memcpy(&a, &(e->args), sizeof(struct tracy_sc_args));
+                a.a0 = 1;
+                if (tracy_modify_syscall_args(e->child, a.syscall, &a)) {
+                    return TRACY_HOOK_ABORT;
+                }
+            }
+        }
+
+        return TRACY_HOOK_CONTINUE;
+    }
+
+
+Denying a system call
 ~~~~~~~~~~~~~~~~~~~~~
 
-tracy_inject_syscall
---------------------
+.. code-block:: c
+
+    int hook_write(struct tracy_event * e) {
+        if (e->child->pre_syscall) {
+            if(e->args.a0 == 1) {
+                printf("Denying write to stdout\n");
+                return TRACY_HOOK_DENY;
+            }
+
+        return TRACY_HOOK_CONTINUE;
+    }
+
+
+System call injection
+---------------------
+
+Synchronous injection
+~~~~~~~~~~~~~~~~~~~~~
+
+Asynchronous injection
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: c
 
-    int tracy_inject_syscall(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a, long *return_code);
+    int _write(struct tracy_event * e) {
+        if (e->child->inj.injected) {
+            printf("We just injected something. Result: %ld\n", e->args.return_code);
+            return 0;
+        }
+        if (e->child->pre_syscall) {
+            if (tracy_inject_syscall_pre_start(e->child, __NR_write,
+                    &(e->args), &_write))
+                return TRACY_HOOK_ABORT;
+        } else {
+            if (tracy_inject_syscall_post_start(e->child, __NR_write,
+                    &(e->args), &_write))
+                return TRACY_HOOK_ABORT;
+        }
 
-.. **
+        return 0;
+    }
 
-Inject a system call in process defined by tracy_child *child*.
-The syscall_number is the number of the system call; use *SYS_foo* or
-*__NR_foo* to retrieve these numbers. *a* is a pointer to the system
-call arguments. The *return_code* will be set to the return code of the
-system call.
+Cleaning up
+-----------
 
-Returns 0 on success; -1 on failure.
-
-tracy_inject_syscall_pre_start
-------------------------------
-
-.. code-block:: c
-
-    int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a, tracy_hook_func callback);
-
-.. **
-
-Change the system call, its arguments and the other registers to inject
-a system call. Doesn't continue the execution of the child.
-
-Call tracy_inject_syscall_pre_end to reset registers and retrieve the return
-value.
-
-Returns 0 on success; -1 on failure.
-
-tracy_inject_syscall_pre_end
-----------------------------
-
-.. code-block:: c
-
-    int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code);
-
-.. **
-
-Call this after having called tracy_inject_syscall_pre_start, tracy_continue
-and waitpid on the child. This function will reset the registers to the
-proper values and store the return value in *return_code*.
-
-If you use tracy's event structure (you probably do), then you do not need to
-call this function. In fact, you shouldn't.
-
-Returns 0 on success; -1 on failure.
-
-tracy_inject_syscall_post_start
--------------------------------
-
-.. code-block:: c
-
-    int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a, tracy_hook_func callback);
-
-.. **
-
-Change the system call, its arguments and the other registers to inject
-a system call. Doesn't continue the execution of the child.
-
-Call tracy_inject_syscall_post_end to reset registers and retrieve the return
-value.
-
-Returns 0 on success; -1 on failure.
-
-tracy_inject_syscall_post_end
------------------------------
-
-.. code-block:: c
-
-    int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code);
-
-.. **
-
-Call this after having called tracy_inject_syscall_post_start, tracy_continue
-and waitpid on the child. This function will reset the registers to the
-proper values and store the return value in *return_code*.
-
-If you use tracy's event structure (you probably do), then you do not need to
-call this function. In fact, you shouldn't.
-
-Returns 0 on success; -1 on failure.
-
-tracy_modify_syscall
---------------------
-
-.. code-block:: c
-
-    int tracy_modify_syscall(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a);
-
-.. **
-
-This function allows you to change the system call number and arguments of a
-paused child. You can use it to change a0..a5, return_code and the ip.
-Changing the IP is particularly important when doing system call injection.
-Make sure that you set it to the right value when passing args to this
-function.
-
-Changes the system call number to *syscall_number* and if *a* is not NULL,
-changes the arguments/registers of the system call to the contents of *a*.
-
-Returns 0 on success, -1 on failure.
-
-tracy_deny_syscall
-------------------
-
-.. code-block:: c
-
-    int tracy_deny_syscall(struct tracy_child* child);
-
-tracy_mmap
-----------
-
-.. code-block:: c
-
-    int tracy_mmap(struct tracy_child *child, tracy_child_addr_t *ret, tracy_child_addr_t addr, size_t length, int prot, int flags, int fd, off_t pgoffset);
-
-.. **
-
-tracy_munmap
-------------
-
-.. code-block:: c
-
-    int tracy_munmap(struct tracy_child *child, long *ret, tracy_child_addr_t addr, size_t length);
-
-.. **
-
-Notes
-=====
-
-
-Bugs
-====
-
-
-Example
-=======

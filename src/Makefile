@@ -1,12 +1,12 @@
 
 .PHONY: clean tracy default tests
 
-CFLAGS+=-std=c99 -pedantic -Wall -Wextra -Werror -pipe
+CFLAGS+=-std=c99 -pedantic -Wall -Wextra -pipe #-Werror
+#CFLAGS+=-ansi -pedantic -Wall -Wextra -pipe #-Werror
 CFLAGS+=-I tracy/
 CFLAGS+=-D_POSIX_SOURCE
 CFLAGS+=-D_GNU_SOURCE
 CFLAGS+=-ggdb -pthread
-CFLAGS+=-D_SOXY_IPV6_
 #CFLAGS+=-O2
 #CFLAGS+=-m32
 

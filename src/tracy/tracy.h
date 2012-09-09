@@ -33,13 +33,9 @@
 #define TRACY_VERBOSE 1 << 1
 #define TRACY_VERBOSE_SIGNAL 1 << 2
 #define TRACY_VERBOSE_SYSCALL 1 << 3
-#define TRACY_VERBOSE_MUCH -1
 
 /* Enable automatic usage of ptrace's memory API when PPM (/proc based) fails */
-#define TRACY_MEMORY_FALLBACK 1 << 2
-
-/* Enable automatic usage of ptrace's memory API when PPM (/proc based) fails */
-#define TRACY_MEMORY_FALLBACK 1 << 2
+#define TRACY_MEMORY_FALLBACK 1 << 4
 
 #define TRACY_USE_SAFE_TRACE 1 << 31
 
@@ -223,16 +219,16 @@ void tracy_quit(struct tracy* t, int exitcode);
 int tracy_main(struct tracy *tracy);
 
 /*
- * fork_trace_exec
+ * tracy_exec
  *
- * fork_trace_exec is the function tracy offers to actually start tracing a
- * process. fork_trace_exec safely forks, asks to be traced in the child and
+ * tracy_exec is the function tracy offers to actually start tracing a
+ * process. tracy_exec safely forks, asks to be traced in the child and
  * then executes the given process with possible arguments.
  *
  * Returns the first tracy_child. You don't really need to store this as each
  * event will be directly coupled to a child.
  */
-struct tracy_child *fork_trace_exec(struct tracy *t, int argc, char **argv);
+struct tracy_child *tracy_exec(struct tracy *t, char **argv);
 
 /*
  * tracy_attach
@@ -242,12 +238,6 @@ struct tracy_child *fork_trace_exec(struct tracy *t, int argc, char **argv);
  * Returns the structure of the attached child.
  */
 struct tracy_child *tracy_attach(struct tracy *t, pid_t pid);
-
-/*
- * tracy_attach
- * tracy_fork XXX: ???
- * tracy_fork_exec XXX: ???
- */
 
 /*
  * tracy_add_child
@@ -372,6 +362,8 @@ ssize_t tracy_peek_mem(struct tracy_child *c, tracy_parent_addr_t dest,
         tracy_child_addr_t src, ssize_t n);
 ssize_t tracy_read_mem(struct tracy_child *c, tracy_parent_addr_t dest,
     tracy_child_addr_t src, size_t n);
+char* tracy_read_string(struct tracy_child *c, tracy_child_addr_t src);
+
 
 int tracy_poke_word(struct tracy_child *c, long to, long word);
 ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
@@ -392,22 +384,14 @@ int tracy_debug_current_pid(pid_t pid);
 void tracy_backtrace(void);
 
 /* Synchronous injection */
-
-/*
- * tracy_inject_syscall
- *
- * Inject a system call in process defined by tracy_child *child*.
- * The syscall_number is the number of the system call; use *SYS_foo* or
- * *__NR_foo* to retrieve these numbers. *a* is a pointer to the system
- * call arguments. The *return_code* will be set to the return code of the
- * system call.
- *
- * Returns 0 on success; -1 on failure.
- */
 int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, long *return_code);
 
 /* Asynchronous injection */
+int tracy_inject_syscall_async(struct tracy_child *child, long syscall_number,
+        struct tracy_sc_args *a, tracy_hook_func callback);
+
+/* These should be used interally only */
 int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback);
 int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code);
@@ -417,7 +401,9 @@ int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_numb
 int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code);
 
 /* Modification and rejection */
-int tracy_modify_syscall(struct tracy_child *child, long syscall_number,
+int tracy_modify_syscall_args(struct tracy_child *child, long syscall_number,
+        struct tracy_sc_args *a);
+int tracy_modify_syscall_regs(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a);
 int tracy_deny_syscall(struct tracy_child* child);
 
@@ -446,7 +432,7 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child);
             printf("\n-------------------------------" \
                     "-------------------------------------------------\n"); \
             perror("Whoops"); \
-            printf("Function: %s, Line: %d\n", __FUNCTION__, __LINE__); \
+            printf("Function: %s, File: %s, Line: %d\n", __FUNCTION__, __FILE__, __LINE__); \
             printf("Arguments: %s, %s (%d), %s, %s\n", S1, #A2, A2, #A3, #A4); \
             printf("-------------------------------" \
                     "-------------------------------------------------\n"); \

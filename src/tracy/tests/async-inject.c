@@ -29,19 +29,11 @@ int _write(struct tracy_event *e) {
         printf("We just injected something. Result: %ld\n", e->args.return_code);
         return 0;
     }
-    if (e->child->pre_syscall) {
-        printf("Pre-async inject\n");
-        if (tracy_inject_syscall_pre_start(e->child, __NR_write,
-                &(e->args), &_write))
-            return TRACY_HOOK_ABORT;
-    } else {
-        printf("Post-async inject\n");
-        if (tracy_inject_syscall_post_start(e->child, __NR_write,
-                &(e->args), &_write))
-            return TRACY_HOOK_ABORT;
-    }
 
-    return 0;
+    if (tracy_inject_syscall_async(e->child, __NR_write, &(e->args), &_write))
+            return TRACY_HOOK_ABORT;
+
+    return TRACY_HOOK_CONTINUE;
 }
 
 int main(int argc, char** argv) {
@@ -61,8 +53,8 @@ int main(int argc, char** argv) {
     argv++; argc--;
 
     /* Start child */
-    if (!fork_trace_exec(tracy, argc, argv)) {
-        perror("fork_trace_exec");
+    if (!tracy_exec(tracy, argv)) {
+        perror("tracy_exec");
         return EXIT_FAILURE;
     }
 

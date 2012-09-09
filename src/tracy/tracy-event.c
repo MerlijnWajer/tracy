@@ -79,7 +79,8 @@ static int tracy_internal_syscall(struct tracy_event *s) {
 
         /* Finally update child registers */
         /* TODO: Check return value? */
-        tracy_modify_syscall(s->child, s->args.syscall, &s->args);
+        tracy_modify_syscall_regs(s->child, s->args.syscall, &s->args);
+        tracy_modify_syscall_args(s->child, s->args.syscall, &s->args);
     }
 
     if (!s->child->pre_syscall)
@@ -392,8 +393,13 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             s->args.return_code = -EPERM;
             s->args.sp = regs.TRACY_STACK_POINTER;
 
-            if (tracy_modify_syscall(s->child, s->child->denied_nr, &(s->args))) {
-                fprintf(stderr, "tracy_modify_syscall failed\n");
+            if (tracy_modify_syscall_regs(s->child, s->child->denied_nr, &(s->args))) {
+                fprintf(stderr, "tracy_modify_syscall_regs failed\n");
+                tracy_backtrace();
+                /* TODO: Kill child? */
+            }
+            if (tracy_modify_syscall_args(s->child, s->child->denied_nr, &(s->args))) {
+                fprintf(stderr, "tracy_modify_syscall_args failed\n");
                 tracy_backtrace();
                 /* TODO: Kill child? */
             }
@@ -463,6 +469,9 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             }
         }
 
+    /* TODO: SIGSTOP-ignore should perhaps also be in this piece of code.
+     * TRACE_O_TRACEFORK etc. send a SIGSTOP upon creation of a new
+     * child */
     } else if (signal_id == SIGTRAP) {
         if (t->opt & TRACY_VERBOSE) {
             /* XXX We probably want to move most of this logic out of the
@@ -498,7 +507,18 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         goto start;
         /*return tracy_wait_event(t, c_pid);*/
 
-    } else if (signal_id == SIGSTOP && !s->child->received_first_sigstop) {
+    /* TODO: Merge this with the SIGSTOP status checking code above */
+    } else if (signal_id == SIGSTOP && (t->opt & TRACY_TRACE_CHILDREN) &&
+        !(t->opt & TRACY_USE_SAFE_TRACE) && !s->child->received_first_sigstop) {
+        /* We ignore the first SIGSTOP signal when
+         * PTRACE_O_TRACE{VFORK,FORK,CLONE are used, because on process creation
+         * Linux starts the processes with a SIGSTOP signal. From the manpage:
+         *
+         *    PTRACE_O_TRACEFORK (since Linux 2.5.46)
+         *           Stop  the  tracee at the next fork(2) and automatically
+         *           start tracing the newly forked process, which will start
+         *           with a SIGSTOP.
+         */
         if (TRACY_PRINT_SIGNALS(t))
             fprintf(stderr, "SIGSTOP ignored: pid = %d\n", pid);
 

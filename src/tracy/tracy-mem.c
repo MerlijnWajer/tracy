@@ -26,6 +26,7 @@
 #include <fcntl.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 
 #include <unistd.h>
@@ -162,6 +163,35 @@ static ssize_t tracy_ppm_read_mem(struct tracy_child *c,
 
     /* And read. */
     return read(c->mem_fd, dest, n);
+}
+
+/* Read a string character per character.
+   Slow operation but useful when the length of a string is not known */
+char* tracy_read_string(struct tracy_child *c,
+        tracy_child_addr_t src) {
+    char *buf, *curr, *bufwalk;
+    int bp, lim;
+
+    bp = 0; /* Buffer pos */
+    lim = 4096 * sizeof(char); /* Buffer size */
+    curr = src;
+    buf = malloc(lim);
+    bufwalk = buf; /* We increase this to check the currently read char */
+
+    while (tracy_read_mem(c, bufwalk++, curr++, 1) == 1) {
+        if (buf[bp] == 0) {
+            break;
+        }
+        bp++;
+        if (bp == (lim-1)) {
+            buf = realloc(buf, lim+(4096*sizeof(char)));
+            lim += 4096;
+        }
+    }
+
+    printf("%s\n", buf);
+    buf = realloc(buf, bp * sizeof(char));
+    return buf;
 }
 
 /* XXX The memory access functions should not be used for reading more than 2GB

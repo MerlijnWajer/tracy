@@ -1,0 +1,6 @@
+digraph pre {
+    "Post system call" -> "Store registers" -> "Modify IP/PC" ->
+    "Resume to Pre" -> "Pre system call" -> "Modify registers" ->
+    "Resume to Post" -> "Store result" -> "Restore registers" ->
+    "Post system call"
+}

@@ -28,8 +28,8 @@
 int hook_write(struct tracy_event *e) {
     if (e->child->pre_syscall) {
         if(e->args.a0 == 1) {
-            tracy_deny_syscall(e->child);
             printf("Denying write to stdout\n");
+            return TRACY_HOOK_DENY;
         }
     } else {
     }
@@ -57,8 +57,8 @@ int main(int argc, char** argv) {
     argv++; argc--;
 
     /* Start child */
-    if (!fork_trace_exec(tracy, argc, argv)) {
-        perror("fork_trace_exec");
+    if (!tracy_exec(tracy, argv)) {
+        perror("tracy_exec");
         return EXIT_FAILURE;
     }
 

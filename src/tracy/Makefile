@@ -1,6 +1,6 @@
 .PHONY: default clean check-inject tests
 
-CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror -pipe
+CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror -Wno-unused-result -pipe
 CFLAGS+=-D_POSIX_SOURCE -D_GNU_SOURCE
 CFLAGS+=-ggdb -pthread -fPIC
 
@@ -8,6 +8,10 @@ LDFLAGS+=-rdynamic -pthread
 #CFLAGS+=-O2
 #CFLAGS+=-m32
 #LDFLAGS+=-m32
+
+build ?= debug
+
+include Makerules
 
 TRACY_HS=tracy.h ll.h tracyarch.h
 TRACY_OS=tracy.o tracy-mem.o tracy-safe-fork.o tracy-modification.o \
@@ -26,13 +30,14 @@ test_binaries=tests/hello tests/rwmem tests/base tests/inject-simple \
 	tests/thread-simple tests/thread-simple-prog tests/fork \
 	tests/fork-prog tests/vfork-prog tests/bounce tests/bash \
 	tests/raw-clone tests/deny tests/attach tests/metronome \
-	tests/sig_suppress tests/async-inject
+	tests/sig_suppress tests/async-inject tests/redirect
 
 tests: $(test_binaries)
 tests/rwmem: tests/rwmem.o $(TRACY_OS)
 tests/base: tests/base.o $(TRACY_OS)
 tests/sig_suppress: tests/sig_suppress.o $(TRACY_OS)
 tests/async-inject: tests/async-inject.o $(TRACY_OS)
+tests/redirect: tests/redirect.o $(TRACY_OS)
 tests/bash: tests/bash.o $(TRACY_OS)
 tests/deny: tests/deny.o $(TRACY_OS)
 tests/inject-simple: tests/inject-simple.o $(TRACY_OS)
@@ -54,6 +59,7 @@ tracy-modification.o: $(TRACY_HS)
 ll.o: ll.h
 
 # Tracy dependent test files.
+tests/redirect.o: $(TRACY_HS)
 tests/bash.o: $(TRACY_HS)
 tests/deny.o: $(TRACY_HS)
 tests/sig_suppress.o: $(TRACY_HS)

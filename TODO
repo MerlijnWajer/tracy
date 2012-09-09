@@ -19,7 +19,8 @@ Tracy:
        "unimplement_syscall"?
 
 [X  B] Add interrupt handler to tracy_main().
-[/ M ] Documentation for tracy. (in sphinx and code)
+[X M ] Documentation for tracy. (in sphinx and code)
+
 [/ MB] API support for threads. (Not in tracy, but for threaded tracees)
 
 Optional:
@@ -28,31 +29,31 @@ Optional:
 
 Soxy:
 
-[/J  ] Working implementation of SOCKS 5 protocol
-[ JMB] Hook some system calls, and perform required operations. We want to hook at
+[XJ  ] Working implementation of SOCKS 5 protocol
+[XJMB] Hook some system calls, and perform required operations. We want to hook at
 least: read(2), write(2), connect(2), getsockname(2), socket(2).
-[ JMB] Keep track of FDs of sockets that we opened.
-[ J  ] Implement support for IPv4 (IPv6 optional)
-[ J  ] Implement support for TCP (UDP optional)
+[XJMB] Keep track of FDs of sockets that we opened.
+[XJ M] Implement support for IPv4 (IPv6 optional)
+[XJ M] Implement support for TCP (UDP optional)
 [  M ] Implement support for rule-based proxifying.
 
 Documentation / Report
 
 [XJMB] Proposal
 [X M ] Tracy motivation
-[/ M ] Tracy API
-[/ M ] Tracy design decisions (ptrace caveats, platform support, arch support)
+[X M ] Tracy API
+[X M ] Tracy design decisions (ptrace caveats, platform support, arch support)
 [ JMB] Soxy motivation
 [ JMB] Soxy usage
 [ JMB] Soxy design decisions
 
 [\ M ] Final report
-[/ M ] Motivation Chapter
-[/ M ] Theory (ptrace explanation)
-[/ M ] Implementation (Tracy design decisions)
-[    ] Soxy
-[    ] Caveats / Discussion
-[    ] Conclusion
-[    ] Future work
-[    ] Related work
-[    ] References
+[X M ] Motivation Chapter
+[X M ] Theory (ptrace explanation)
+[X MB] Implementation (Tracy design decisions)
+[/J  ] Soxy
+[/ M ] Caveats / Discussion
+[/ M ] Conclusion
+[/ M ] Future work
+[/ M ] Related work
+[/ M ] References
