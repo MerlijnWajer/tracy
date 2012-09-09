@@ -25,7 +25,7 @@ func main() {
 
     var tracy = C.tracy_init(0)
     fmt.Println(tracy)
-    C.fork_trace_exec(tracy, 1, &(chpp[0]))
+    C.tracy_exec(tracy, &(chpp[0]))
     C.tracy_main(tracy)
     fmt.Println(tracy)
     C.tracy_free(tracy)
