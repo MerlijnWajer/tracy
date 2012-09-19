@@ -529,6 +529,10 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         if (TRACY_PRINT_SIGNALS(t))
             fprintf(stderr, _y("Signal for child: %d")"\n", pid);
 
+        puts("======= Segfault =======");
+        PTRACE_CHECK(PTRACE_GETSIGINFO, pid, NULL, &siginfo, NULL);
+        printf("Addr: %lx\n", (unsigned long)siginfo.si_addr);
+
         /* Signal for the child, pass it along. */
         s->signal_num = signal_id;
         s->type = TRACY_EVENT_SIGNAL;

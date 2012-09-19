@@ -64,10 +64,12 @@ int signal_hook(struct tracy_event *e) {
     siginfo_t sig_inf;
     if (e->signal_num == SIGSEGV) {
         puts("Segfault detected!");
-        ptrace(e->child->pid, PTRACE_GETSIGINFO, NULL, (void*)&sig_inf);
-        printf("Addr: %lx\n", e->args.ip);
-        printf("Addr: %lx\n", (unsigned long)sig_inf.si_addr);
-        printf("Addr: %lx\n", (unsigned long)sig_inf.si_ptr);
+        printf("pid: %d\n", e->child->pid);
+        if (!ptrace(e->child->pid, PTRACE_GETSIGINFO, NULL, (void*)&sig_inf)) {
+            perror("ERROR");
+        }
+        printf("%d, %d\n", sig_inf.si_signo, SIGSEGV);
+        printf("App Addr: %lx\n", (unsigned long)sig_inf.si_addr);
     }
 
     return TRACY_HOOK_CONTINUE;
@@ -83,7 +85,7 @@ static void child_create(struct tracy_child *child) {
 int main (int argc, char** argv) {
     struct tracy *tracy;
 
-    tracy = tracy_init(TRACY_TRACE_CHILDREN);
+    tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE);
 
 
     /* Set hooks here */
