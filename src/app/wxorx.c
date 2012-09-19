@@ -8,6 +8,8 @@
 #include "tracy.h"
 
 #include <sys/syscall.h>
+#include <sys/ptrace.h>
+#include <signal.h>
 
 #include <errno.h>
 
@@ -73,6 +75,17 @@ static int parse_maps(struct tracy_child *c) {
     return 0;
 }
 
+int signal_hook(struct tracy_event *e) {
+    siginfo_t sig_inf;
+    if (e->signal_num == SIGSEGV) {
+        puts("Segfault detected!");
+        ptrace(e->child->pid, PTRACE_GETSIGINFO, NULL, (void*)&sig_inf);
+        printf("Addr: %ld\n", (long)sig_inf.si_addr);
+    }
+
+    return TRACY_HOOK_CONTINUE;
+}
+
 static void child_create(struct tracy_child *child) {
     child->custom = ll_init();
     puts("New child!");
@@ -89,13 +102,18 @@ int main (int argc, char** argv) {
     /* Set hooks here */
     tracy->se.child_create = &child_create;
 
+    if (tracy_set_signal_hook(tracy, signal_hook)) {
+        printf("failed to hook signals.\n");
+        return EXIT_FAILURE;
+    }
+
     if (tracy_set_hook(tracy, "mmap", hook_mmap)) {
         printf("failed to hook mmap syscall.\n");
         return EXIT_FAILURE;
     }
 
     if (tracy_set_hook(tracy, "munmap", hook_munmap)) {
-        printf("failed to hook mmap syscall.\n");
+        printf("failed to hook munmap syscall.\n");
         return EXIT_FAILURE;
     }
 
