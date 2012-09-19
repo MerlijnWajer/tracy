@@ -39,37 +39,22 @@ static int parse_maps(struct tracy_child *c) {
     char proc_maps_path[19];
     FILE* fd;
 
-    char *buf, *num;
-    int i, j;
+    char *buf, *flags, *dev, *pathname;
+    long inode;
+    unsigned int start, end, offset;
 
     sprintf(proc_maps_path, "/proc/%d/maps", c->pid);
     printf("Opening %s\n", proc_maps_path);
     fd = fopen(proc_maps_path, "r");
 
     buf = malloc(4096 * 10);
-    num = malloc(40);
+    flags = malloc(4);
+    dev = malloc(5);
+    pathname = malloc(4096 * 10);
 
     while (fgets(buf, 4096 * 10, fd) != NULL) {
-        printf("Line: %s", buf);
-        i = 0;
-        while(buf[i] != '-') {
-            num[i] = buf[i];
-            i++;
-        }
-        num[i] = '\0';
-
-        i++;
-        j = 0;
-
-        printf("Start: %ld\n", strtol(num, NULL, 16));
-        while(buf[i] != ' ') {
-            num[j] = buf[i];
-            i++;
-            j++;
-        }
-        num[j] = '\0';
-
-        printf("End: %ld\n", strtol(num, NULL, 16));
+        sscanf(buf, "%x-%x %4s %x %5s %ld %s", &start, &end, flags, &offset, dev, &inode, pathname);
+        printf("start: %x, end: %x, flags: %4s, offset: %x, dev: %5s, inode: %ld, path: %s\n", start, end, flags, offset, dev, inode, pathname);
     }
 
     return 0;
@@ -80,7 +65,9 @@ int signal_hook(struct tracy_event *e) {
     if (e->signal_num == SIGSEGV) {
         puts("Segfault detected!");
         ptrace(e->child->pid, PTRACE_GETSIGINFO, NULL, (void*)&sig_inf);
-        printf("Addr: %ld\n", (long)sig_inf.si_addr);
+        printf("Addr: %lx\n", e->args.ip);
+        printf("Addr: %lx\n", (unsigned long)sig_inf.si_addr);
+        printf("Addr: %lx\n", (unsigned long)sig_inf.si_ptr);
     }
 
     return TRACY_HOOK_CONTINUE;
