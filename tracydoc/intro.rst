@@ -304,6 +304,18 @@ System call injection
 Synchronous injection
 ~~~~~~~~~~~~~~~~~~~~~
 
+.. code-block:: c
+
+    int _write(struct tracy_event * e) {
+        long ret;
+        if (tracy_inject_syscall(e->child, __NR_write, &(e->args), &ret))
+                return TRACY_HOOK_ABORT;
+
+        printf("Returned: %ld\n", ret);
+
+        return TRACY_HOOK_CONTINUE;
+    }
+
 Asynchronous injection
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -314,17 +326,10 @@ Asynchronous injection
             printf("We just injected something. Result: %ld\n", e->args.return_code);
             return 0;
         }
-        if (e->child->pre_syscall) {
-            if (tracy_inject_syscall_pre_start(e->child, __NR_write,
-                    &(e->args), &_write))
+        if (tracy_inject_syscall_async(e->child, __NR_write, &(e->args), &_write))
                 return TRACY_HOOK_ABORT;
-        } else {
-            if (tracy_inject_syscall_post_start(e->child, __NR_write,
-                    &(e->args), &_write))
-                return TRACY_HOOK_ABORT;
-        }
 
-        return 0;
+        return TRACY_HOOK_CONTINUE;
     }
 
 Cleaning up
