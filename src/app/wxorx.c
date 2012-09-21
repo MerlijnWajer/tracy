@@ -57,19 +57,19 @@ static int parse_maps(struct tracy_child *c) {
         printf("start: %x, end: %x, flags: %4s, offset: %x, dev: %5s, inode: %ld, path: %s\n", start, end, flags, offset, dev, inode, pathname);
     }
 
+    free(buf);
+    free(flags);
+    free(dev);
+    free(pathname);
+
     return 0;
 }
 
 int signal_hook(struct tracy_event *e) {
-    siginfo_t sig_inf;
     if (e->signal_num == SIGSEGV) {
         puts("Segfault detected!");
         printf("pid: %d\n", e->child->pid);
-        if (!ptrace(e->child->pid, PTRACE_GETSIGINFO, NULL, (void*)&sig_inf)) {
-            perror("ERROR");
-        }
-        printf("%d, %d\n", sig_inf.si_signo, SIGSEGV);
-        printf("App Addr: %lx\n", (unsigned long)sig_inf.si_addr);
+        printf("App Addr: %lx\n", (unsigned long)e->siginfo.si_addr);
     }
 
     return TRACY_HOOK_CONTINUE;

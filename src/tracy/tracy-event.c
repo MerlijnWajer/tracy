@@ -27,6 +27,8 @@
 #include <sys/syscall.h>
 #include <sys/ptrace.h>
 
+#include <string.h>
+
 #include "tracy.h"
 
 /* Used to keep track of the system call state of a child.
@@ -177,10 +179,12 @@ static int tracy_internal_syscall(struct tracy_event *s) {
 
 /* Empty tracy event.
  * This is returned by tracy_wait_event when all the children have died. */
-static struct tracy_event none_event = {
+static struct tracy_event none_event;
+/*= {
         TRACY_EVENT_NONE, NULL, 0, 0,
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
     };
+    */
 
 /* Function to handle the signal hook.
  * If TRACY_HOOK_SUPPRESS is set, suppress is set to 1 and the next
@@ -529,9 +533,8 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         if (TRACY_PRINT_SIGNALS(t))
             fprintf(stderr, _y("Signal for child: %d")"\n", pid);
 
-        puts("======= Segfault =======");
-        PTRACE_CHECK(PTRACE_GETSIGINFO, pid, NULL, &siginfo, NULL);
-        printf("Addr: %lx\n", (unsigned long)siginfo.si_addr);
+        memset(&(s->siginfo), 0, sizeof(siginfo_t));
+        PTRACE_CHECK(PTRACE_GETSIGINFO, pid, NULL, &(s->siginfo), NULL);
 
         /* Signal for the child, pass it along. */
         s->signal_num = signal_id;
