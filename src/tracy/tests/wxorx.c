@@ -1,11 +1,10 @@
-#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 
-#include "ll.h"
-#include "tracy.h"
+#include "../ll.h"
+#include "../tracy.h"
 
 #include <sys/syscall.h>
 #include <sys/ptrace.h>

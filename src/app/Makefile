@@ -8,7 +8,7 @@ CFLAGS+=-I ../tracy
 #CFLAGS+=-O2
 #CFLAGS+=-m32
 
-TESTS=ll_test loggy dotty county wxorx
+TESTS=ll_test loggy dotty county
 
 default: $(TESTS)
 
@@ -17,9 +17,6 @@ ll_test: ll_test.c
 
 loggy: loggy.c
 	$(CC) loggy.c ../tracy/libtracy.a $(CFLAGS) $(LDFLAGS) -o loggy
-
-wxorx: wxorx.c
-	$(CC) wxorx.c ../tracy/libtracy.a $(CFLAGS) $(LDFLAGS) -o wxorx
 
 dotty: dotty.c
 	$(CC) dotty.c ../tracy/libtracy.a $(CFLAGS) $(LDFLAGS) -o dotty
