@@ -180,11 +180,6 @@ static int tracy_internal_syscall(struct tracy_event *s) {
 /* Empty tracy event.
  * This is returned by tracy_wait_event when all the children have died. */
 static struct tracy_event none_event;
-/*= {
-        TRACY_EVENT_NONE, NULL, 0, 0,
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    };
-    */
 
 /* Function to handle the signal hook.
  * If TRACY_HOOK_SUPPRESS is set, suppress is set to 1 and the next
@@ -468,40 +463,17 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
                     return s;
                 }
-
-                /*goto start;*/
             }
         }
-
     /* TODO: SIGSTOP-ignore should perhaps also be in this piece of code.
      * TRACE_O_TRACEFORK etc. send a SIGSTOP upon creation of a new
      * child */
     } else if (signal_id == SIGTRAP) {
-        if (t->opt & TRACY_VERBOSE) {
-            /* XXX We probably want to move most of this logic out of the
-             * verbose statement soon */
-            PTRACE_CHECK(PTRACE_GETEVENTMSG, pid, NULL, &info, NULL);
-            PTRACE_CHECK(PTRACE_GETSIGINFO, pid, NULL, &siginfo, NULL);
+        PTRACE_CHECK(PTRACE_GETEVENTMSG, pid, NULL, &info, NULL);
+        PTRACE_CHECK(PTRACE_GETSIGINFO, pid, NULL, &siginfo, NULL);
 
-            puts(_y("Recursing due to SIGTRAP"));
-            printf("SIGTRAP Info: %d, Status: %d, Signal id: %d\n", info,
-                savedstatus, signal_id);
-            printf("status>>8: %d\n", savedstatus>>8);
-
-            printf("CLONE: %d\n", SIGTRAP | (PTRACE_EVENT_CLONE<<8));
-            printf("VFORK: %d\n", SIGTRAP | (PTRACE_EVENT_VFORK<<8));
-            printf("FORK: %d\n", SIGTRAP | (PTRACE_EVENT_FORK<<8));
-            printf("EXEC: %d\n", SIGTRAP | (PTRACE_EVENT_EXEC<<8));
-            printf("VFORK: %d\n", SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8));
-            printf("TRACEEXIT: %d\n", SIGTRAP | (PTRACE_EVENT_EXIT<<8));
-
-            printf("Signal info: %d\n", siginfo.si_code);
-            if (siginfo.si_code == SI_KERNEL) {
-                printf("SIGTRAP from kernel\n");
-            }
-            if (siginfo.si_code <= 0) {
-                printf("SIGTRAP from userspace\n");
-            }
+        if (siginfo.si_code == SI_KERNEL) {
+        } else if (siginfo.si_code <= 0) {
         }
 
         /* Resume, set signal to 0; we don't want to pass SIGTRAP.
@@ -510,8 +482,6 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
         goto start;
         /*return tracy_wait_event(t, c_pid);*/
-
-    /* TODO: Merge this with the SIGSTOP status checking code above */
     } else if (signal_id == SIGSTOP && (t->opt & TRACY_TRACE_CHILDREN) &&
         !(t->opt & TRACY_USE_SAFE_TRACE) && !s->child->received_first_sigstop) {
         /* We ignore the first SIGSTOP signal when
@@ -530,17 +500,21 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         tracy_continue(s, 1);
         goto start;
     } else {
+        /* Not SIGTRAP, and not the first SIGSTOP signal */
         if (TRACY_PRINT_SIGNALS(t))
             fprintf(stderr, _y("Signal for child: %d")"\n", pid);
 
+        /* Clear siginfo struct */
         memset(&(s->siginfo), 0, sizeof(siginfo_t));
+
+        /* Store signal info in event */
         PTRACE_CHECK(PTRACE_GETSIGINFO, pid, NULL, &(s->siginfo), NULL);
 
         /* Signal for the child, pass it along. */
         s->signal_num = signal_id;
         s->type = TRACY_EVENT_SIGNAL;
 
-        /* Signal hook here */
+        /* Call signal hook here */
         if (tracy_handle_signal_hook(s, &(s->child->suppress))) {
             goto start;
         }
