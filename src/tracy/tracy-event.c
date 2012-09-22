@@ -179,7 +179,7 @@ static int tracy_internal_syscall(struct tracy_event *s) {
 
 /* Empty tracy event.
  * This is returned by tracy_wait_event when all the children have died. */
-static struct tracy_event none_event;
+static struct tracy_event none_event; /* TODO XXX FIXME NULL THIS */
 
 /* Function to handle the signal hook.
  * If TRACY_HOOK_SUPPRESS is set, suppress is set to 1 and the next
