@@ -42,6 +42,6 @@ delen ze resources)
 
 Soxy:
 
-    -   [     ] Non-blocking sockets.
-    -   [     ] Support voor threads
+    -   [FIXED] Non-blocking sockets.
+    -   [FIXED] Support voor threads
     -   [     ] Support voor UDP
