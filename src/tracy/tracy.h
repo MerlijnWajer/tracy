@@ -27,6 +27,8 @@
 #include <asm/ptrace.h>
 #include "tracyarch.h"
 
+#include <signal.h>
+
 
 /* Tracy options, pass them to tracy_init(). */
 #define TRACY_TRACE_CHILDREN 1 << 0
@@ -58,6 +60,7 @@ struct tracy_event {
     long signal_num;
 
     struct tracy_sc_args args;
+    siginfo_t siginfo;
 };
 
 typedef int (*tracy_hook_func) (struct tracy_event *s);
@@ -156,11 +159,11 @@ struct tracy_child {
 typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
 
 /* The various tracy events */
-#define TRACY_EVENT_NONE 1
-#define TRACY_EVENT_SYSCALL 2
-#define TRACY_EVENT_SIGNAL 3
-#define TRACY_EVENT_INTERNAL 4
-#define TRACY_EVENT_QUIT 5
+#define TRACY_EVENT_NONE 0 /* This should be zero because none_event is nulled */
+#define TRACY_EVENT_SYSCALL 1
+#define TRACY_EVENT_SIGNAL 2
+#define TRACY_EVENT_INTERNAL 3
+#define TRACY_EVENT_QUIT 4
 
 /* Define hook return values */
 #define TRACY_HOOK_CONTINUE 0
@@ -409,6 +412,8 @@ int tracy_deny_syscall(struct tracy_child* child);
 
 /* -- Safe forking -- */
 int tracy_safe_fork(struct tracy_child *c, pid_t *new_child);
+
+/* Tracy W^X */
 
 /* -- Macro's -- */
 
