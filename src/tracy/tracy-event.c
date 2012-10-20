@@ -281,7 +281,7 @@ static int tracy_handle_syscall_hook(struct tracy_event *e) {
 /* TODO: Check if the pid is any of our children? Or will waitpid already return
  * an error? */
 struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
-    int status, savedstatus, signal_id, info;
+    int status, signal_id, info;
     siginfo_t siginfo;
     pid_t pid;
     struct TRACY_REGS_NAME regs;
@@ -294,7 +294,6 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
     /* Wait for changes */
     pid = waitpid(c_pid, &status, __WALL);
-    savedstatus = status;
 
     /* Something went wrong. */
     if (pid == -1) {
