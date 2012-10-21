@@ -123,7 +123,7 @@ static int soxy_connect(struct tracy_event *e,
     long ret;
 
     e->args.a0 = sockfd;
-    e->args.a1 = addr;
+    e->args.a1 = (long)addr;
     e->args.a2 = addrlen;
 
     if (tracy_inject_syscall(e->child, __NR_connect, &(e->args), &ret) || ret < 0) {
@@ -202,9 +202,6 @@ static int soxy_hook_connect(struct tracy_event *e) {
     long flags;
     long nonblocking;
     int fd;
-    long ret;
-
-    ret = 0;
 
     if(e->child->pre_syscall) {
         struct sockaddr_in addr;
