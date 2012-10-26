@@ -12,6 +12,17 @@
 
 #include <errno.h>
 
+/* TODO
+ *
+ * - Keep track of mem map perms
+ * - Determine where segfault took place:
+ *   * Determine if we need to swap flags, and restart op without signal
+ *   * Pass signal if not our/perms fault
+ *
+ *
+ *
+ */
+
 struct tracy_child_mem {
     long start, size;
     long perms;
@@ -38,6 +49,7 @@ static int parse_maps(struct tracy_child *c) {
     char proc_maps_path[19];
     FILE* fd;
 
+    /* TODO: Put the char* on stack instead of heap? */
     char *buf, *flags, *dev, *pathname;
     long inode;
     unsigned int start, end, offset;
