@@ -14,12 +14,12 @@
 
 /* TODO
  *
- * - Keep track of mem map perms
+ * - Keep track of mem map perms (tracy_child_mem in ll)
  * - Determine where segfault took place:
  *   * Determine if we need to swap flags, and restart op without signal
  *   * Pass signal if not our/perms fault
  *
- *
+ * Hook: mmap, munmap, mprotect, mremap
  *
  */
 
@@ -34,12 +34,26 @@ struct tracy_child_mem {
 int hook_mmap(struct tracy_event *e) {
     (void) e;
 
+    /* Pre: check flags/prot */
+    /* Post: add to managed list */
+
     return TRACY_HOOK_CONTINUE;
 }
 
 /* int munmap(void *addr, size_t length); */
 int hook_munmap(struct tracy_event *e) {
     (void) e;
+
+    /* Post: Remove from list */
+
+    return TRACY_HOOK_CONTINUE;
+}
+
+/* int mprotect(void *addr, size_t len, int prot); */
+int hook_mprotect(struct tracy_event *e) {
+    (void) e;
+
+    /* Check prot */
 
     return TRACY_HOOK_CONTINUE;
 }
@@ -64,8 +78,10 @@ static int parse_maps(struct tracy_child *c) {
     pathname = malloc(4096 * 10);
 
     while (fgets(buf, 4096 * 10, fd) != NULL) {
-        sscanf(buf, "%x-%x %4s %x %5s %ld %s", &start, &end, flags, &offset, dev, &inode, pathname);
-        printf("start: %x, end: %x, flags: %4s, offset: %x, dev: %5s, inode: %ld, path: %s\n", start, end, flags, offset, dev, inode, pathname);
+        sscanf(buf, "%x-%x %4s %x %5s %ld %s", &start, &end, flags, &offset,
+                dev, &inode, pathname);
+        printf("start: %x, end: %x, flags: %4s, offset: %x, dev: %5s,"
+                "inode: %ld, path: %s\n", start, end, flags, offset, dev, inode, pathname);
     }
 
     free(buf);
@@ -114,6 +130,11 @@ int main (int argc, char** argv) {
 
     if (tracy_set_hook(tracy, "munmap", hook_munmap)) {
         printf("failed to hook munmap syscall.\n");
+        return EXIT_FAILURE;
+    }
+
+    if (tracy_set_hook(tracy, "mprotect", hook_mprotect)) {
+        printf("failed to hook mprotectsyscall.\n");
         return EXIT_FAILURE;
     }
 
