@@ -52,8 +52,8 @@ Documentation / Report
 [X M ] Theory (ptrace explanation)
 [X MB] Implementation (Tracy design decisions)
 [/J  ] Soxy
-[/ M ] Caveats / Discussion
-[/ M ] Conclusion
-[/ M ] Future work
-[/ M ] Related work
-[/ M ] References
+[X M ] Caveats / Discussion
+[X M ] Conclusion
+[X M ] Future work
+[X M ] Related work
+[X M ] References
