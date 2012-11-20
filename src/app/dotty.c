@@ -77,22 +77,6 @@ int all(struct tracy_event *e) {
     return 0;
 }
 
-int _setpgid(struct tracy_event *e) {
-    struct tracy_sc_args a;
-
-    if (e->child->pre_syscall) {
-        tracy_deny_syscall(e->child);
-    } else {
-        memcpy(&a, &(e->args), sizeof(struct tracy_sc_args));
-        a.return_code = -ENOSYS;
-
-        tracy_modify_syscall(e->child, __NR_setpgid, &a);
-    }
-    printf("%ld -> %ld\n", e->args.a0, e->args.a1);
-
-    return 0;
-}
-
 int main(int argc, char** argv) {
     struct tracy *tracy;
 
@@ -114,8 +98,8 @@ int main(int argc, char** argv) {
     }
 
     argv++; argc--;
-    if (!fork_trace_exec(tracy, argc, argv)) {
-        perror("fork_trace_exec returned NULL");
+    if (!tracy_exec(tracy, argv)) {
+        perror("tracy_exec returned NULL");
         return EXIT_FAILURE;
     }
 

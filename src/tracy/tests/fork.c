@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
 
     /* Tracy options */
     tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_USE_SAFE_TRACE \
-            | TRACY_VERBOSE);
+            | TRACY_VERBOSE_SYSCALL);
 
     if (argc < 2) {
         printf("Usage: ./example <program-name>\n");
@@ -23,8 +23,8 @@ int main(int argc, char** argv) {
     argv++; argc--;
 
     /* Start child */
-    if (!fork_trace_exec(tracy, argc, argv)) {
-        perror("fork_trace_exec");
+    if (!tracy_exec(tracy, argv)) {
+        perror("tracy_exec");
         return EXIT_FAILURE;
     }
 

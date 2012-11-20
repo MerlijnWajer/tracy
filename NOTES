@@ -1,2 +1,5 @@
 -   ARM OABI can be disabled. (OABI_COMPAT)
 -   Mind the unshare(2) syscall which can reverse parts of the clone syscall.
+-   According doe arch/x86/kernel/entry_32.S the i386 clone syscall entry
+    does not adhere to the standard kernel calling convention, the 4th argument
+    is actually stored in %edi instead of %esi.

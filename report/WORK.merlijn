@@ -1,9 +1,10 @@
-Hours worked: 214 (Approximately...)
+Hours worked: 335 (Approximately...)
 
 Proposal:   15 hours.
 
 Documentation:
     -   Sphinx: 15 hours.
+    -   Documentation for tracy: 5 hours (15 July - 19 July)
 
 Meetings:
     -   2 x 2 hours.
@@ -19,7 +20,6 @@ Code: (Time spent writing only)
     -   Working system call injection: 14 hours. (28 Feb - 3 March)
     -   Asynchronous injection: 10 hours. (9 March)
     -   Architecture fixes, deny functionality: 8 hours. (10-15 March)
-    -   Initial work on report: 25 hours. (16 March - 1 April)
     -   Small features and fixes: 3 hours. (19 March)
     -   Safe-fork: 7 hours: (13 March)
     -   child_create event: 1 hour. (18 April)
@@ -28,6 +28,34 @@ Code: (Time spent writing only)
     -   Tracy debug functions: 4 hours. (15 May)
     -   Fix POST-inject bug: 8 hours - yes, really. (15 May)
     -   Signals: A study in man ptrace: 4 hours. (18 May)
+    -   Bash bug: 2 hours. (11 June)
+    -   safe-fork-fix-1: clone quirks: 8 hours. (13-15 June)
+    -   Source clean up and fixes: 5 hours. (15 July - 16 July)
+    -   Debug improvements + bugfix for safe-fork: 1 hour. (20 July)
+    -   Asynchronous sockets for soxy: 1 hour. (6 Aug)
+    -   ARM support for soxy, tracy ARM fixes: 8 hours. (6-9 Aug)
+    -   Change modification API design flaw, ARM injection and modification
+    works a lot better now. Excerpt from bug:
+        Right now tracy_modify_syscall will always override the first argument with the return code. This is problematic; since the user will have to set the return_code to the value of the first argument. We need to think of a way to allow a user to set specific registers only. Also, make sure that people also will not be able to set the IP,SP,PC etc by accident. Currently the IP is always set as well, which is silly.
+        4 hours. (9 Aug)
+
+
+Report:
+    -   Initial work on report: 25 hours. (16 March - 1 April)
+    -   Bibliography, more work on the report: 4 hours. (21 June - 24 June)
+    -   More text in the report: 4 hours.  (04 July - 06 July)
+    -   Fixes, Ch. 3, Ch. 5: 25 hours. (15 July - 19 July)
+    -   Signal section: 1 hour. (20 July)
+    -   Ptrace performance chapter: 2 hours. (21 July)
+    -   Rewrites, new intro: 6 hours (31 July)
+    -   More work on Ch. 1: 4 hours. (1 Aug)
+    -   QA: 8 hours. (4 Aug)
+    -   Small changes: 2 hours. (5-6 Aug)
+    -   QA, Future work: 6 hours. (12 Aug)
+    -   QA, Threads: 6 hours. (13 Aug)
+    -   Discussion: 6 hours. (14 Aug)
+    -   Report QA: 6 hours. (16-17 Aug)
+    -   Soxy rewrite: 10 hours. (17-19 Aug)
 
 Tracy tests:
     -   Loggy: 3 hours. (11 March)

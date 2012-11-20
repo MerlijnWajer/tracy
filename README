@@ -1,15 +1,8 @@
-Soxy, your favourite proxy
-==========================
+Tracy, a system call tracer and injector
+========================================
 
-Soxy is a proxy that transparently provides a proxy for any kind of application.
-Under the hood it uses system call interception (with ptrace) to transparently
-redirect any traffic to the proxy server.
-
-Features:
-    -   IPv4 / IPv6.
-    -   TCP & UDP.
-    -   Rule-based forwarding.
-    -   Track all process children.
-
-Future work:
-    -   VPN variant of soxy. (ptrace-based vpn)
+Presented is a uniform interface to trace the behaviour of programs
+by means of the system calls they perform. Tracing by the user is done without
+regard to kernel version, operating system or processor architecture.
+The interface, called Tracy, provides a means to watch, modify, augment
+and restrict program execution in a controlled environment.

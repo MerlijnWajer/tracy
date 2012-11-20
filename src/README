@@ -1,0 +1,13 @@
+Soxy, your favourite proxy
+==========================
+
+Soxy is a proxy that transparently provides a proxy for any kind of application.
+Under the hood it uses system call interception (with ptrace) to transparently
+redirect any traffic to the proxy server.
+
+Features:
+    -   IPv4.
+    -   TCP.
+
+Future work:
+    -   VPN variant of soxy. (ptrace-based vpn)

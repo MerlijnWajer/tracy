@@ -15,7 +15,6 @@
     along with Tracy.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "../tracy.h"
-#include "../ll.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,57 +23,43 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#define set_hook(NAME) \
-    if (tracy_set_hook(tracy, #NAME, hook_##NAME)) { \
-        printf("Could not hook "#NAME" syscall\n"); \
-        return EXIT_FAILURE; \
-    }
-
-int hook_write(struct tracy_event *e) {
-    long ret;
-    int i;
-
-    if (e->child->pre_syscall) {
-        printf("PRE-write\n");
-        for (i = 0; i < 10; i++) {
-            tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-            printf("Return code: %ld\n", ret);
-        }
-    } else {
-        printf("POST-write\n");
-        for (i = 0; i < 10; i++) {
-            tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-            printf("Return code: %ld\n", ret);
-        }
-    }
-    return TRACY_HOOK_CONTINUE;
-}
-
 int main(int argc, char** argv) {
     struct tracy *tracy;
+    pid_t pid;
+    char *endptr;
 
     /* Tracy options */
-    tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE);
+    #if 0
+    tracy = tracy_init(TRACY_TRACE_CHILDREN);
+    #else
+    tracy = tracy_init(TRACY_TRACE_CHILDREN);
+    #endif
 
-    if (argc < 2) {
-        printf("Usage: ./tracy-inject-simple <program-name>\n");
+    /* Only a PID is required */
+    if (argc != 2) {
+        printf("Usage: %s <pid>\n", argv[0]);
         return EXIT_FAILURE;
     }
 
-    /* Hooks */
-    set_hook(write);
-
-    argv++; argc--;
+    /* Parse PID */
+    pid = (int)strtol(argv[1], &endptr, 10);
+    if (endptr[0]) {
+        fprintf(stderr, "Invalid PID value\n");
+        tracy_free(tracy);
+        return EXIT_FAILURE;
+    }
 
     /* Start child */
-    if (!tracy_exec(tracy, argv)) {
-        perror("tracy_exec");
+    if (!tracy_attach(tracy, pid)) {
+        perror("tracy_attach");
+        tracy_free(tracy);
         return EXIT_FAILURE;
     }
 
     /* Main event-loop */
     tracy_main(tracy);
 
+    /* Clean up */
     tracy_free(tracy);
 
     return EXIT_SUCCESS;

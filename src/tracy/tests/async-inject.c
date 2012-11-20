@@ -24,29 +24,15 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#define set_hook(NAME) \
-    if (tracy_set_hook(tracy, #NAME, hook_##NAME)) { \
-        printf("Could not hook "#NAME" syscall\n"); \
-        return EXIT_FAILURE; \
+int _write(struct tracy_event *e) {
+    if (e->child->inj.injected) {
+        printf("We just injected something. Result: %ld\n", e->args.return_code);
+        return 0;
     }
 
-int hook_write(struct tracy_event *e) {
-    long ret;
-    int i;
+    if (tracy_inject_syscall_async(e->child, __NR_write, &(e->args), &_write))
+            return TRACY_HOOK_ABORT;
 
-    if (e->child->pre_syscall) {
-        printf("PRE-write\n");
-        for (i = 0; i < 10; i++) {
-            tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-            printf("Return code: %ld\n", ret);
-        }
-    } else {
-        printf("POST-write\n");
-        for (i = 0; i < 10; i++) {
-            tracy_inject_syscall(e->child, __NR_getpid, NULL, &ret);
-            printf("Return code: %ld\n", ret);
-        }
-    }
     return TRACY_HOOK_CONTINUE;
 }
 
@@ -54,15 +40,15 @@ int main(int argc, char** argv) {
     struct tracy *tracy;
 
     /* Tracy options */
-    tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE);
+    tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE |
+            TRACY_VERBOSE_SIGNAL | TRACY_VERBOSE_SYSCALL);
+
+    tracy_set_hook(tracy, "write", &_write);
 
     if (argc < 2) {
-        printf("Usage: ./tracy-inject-simple <program-name>\n");
+        printf("Usage: ./example <program-name>\n");
         return EXIT_FAILURE;
     }
-
-    /* Hooks */
-    set_hook(write);
 
     argv++; argc--;
 

@@ -1,0 +1,19 @@
+This reads the AUXV ARCH of a process.
+
+Compile with:
+  gcc tracyreadarch.c -Wall -I../../src/tracy/ ../../src/tracy/libtracy.a -pthread -o tracyreadarch
+
+Run as:
+  ./tracyreadarch <pid>
+
+Proper output like:
+
+    $ ./tracyreadarch 3605
+    Filename: /proc/3605/auxv
+    Read: 76 bytes
+    x86_64
+    Arch: x86_64
+    Filename: /proc/3605/auxv
+    Read: 152 bytes
+    Detaching from child 3605
+
