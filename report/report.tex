@@ -247,7 +247,7 @@ family of operating systems.
     \item Tracee: A program that is being traced by a Tracer.
 \end{itemize}
 
-Throughout the document, all system calls are identified by being bold.
+Throughout the document, all system calls are identified by bold typesetting.
 ptrace options are typically italic and can their description can be found in
 Appendix \ref{ptrace-api} or in the ptrace manual page.
 
@@ -832,7 +832,7 @@ clone system call does not take the same arguments on different Linux
 platforms and retrieving the process id from the vfork system call proved to be
 another challenge.
 
-\subsection{Clone}
+\subsection{clone}
 
 The Linux specific \textbf{clone} system call is a bit problematic, for
 several reasons. The clone system call interface differs per architecture;
@@ -1330,7 +1330,9 @@ The viability of a cross platform tracing framework is demonstrated by Soxy,
 which implements a ptrace-based proxifier in three hundred lines of C
 code. Soxy can trace relatively simple programs such as \textit{curl} and
 \textit{irssi}, but it also succesfully traces complex programs such as
-\textit{firefox} and \textit{ssh}.
+\textit{firefox} and \textit{ssh}. We believe that even with Tracy's current
+limitations, it should be possible to write complex applications that utilise
+Tracy for system call tracing and injection.
 
 Once we support more architectures\footnote{We currently support ARM, x86 and
 AMD64}, we will be able to further investigate the cross architecture promise.

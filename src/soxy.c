@@ -20,6 +20,7 @@
 
 #include "soxy.h"
 
+/* TODO: Store this somewhere in a safe manner */
 long boe, ba;
 
 static void get_proxy_server(struct sockaddr *addr, socklen_t *proxy_addr_len) {
@@ -137,7 +138,12 @@ static int soxy_connect(struct tracy_event *e,
 
 static int soxy_hook_socket(struct tracy_event *e) {
     proxy_t * proxy;
-    if (!e->child->pre_syscall) {
+    if (e->child->pre_syscall) {
+        /* FIXME */
+        boe = e->args.a0;
+        ba = e->args.a1;
+
+    } else {
         if(boe == AF_INET && ba == SOCK_STREAM) {
             fprintf(stderr, "We found a relevant fd\n");
             proxy = (proxy_t *) calloc(1, sizeof(proxy_t));
@@ -149,9 +155,6 @@ static int soxy_hook_socket(struct tracy_event *e) {
             proxy_set(e, e->args.return_code, proxy);
         }
 
-    } else {
-        boe = e->args.a0;
-        ba = e->args.a1;
     }
     return TRACY_HOOK_CONTINUE;
 }
