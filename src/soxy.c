@@ -30,7 +30,7 @@ static void get_proxy_server(struct sockaddr *addr, socklen_t *proxy_addr_len) {
         struct sockaddr_in *addr4 = (struct sockaddr_in *) &_addr;
         addr4->sin_family = AF_INET;
         addr4->sin_addr.s_addr = 0x0100007f;
-        addr4->sin_port = htons(9050);
+        addr4->sin_port = htons(8888);
         first = 1;
     }
 
@@ -156,6 +156,8 @@ static int soxy_hook_socket(struct tracy_event *e) {
     return TRACY_HOOK_CONTINUE;
 }
 
+/* This function will temporarily change a socket from being non-blocking to
+ * blocking to ease the initial SOCKS 5 connection. */
 static int soxy_set_blocking(struct tracy_event *e, int fd, long *flags) {
     long ret;
     long nonblocking;
@@ -186,6 +188,8 @@ static int soxy_set_blocking(struct tracy_event *e, int fd, long *flags) {
     return nonblocking;
 }
 
+/* This function will change a socket from blocking to non-blocking to
+ * undo the effect of ``soxy_set_blocking''. */
 static int soxy_set_nonblocking(struct tracy_event *e, int fd, int flags) {
     long ret;
     struct tracy_sc_args fcntl_args = {fd, F_SETFL, flags,
