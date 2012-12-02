@@ -211,7 +211,7 @@ into any signal to a tracee like this:
         return TRACY_HOOK_CONTINUE;
     }
 
-    struct tracy * t = tracy_init(…);
+    struct tracy * t = tracy_init(...);
     tracy_set_signal_hook(t, hook_sig);
 
 
@@ -229,7 +229,7 @@ System call hooks
         return TRACY_HOOK_CONTINUE;
     }
 
-    struct tracy * t = tracy_init(…);
+    struct tracy * t = tracy_init(...);
     tracy_set_hook(t, "write", hook_write);
 
 Hook return values
