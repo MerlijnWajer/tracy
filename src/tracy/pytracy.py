@@ -1,5 +1,5 @@
 """Python bindings for Tracy."""
-from ctypes import Structure, cdll, POINTER, CFUNCTYPE
+from ctypes import Structure, cdll, POINTER, CFUNCTYPE, cast
 from ctypes import c_long, c_int, c_void_p, c_byte, c_char_p
 import sys
 
@@ -109,7 +109,7 @@ _Child._fields_ = [
     ('denied_nr', c_int),
     ('suppress', c_int),
     ('custom', c_void_p),
-    ('tracy', c_void_p),
+    ('tracy', POINTER(_Tracy)),
     ('inj', InjectData),
     ('frozen_by_fork', c_int),
     ('received_first_sigstop', c_int),
@@ -173,9 +173,19 @@ class Child:
 
 
 class Tracy:
+    # a global dictionary of all Tracy objects, with key is _Tracy's address
+    tracies = {}
+
     def __init__(self, options=0):
         """Initialize a new Tracy instance."""
-        self.tracy = _tracy.tracy_init(options).contents
+        tracy = _tracy.tracy_init(options)
+        self.tracy = tracy.contents
+
+        # dictionary with function addresses for each syscall number
+        self.hooks = {}
+
+        # add this Tracy object to the list of tracies
+        self.tracies[cast(tracy, c_void_p).value] = self
 
     def __del__(self):
         """Release a Tracy instance."""
@@ -201,14 +211,37 @@ class Tracy:
         """Enter a simple tracy-event loop."""
         _tracy.tracy_main(self.tracy)
 
-    def hook(self, name, hook):
+    def hook(self, name, func):
         """Set a hook handler for the given system call."""
-        _tracy.tracy_set_hook(self.tracy, name, _hook_func(hook))
+        # set function for this syscall number
+        self.hooks[_tracy.get_syscall_number(name)] = func
 
-    def signal_hook(self, hook):
+        def _func(e):
+            # obtain the function through the syscall number
+            ptr = cast(e.contents.child.contents.tracy, c_void_p).value
+            fn = Tracy.tracies[ptr].hooks[e.contents.args.syscall]
+            return fn(e.contents, e.contents.args)
+
+        _tracy.tracy_set_hook(self.tracy, name, _hook_func(_func))
+
+    def signal_hook(self, func):
         """Set a signal hook, which is called for each signal."""
-        _tracy.tracy_set_signal_hook(self, _hook_func(hook))
+        self.sighookcb = func
 
-    def default_hook(self, hook):
+        def _func(e):
+            ptr = cast(e.contents.child.contents.tracy, c_void_p).value
+            fn = Tracy.tracies[ptr].defhookcb
+            return fn(e.contents, e.contents.args)
+
+        _tracy.tracy_set_signal_hook(self, _hook_func(_func))
+
+    def default_hook(self, func):
         """Set the default hook."""
-        _tracy.tracy_set_default_hook(self.tracy, _hook_func(hook))
+        self.defhookcb = func
+
+        def _func(e):
+            ptr = cast(e.contents.child.contents.tracy, c_void_p).value
+            fn = Tracy.tracies[ptr].defhookcb
+            return fn(e.contents, e.contents.args)
+
+        _tracy.tracy_set_default_hook(self.tracy, _hook_func(_func))
