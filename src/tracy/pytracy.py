@@ -163,6 +163,7 @@ _set_func('tracy_execute_hook',
           POINTER(_Tracy),
           c_char_p,
           POINTER(Event))
+_set_func('tracy_read_string', c_char_p, POINTER(_Child), c_void_p)
 
 
 class Child:
