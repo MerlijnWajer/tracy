@@ -1,5 +1,5 @@
 """Python bindings for Tracy."""
-from ctypes import Structure, cdll, POINTER
+from ctypes import Structure, cdll, POINTER, CFUNCTYPE
 from ctypes import c_long, c_int, c_void_p, c_byte, c_char_p
 import sys
 
@@ -26,34 +26,15 @@ class SyscallArguments(Structure):
 
 
 class Event(Structure):
-    _fields_ = [
-        ('typ', c_int),
-        ('child', c_void_p),
-        ('syscall_num', c_long),
-        ('signal_num', c_long),
-        ('siginfo', siginfo_t),
-    ]
+    pass
 
 
 class SpecialEvents(Structure):
-    _fields_ = [
-        # TODO callback stuff
-        ('child_create', c_void_p),
-    ]
+    pass
 
 
 class _Tracy(Structure):
-    _fields_ = [
-        ('childs', c_void_p),
-        ('hooks', c_void_p),
-        ('fpid', c_long),
-        ('opt', c_long),
-        # TODO callback stuff
-        ('defhook', c_void_p),
-        ('signal_hook', c_void_p),
-        ('se', SpecialEvents),
-    ]
-
+    pass
 
 # http://stackoverflow.com/questions/1405913/
 # TODO arm support
@@ -83,24 +64,7 @@ class InjectData(Structure):
 
 
 class _Child(Structure):
-    _fields_ = [
-        ('pid', c_long),
-        ('attached', c_int),
-        ('pre_syscall', c_int),
-        ('mem_fd', c_int),
-        ('mem_fallback', c_int),
-        ('denied_nr', c_int),
-        ('suppress', c_int),
-        ('custom', c_void_p),
-        ('tracy', c_void_p),
-        ('inj', InjectData),
-        ('frozen_by_fork', c_int),
-        ('received_first_sigstop', c_int),
-        ('orig_pc', c_long),
-        ('orig_trampy_pid_reg', c_long),
-        ('orig_return_code', c_long),
-        ('event', Event),
-    ]
+    pass
 
 
 TRACE_CHILDREN = 1 << 0
@@ -124,6 +88,51 @@ HOOK_NOHOOK = 3
 HOOK_SUPPRESS = 4
 HOOK_DENY = 5
 
+_hook_func = CFUNCTYPE(c_int, POINTER(Event))
+_child_creation = CFUNCTYPE(None, POINTER(_Child))
+
+Event._fields_ = [
+    ('typ', c_int),
+    ('child', POINTER(_Child)),
+    ('syscall_num', c_long),
+    ('signal_num', c_long),
+    ('args', SyscallArguments),
+    ('siginfo', siginfo_t),
+]
+
+_Child._fields_ = [
+    ('pid', c_long),
+    ('attached', c_int),
+    ('pre_syscall', c_int),
+    ('mem_fd', c_int),
+    ('mem_fallback', c_int),
+    ('denied_nr', c_int),
+    ('suppress', c_int),
+    ('custom', c_void_p),
+    ('tracy', c_void_p),
+    ('inj', InjectData),
+    ('frozen_by_fork', c_int),
+    ('received_first_sigstop', c_int),
+    ('orig_pc', c_long),
+    ('orig_trampy_pid_reg', c_long),
+    ('orig_return_code', c_long),
+    ('event', Event),
+]
+
+SpecialEvents._fields_ = [
+    ('child_create', _child_creation),
+]
+
+_Tracy._fields_ = [
+    ('childs', c_void_p),
+    ('hooks', c_void_p),
+    ('fpid', c_long),
+    ('opt', c_long),
+    ('defhook', _hook_func),
+    ('signal_hook', _hook_func),
+    ('se', SpecialEvents),
+]
+
 
 def _set_func(name, restype, *argtypes):
     getattr(_tracy, name).restype = restype
@@ -132,10 +141,10 @@ def _set_func(name, restype, *argtypes):
 # TODO improve path support
 _tracy = cdll.LoadLibrary('./libtracy.so')
 _set_func('tracy_init', POINTER(_Tracy), c_long)
-_set_func('tracy_free', c_int, POINTER(_Tracy))
-_set_func('tracy_quit', c_int, POINTER(_Tracy), c_int)
+_set_func('tracy_free', None, POINTER(_Tracy))
+_set_func('tracy_quit', None, POINTER(_Tracy), c_int)
 _set_func('tracy_main', c_int, POINTER(_Tracy))
-_set_func('tracy_exec', POINTER(_Child), POINTER(_Tracy), c_void_p)
+_set_func('tracy_exec', POINTER(_Child), POINTER(_Tracy), POINTER(c_char_p))
 _set_func('tracy_attach', POINTER(_Child), POINTER(_Tracy), c_long)
 _set_func('tracy_add_child', POINTER(_Child), POINTER(_Tracy), c_long)
 _set_func('tracy_wait_event', POINTER(Event), POINTER(_Tracy), c_long)
@@ -145,10 +154,9 @@ _set_func('tracy_remove_child', c_int, POINTER(_Child))
 _set_func('tracy_children_count', c_int, POINTER(_Tracy))
 _set_func('get_syscall_name', c_char_p, c_int)
 _set_func('get_signal_name', c_char_p, c_int)
-# TODO implement callback stuff
-_set_func('tracy_set_hook', c_int, POINTER(_Tracy), c_char_p, c_void_p)
-_set_func('tracy_set_signal_hook', c_int, POINTER(_Tracy), c_void_p)
-_set_func('tracy_set_default_hook', c_int, POINTER(_Tracy), c_void_p)
+_set_func('tracy_set_hook', c_int, POINTER(_Tracy), c_char_p, _hook_func)
+_set_func('tracy_set_signal_hook', c_int, POINTER(_Tracy), _hook_func)
+_set_func('tracy_set_default_hook', c_int, POINTER(_Tracy), _hook_func)
 _set_func('tracy_execute_hook',
           c_int,
           POINTER(_Tracy),
@@ -191,3 +199,15 @@ class Tracy:
     def main(self):
         """Enter a simple tracy-event loop."""
         _tracy.tracy_main(self.tracy)
+
+    def hook(self, name, hook):
+        """Set a hook handler for the given system call."""
+        _tracy.tracy_set_hook(self.tracy, name, _hook_func(hook))
+
+    def signal_hook(self, hook):
+        """Set a signal hook, which is called for each signal."""
+        _tracy.tracy_set_signal_hook(self, _hook_func(hook))
+
+    def default_hook(self, hook):
+        """Set the default hook."""
+        _tracy.tracy_set_default_hook(self.tracy, _hook_func(hook))
