@@ -167,10 +167,19 @@ _set_func('tracy_read_string', c_char_p, POINTER(_Child), c_void_p)
 
 
 class Child:
+    children = {}
+
     def __init__(self, tracy, child):
         """Initialize a new Tracy Child."""
         self.tracy = tracy
-        self.child = child
+        self.child = child.contents
+
+        self.children[cast(child, c_void_p).value] = self
+
+    @staticmethod
+    def from_event(event):
+        ptr = cast(event.child, c_void_p).value
+        return Child.children[ptr]
 
 
 class Tracy:
@@ -195,12 +204,17 @@ class Tracy:
         """Release a Tracy instance."""
         _tracy.tracy_free(self.tracy)
 
+    @staticmethod
+    def from_event(event):
+        ptr = cast(event.child.contents.tracy, c_void_p).value
+        return Tracy.tracies[ptr]
+
     def execute(self, *argv):
         """Execute a new child."""
         # go through some ctypes horror to pass a list of strings
         args = (c_char_p * (len(argv) + 1))()
         args[:] = list(argv) + [None]
-        child = _tracy.tracy_exec(self.tracy, args).contents
+        child = _tracy.tracy_exec(self.tracy, args)
         return Child(self.tracy, child)
 
     def attach(self, pid):
@@ -219,8 +233,7 @@ class Tracy:
 
         def _func(e):
             # obtain the function through the syscall number
-            ptr = cast(e.contents.child.contents.tracy, c_void_p).value
-            fn = Tracy.tracies[ptr].hooks[e.contents.args.syscall]
+            fn = Tracy.from_event(e.contents).hooks[e.contents.args.syscall]
             return fn(e.contents, e.contents.args)
 
         # we have to retain the _hook_func object in order to keep it from
@@ -233,8 +246,7 @@ class Tracy:
         self.sighookcb = func
 
         def _func(e):
-            ptr = cast(e.contents.child.contents.tracy, c_void_p).value
-            fn = Tracy.tracies[ptr].defhookcb
+            fn = Tracy.from_event(e.contents).sighookcb
             return fn(e.contents, e.contents.args)
 
         self.gc.append(_hook_func(_func))
@@ -245,8 +257,7 @@ class Tracy:
         self.defhookcb = func
 
         def _func(e):
-            ptr = cast(e.contents.child.contents.tracy, c_void_p).value
-            fn = Tracy.tracies[ptr].defhookcb
+            fn = Tracy.from_event(e.contents).defhookcb
             return fn(e.contents, e.contents.args)
 
         self.gc.append(_hook_func(_func))
