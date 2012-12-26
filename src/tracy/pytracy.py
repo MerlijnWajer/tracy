@@ -234,7 +234,8 @@ class Tracy:
         def _func(e):
             # obtain the function through the syscall number
             fn = Tracy.from_event(e.contents).hooks[e.contents.args.syscall]
-            return fn(e.contents, e.contents.args)
+            ret = fn(e.contents, e.contents.args)
+            return ret if ret is not None else HOOK_CONTINUE
 
         # we have to retain the _hook_func object in order to keep it from
         # being garbage collected
@@ -247,7 +248,8 @@ class Tracy:
 
         def _func(e):
             fn = Tracy.from_event(e.contents).sighookcb
-            return fn(e.contents, e.contents.args)
+            ret = fn(e.contents, e.contents.args)
+            return ret if ret is not None else HOOK_CONTINUE
 
         self.gc.append(_hook_func(_func))
         _tracy.tracy_set_signal_hook(self, self.gc[-1])
@@ -258,7 +260,8 @@ class Tracy:
 
         def _func(e):
             fn = Tracy.from_event(e.contents).defhookcb
-            return fn(e.contents, e.contents.args)
+            ret = fn(e.contents, e.contents.args)
+            return ret if ret is not None else HOOK_CONTINUE
 
         self.gc.append(_hook_func(_func))
         _tracy.tracy_set_default_hook(self.tracy, self.gc[-1])
