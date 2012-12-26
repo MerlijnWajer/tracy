@@ -445,6 +445,17 @@ char* get_syscall_name(int syscall)
     return NULL;
 }
 
+int get_syscall_number(const char *syscall)
+{
+    int i;
+    for (i = 0; syscall_to_string[i].name != NULL; i++) {
+        if(!strcmp(syscall_to_string[i].name, syscall)) {
+            return syscall_to_string[i].call_nr;
+        }
+    }
+    return -1;
+}
+
 static const struct _signal_to_str {
     char *name;
     int sig_nr;
