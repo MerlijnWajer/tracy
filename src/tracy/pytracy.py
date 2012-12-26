@@ -184,15 +184,15 @@ class Tracy:
         # dictionary with function addresses for each syscall number
         self.hooks = {}
 
+        # a list to keep garbage collectable stuff in-memory
+        self.gc = [_tracy]
+
         # add this Tracy object to the list of tracies
         self.tracies[cast(tracy, c_void_p).value] = self
 
     def __del__(self):
         """Release a Tracy instance."""
-        # when the GC is doing its stuff at the end of a script, it might
-        # already have free'd _tracy..
-        if _tracy is not None:
-            _tracy.tracy_free(self.tracy)
+        _tracy.tracy_free(self.tracy)
 
     def execute(self, *argv):
         """Execute a new child."""
@@ -222,7 +222,10 @@ class Tracy:
             fn = Tracy.tracies[ptr].hooks[e.contents.args.syscall]
             return fn(e.contents, e.contents.args)
 
-        _tracy.tracy_set_hook(self.tracy, name, _hook_func(_func))
+        # we have to retain the _hook_func object in order to keep it from
+        # being garbage collected
+        self.gc.append(_hook_func(_func))
+        _tracy.tracy_set_hook(self.tracy, name, self.gc[-1])
 
     def signal_hook(self, func):
         """Set a signal hook, which is called for each signal."""
@@ -233,7 +236,8 @@ class Tracy:
             fn = Tracy.tracies[ptr].defhookcb
             return fn(e.contents, e.contents.args)
 
-        _tracy.tracy_set_signal_hook(self, _hook_func(_func))
+        self.gc.append(_hook_func(_func))
+        _tracy.tracy_set_signal_hook(self, self.gc[-1])
 
     def default_hook(self, func):
         """Set the default hook."""
@@ -244,4 +248,5 @@ class Tracy:
             fn = Tracy.tracies[ptr].defhookcb
             return fn(e.contents, e.contents.args)
 
-        _tracy.tracy_set_default_hook(self.tracy, _hook_func(_func))
+        self.gc.append(_hook_func(_func))
+        _tracy.tracy_set_default_hook(self.tracy, self.gc[-1])
