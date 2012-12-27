@@ -114,7 +114,7 @@ _Child._fields_ = [
     ('frozen_by_fork', c_int),
     ('received_first_sigstop', c_int),
     ('orig_pc', c_long),
-    ('orig_trampy_pid_reg', c_int),
+    ('orig_trampy_pid_reg', c_long),
     ('orig_return_code', c_long),
     ('event', Event),
 ]
