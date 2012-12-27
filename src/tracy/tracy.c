@@ -80,6 +80,8 @@ struct tracy *tracy_init(long opt) {
     /* TODO Check opt for validity */
     t->opt = opt;
 
+    t->defhook = NULL;
+    t->signal_hook = NULL;
     t->se.child_create = NULL;
 
     return t;
