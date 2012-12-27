@@ -101,7 +101,7 @@ Event._fields_ = [
 ]
 
 _Child._fields_ = [
-    ('pid', c_long),
+    ('pid', c_int),
     ('attached', c_int),
     ('pre_syscall', c_int),
     ('mem_fd', c_int),
@@ -114,7 +114,7 @@ _Child._fields_ = [
     ('frozen_by_fork', c_int),
     ('received_first_sigstop', c_int),
     ('orig_pc', c_long),
-    ('orig_trampy_pid_reg', c_long),
+    ('orig_trampy_pid_reg', c_int),
     ('orig_return_code', c_long),
     ('event', Event),
 ]
@@ -126,7 +126,7 @@ SpecialEvents._fields_ = [
 _Tracy._fields_ = [
     ('childs', c_void_p),
     ('hooks', c_void_p),
-    ('fpid', c_long),
+    ('fpid', c_int),
     ('opt', c_long),
     ('defhook', _hook_func),
     ('signal_hook', _hook_func),
