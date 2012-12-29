@@ -1,5 +1,5 @@
-Description
-===========
+API Reference
+=============
 
 This section contains documentation on all public functions exported by Tracy.
 
@@ -448,14 +448,3 @@ tracy_munmap
     int tracy_munmap(struct tracy_child *child, long *ret, tracy_child_addr_t addr, size_t length);
 
 .. **
-
-Notes
-=====
-
-
-Bugs
-====
-
-
-Example
-=======
