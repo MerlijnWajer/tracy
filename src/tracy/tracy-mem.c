@@ -34,17 +34,14 @@
 
 #include "tracy.h"
 
-/* Read a single ``word'' from child e->pid */
-int tracy_peek_word(struct tracy_child *child, long from, long *word) {
-    errno = 0;
-
-    *word = ptrace(PTRACE_PEEKDATA, child->pid, from, NULL);
-
-    if (errno)
-        return -1;
-
-    return 0;
-}
+static ssize_t tracy_peek_mem(struct tracy_child *c, tracy_parent_addr_t dest,
+        tracy_child_addr_t src, ssize_t n);
+static ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
+        tracy_parent_addr_t src, ssize_t n);
+static ssize_t tracy_ppm_read_mem(struct tracy_child *c,
+        tracy_parent_addr_t dest, tracy_child_addr_t src, size_t n);
+static ssize_t tracy_ppm_write_mem(struct tracy_child *c,
+        tracy_child_addr_t dest, tracy_parent_addr_t src, size_t n);
 
 /* Read a byte chunk using ptrace's peek/poke API
  * This function is a lot slower than tracy_read_mem which uses the proc
@@ -52,7 +49,7 @@ int tracy_peek_word(struct tracy_child *child, long from, long *word) {
  *
  * If this function errors the 'dest' memory is left in an undefined state.
  */
-ssize_t tracy_peek_mem(struct tracy_child *c, tracy_parent_addr_t dest,
+static ssize_t tracy_peek_mem(struct tracy_child *c, tracy_parent_addr_t dest,
         tracy_child_addr_t src, ssize_t n) {
 
     char *destbuf = (char*)dest;
@@ -218,15 +215,6 @@ ssize_t tracy_read_mem(struct tracy_child *child,
     return r;
 }
 
-int tracy_poke_word(struct tracy_child *child, long to, long word) {
-    if (ptrace(PTRACE_POKEDATA, child->pid, to, word)) {
-        perror("tracy_poke_word: pokedata");
-        return -1;
-    }
-
-    return 0;
-}
-
 /* Write a byte chunk using ptrace's peek/poke API
  * This function is a lot slower than tracy_write_mem which uses the proc
  * filesystem for accessing the child's memory space.
@@ -237,7 +225,7 @@ int tracy_poke_word(struct tracy_child *child, long to, long word) {
  * on error. When we do, we need to be careful because the negative value
  * returned is used to signal some faults in the tracy_ppm* functions.
  */
-ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
+static ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
         tracy_parent_addr_t src, ssize_t n) {
 
     char *srcbuf = (char*)src;

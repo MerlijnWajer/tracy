@@ -22,14 +22,16 @@ default: libtracy.a $(TRACY_OS) tests
 libtracy.a: $(TRACY_OS)
 	ar cr $@ $^
 
-test_binaries=tests/hello tests/rwmem tests/base tests/inject-simple \
+test_binaries=tests/hello tests/base tests/inject-simple \
 	tests/thread-simple tests/thread-simple-prog tests/fork \
 	tests/fork-prog tests/vfork-prog tests/bounce tests/bash \
 	tests/raw-clone tests/deny tests/attach tests/metronome \
 	tests/sig_suppress tests/async-inject tests/redirect tests/wxorx
+	#tests/rwmem
+
 
 tests: $(test_binaries)
-tests/rwmem: tests/rwmem.o $(TRACY_OS)
+#tests/rwmem: tests/rwmem.o $(TRACY_OS)
 tests/wxorx: tests/wxorx.o $(TRACY_OS)
 tests/base: tests/base.o $(TRACY_OS)
 tests/sig_suppress: tests/sig_suppress.o $(TRACY_OS)
@@ -45,8 +47,8 @@ tests/bounce: tests/bounce.o trampy.o
 tests/attach: tests/attach.o $(TRACY_OS)
 tests/metronome: tests/metronome.o
 
-check-rwmem: tests/rwmem tests/hello
-	tests/rwmem tests/hello
+#check-rwmem: tests/rwmem tests/hello
+#	tests/rwmem tests/hello
 
 # Tracy core
 tracy.o: def_syscalls.h def_signals.h $(TRACY_HS)
@@ -66,7 +68,7 @@ tests/base.o: $(TRACY_HS)
 tests/inject-simple.o: $(TRACY_HS)
 tests/thread-simple.o: $(TRACY_HS)
 tests/fork.o: $(TRACY_HS)
-tests/rwmem.o: $(TRACY_HS)
+#tests/rwmem.o: $(TRACY_HS)
 tests/bouce.o: trampy.h
 tests/attach.o: $(TRACY_HS)
 
