@@ -238,28 +238,12 @@ Returns the return value of the hook. Hooks should return:
 Memory manipulation
 ~~~~~~~~~~~~~~~~~~~
 
-tracy_peek_word
----------------
-
-.. code-block:: c
-
-    int tracy_peek_word(struct tracy_child *c, long from, long* word);
-
 tracy_read_mem
 --------------
 
 .. code-block:: c
 
     ssize_t tracy_read_mem(struct tracy_child *c, tracy_parent_addr_t dest, tracy_child_addr_t src, size_t n);
-
-.. **
-
-tracy_poke_word
----------------
-
-.. code-block:: c
-
-    int tracy_poke_word(struct tracy_child *c, long to, long word);
 
 .. **
 
