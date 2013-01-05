@@ -186,7 +186,6 @@ char* tracy_read_string(struct tracy_child *c,
         }
     }
 
-    printf("%s\n", buf);
     buf = realloc(buf, bp * sizeof(char));
     return buf;
 }
