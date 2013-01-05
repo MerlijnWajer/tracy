@@ -361,17 +361,10 @@ int tracy_set_default_hook(struct tracy *t, tracy_hook_func f);
 int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e);
 
 /* -- Child memory access -- */
-int tracy_peek_word(struct tracy_child *c, long from, long* word);
-ssize_t tracy_peek_mem(struct tracy_child *c, tracy_parent_addr_t dest,
-        tracy_child_addr_t src, ssize_t n);
 ssize_t tracy_read_mem(struct tracy_child *c, tracy_parent_addr_t dest,
     tracy_child_addr_t src, size_t n);
 char* tracy_read_string(struct tracy_child *c, tracy_child_addr_t src);
 
-
-int tracy_poke_word(struct tracy_child *c, long to, long word);
-ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
-        tracy_parent_addr_t src, ssize_t n);
 ssize_t tracy_write_mem(struct tracy_child *c, tracy_child_addr_t dest,
     tracy_parent_addr_t src, size_t n);
 
