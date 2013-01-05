@@ -6,24 +6,30 @@ This section contains documentation on all public functions exported by Tracy.
 Tracy object
 ~~~~~~~~~~~~
 
+A Tracy object is required for all tracy functions; make sure you only create
+and initialise one. Creating more than one instance in one process
+(especially: using them) is madness and should not be done.
+
 .. _rtracy_init:
 
 tracy_init
 ----------
 .. code-block:: c
 
-    struct tracy *tracy_init(void);
+    struct tracy *tracy_init(long opt);
 
 .. **
 
-tracy_init creates the tracy record and returns a pointer to this record on
-success. Possible options for *opt*:
+tracy_init creates the tracy structure and returns a pointer to this structure
+on success. Current possible options for *opt*:
 
 -   *TRACY_TRACY_CHILDREN* (Trace children of the tracee created with fork,
     vfork or clone.)
 -   *TRACY_USE_SAFE_TRACE* (Do not rely on Linux' auto-trace on fork abilities
     and instead use our own safe implementation.)
 -   *TRACY_MEMORY_FALLBACK* (Use fallback mechanism is fast memory access fails.)
+
+Multiple options can be passed by using the OR operator.
 
 Returns the tracy record created.
 
@@ -100,7 +106,7 @@ tracy_attach attaches to a running process specified by pid.
 Returns the structure of the attached child.
 
 Events
-------
+~~~~~~
 
 tracy_wait_event
 ----------------
@@ -162,7 +168,7 @@ get_signal_name
     char* get_signal_name(int signal);
 
 Hooks
------
+~~~~~
 
 tracy_set_hook
 --------------
@@ -247,7 +253,7 @@ tracy_read_mem
 
 .. **
 
-tracyy_write_mem
+tracy_write_mem
 ----------------
 
 .. code-block:: c
