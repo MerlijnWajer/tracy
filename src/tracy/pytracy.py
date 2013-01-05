@@ -1,4 +1,5 @@
 """Python bindings for Tracy."""
+import copy
 from ctypes import Structure, cdll, POINTER, CFUNCTYPE, cast, byref, sizeof
 from ctypes import c_long, c_int, c_void_p, c_byte, c_char_p
 from ctypes import create_string_buffer
@@ -252,6 +253,17 @@ class Child:
         the callback function as the first parameter.)
 
         """
+        # convert system call name to number
+        if isinstance(syscall_number, str):
+            syscall_number = _tracy.get_syscall_number(syscall_number)
+
+        # convert tuple/list of arguments to SyscallArguments object
+        if isinstance(args, (list, tuple)):
+            obj = copy.copy(self.child.event.args)
+            for x in xrange(len(args)):
+                setattr(obj, 'a%d' % x, args[x])
+            args = obj
+
         if callback is None:
             ret = c_long()
             _tracy.tracy_inject_syscall(self.child,
