@@ -181,7 +181,7 @@ _set_func('tracy_inject_syscall', c_int, POINTER(_Child), c_long,
 _set_func('tracy_inject_syscall_async', c_int, POINTER(_Child), c_long,
           POINTER(SyscallArguments), POINTER(c_long), )
 _set_func('tracy_read_mem', c_long, POINTER(_Child), c_long, c_long, c_long)
-_set_func('tracy_write_mem', c_long, POINTER(_Child), c_void_p, c_long, c_long)
+_set_func('tracy_write_mem', c_long, POINTER(_Child), c_long, c_void_p, c_long)
 
 
 class Child:
@@ -236,11 +236,11 @@ class Child:
 
     def read_string(self, addr):
         """Read a nil-terminated string from the Child process."""
-        return _tracy.tracy_read_string(self.child, addr).value
+        return _tracy.tracy_read_string(self.child, addr)
 
     def write(self, addr, value):
         """Write data to the Child process."""
-        return _tracy.tracy_write_mem(self.child, value, addr, len(value))
+        return _tracy.tracy_write_mem(self.child, addr, value, len(value))
 
     def inject(self, syscall_number, args, callback=None):
         """Inject a system call into the child process.
