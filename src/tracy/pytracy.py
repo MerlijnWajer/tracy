@@ -181,7 +181,7 @@ _set_func('tracy_inject_syscall', c_int, POINTER(_Child), c_long,
           POINTER(SyscallArguments), POINTER(c_long))
 _set_func('tracy_inject_syscall_async', c_int, POINTER(_Child), c_long,
           POINTER(SyscallArguments), POINTER(c_long), )
-_set_func('tracy_read_mem', c_long, POINTER(_Child), c_long, c_long, c_long)
+_set_func('tracy_read_mem', c_long, POINTER(_Child), c_void_p, c_long, c_long)
 _set_func('tracy_write_mem', c_long, POINTER(_Child), c_long, c_void_p, c_long)
 
 
