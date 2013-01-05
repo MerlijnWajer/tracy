@@ -1,7 +1,18 @@
 """Python bindings for Tracy."""
-from ctypes import Structure, cdll, POINTER, CFUNCTYPE, cast
+from ctypes import Structure, cdll, POINTER, CFUNCTYPE, cast, byref, sizeof
 from ctypes import c_long, c_int, c_void_p, c_byte, c_char_p
+from ctypes import create_string_buffer
 import sys
+
+# some global linux declarations
+PROT_READ = 1
+PROT_WRITE = 2
+PROT_EXEC = 4
+
+MAP_SHARED = 1
+MAP_PRIVATE = 2
+MAP_FIXED = 16
+MAP_ANONYMOUS = 32
 
 
 class siginfo_t(Structure):
@@ -158,12 +169,19 @@ _set_func('get_signal_name', c_char_p, c_int)
 _set_func('tracy_set_hook', c_int, POINTER(_Tracy), c_char_p, _hook_func)
 _set_func('tracy_set_signal_hook', c_int, POINTER(_Tracy), _hook_func)
 _set_func('tracy_set_default_hook', c_int, POINTER(_Tracy), _hook_func)
-_set_func('tracy_execute_hook',
-          c_int,
-          POINTER(_Tracy),
-          c_char_p,
+_set_func('tracy_execute_hook', c_int, POINTER(_Tracy), c_char_p,
           POINTER(Event))
 _set_func('tracy_read_string', c_char_p, POINTER(_Child), c_void_p)
+_set_func('tracy_mmap', c_int, POINTER(_Child), POINTER(c_long), c_long,
+          c_long, c_int, c_int, c_int, c_long)
+_set_func('tracy_munmap', c_int, POINTER(_Child), POINTER(c_long), c_long,
+          c_long)
+_set_func('tracy_inject_syscall', c_int, POINTER(_Child), c_long,
+          POINTER(SyscallArguments), POINTER(c_long))
+_set_func('tracy_inject_syscall_async', c_int, POINTER(_Child), c_long,
+          POINTER(SyscallArguments), POINTER(c_long), )
+_set_func('tracy_read_mem', c_long, POINTER(_Child), c_long, c_long, c_long)
+_set_func('tracy_write_mem', c_long, POINTER(_Child), c_void_p, c_long, c_long)
 
 
 class Child:
@@ -175,11 +193,78 @@ class Child:
         self.child = child.contents
 
         self.children[cast(child, c_void_p).value] = self
+        self.gc = None
 
     @staticmethod
     def from_event(event):
         ptr = cast(event.child, c_void_p).value
         return Child.children[ptr]
+
+    def mmap(self,
+             addr=0,
+             length=0x1000,
+             prot=PROT_READ | PROT_WRITE,
+             flags=MAP_PRIVATE | MAP_ANONYMOUS,
+             fd=-1,
+             offset=0):
+        """mmap one or several pages into the child."""
+        ret = c_long()
+        if _tracy.tracy_mmap(self.child,
+                             byref(ret),
+                             addr,
+                             length,
+                             prot,
+                             flags,
+                             fd,
+                             offset) < 0:
+            return None
+        return ret.value
+
+    def munmap(self, addr, length=0x1000):
+        """munmap one or several pages of the child."""
+        ret = c_long()
+        if _tracy.tracy_munmap(self.child, byref(ret), addr, length) < 0:
+            return None
+        return ret.value
+
+    def read(self, addr, length):
+        """Read memory from the Child process."""
+        ret = create_string_buffer(length)
+        if _tracy.tracy_read_mem(self.child, byref(ret), addr, length) < 0:
+            return None
+        return ret.raw
+
+    def read_string(self, addr):
+        """Read a nil-terminated string from the Child process."""
+        return _tracy.tracy_read_string(self.child, addr).value
+
+    def write(self, addr, value):
+        """Write data to the Child process."""
+        return _tracy.tracy_write_mem(self.child, value, addr, len(value))
+
+    def inject(self, syscall_number, args, callback=None):
+        """Inject a system call into the child process.
+
+        This function is blocking by default. When the callback parameter is
+        given, this function becomes non-blocking, and the return value will
+        _not_ be the result from the system call. (Instead you can find the
+        return value by inspecting the Event structure, which is passed onto
+        the callback function as the first parameter.)
+
+        """
+        if callback is None:
+            ret = c_long()
+            _tracy.tracy_inject_syscall(self.child,
+                                        syscall_number,
+                                        args,
+                                        byref(ret))
+            return ret.value
+        else:
+            self.gc = _hook_func(callback)
+            return _tracy.tracy_inject_syscall_async(self.child,
+                                                     syscall_number,
+                                                     args,
+                                                     self.gc)
 
 
 class Tracy:
@@ -219,7 +304,7 @@ class Tracy:
 
     def attach(self, pid):
         """Attach to an existing process."""
-        child = _tracy.tracy_attach(self.tracy, pid).contents
+        child = _tracy.tracy_attach(self.tracy, pid)
         return Child(self.tracy, child)
 
     def main(self):
