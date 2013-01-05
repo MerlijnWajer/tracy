@@ -264,6 +264,13 @@ class Child:
                 setattr(obj, 'a%d' % x, args[x])
             args = obj
 
+        # convert dict of arguments to SyscallArguments object
+        if isinstance(args, dict):
+            obj = copy.copy(self.child.event.args)
+            for k, v in args.items():
+                setattr(obj, 'a%d' % k, v)
+            args = obj
+
         if callback is None:
             ret = c_long()
             _tracy.tracy_inject_syscall(self.child,
