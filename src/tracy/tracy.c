@@ -68,6 +68,8 @@ struct tracy *tracy_init(long opt) {
 
     t->childs = ll_init();
     t->hooks = ll_init();
+    t->defhook = NULL;
+    t->signal_hook = NULL;
 
     if (!t->childs || !t->hooks) {
         /* TODO: Does this even work */
