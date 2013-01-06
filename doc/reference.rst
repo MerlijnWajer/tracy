@@ -28,6 +28,14 @@ on success. Current possible options for *opt*:
 -   *TRACY_USE_SAFE_TRACE* (Do not rely on Linux' auto-trace on fork abilities
     and instead use our own safe implementation.)
 -   *TRACY_MEMORY_FALLBACK* (Use fallback mechanism is fast memory access fails.)
+-   *TRACY_VERBOSE*
+    (Tracy will be verbose and print information about events and internal
+    logic.)
+-   *TRACY_VERBOSE_SIGNAL*
+    (Tracy will print information relating to signals.)
+-   *TRACY_VERBOSE_SYSCALL*
+    (Tracy will print information relating to system calls.)
+
 
 Multiple options can be passed by using the OR operator.
 
