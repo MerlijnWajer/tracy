@@ -2,7 +2,7 @@
 
 CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror -Wno-unused-result -pipe
 CFLAGS+=-D_POSIX_SOURCE -D_GNU_SOURCE
-CFLAGS+=-pthread
+CFLAGS+=-pthread -fPIC
 
 LDFLAGS+=-rdynamic -pthread
 #CFLAGS+=-O2
@@ -17,10 +17,13 @@ TRACY_HS=tracy.h ll.h tracyarch.h
 TRACY_OS=tracy.o tracy-mem.o tracy-safe-fork.o tracy-modification.o \
 	tracy-event.o ll.o trampy.o
 
-default: libtracy.a $(TRACY_OS) tests
+default: libtracy.so libtracy.a $(TRACY_OS) tests
 
 libtracy.a: $(TRACY_OS)
 	ar cr $@ $^
+
+libtracy.so: $(TRACY_OS)
+	gcc -shared -o $@ $^
 
 test_binaries=tests/hello tests/base tests/inject-simple \
 	tests/thread-simple tests/thread-simple-prog tests/fork \
