@@ -303,6 +303,7 @@ int tracy_remove_child(struct tracy_child *c);
 int tracy_children_count(struct tracy* t);
 
 char* get_syscall_name(int syscall);
+int get_syscall_number(const char *syscall);
 char* get_signal_name(int signal);
 
 /* -- Syscall hooks -- */

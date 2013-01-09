@@ -68,6 +68,8 @@ struct tracy *tracy_init(long opt) {
 
     t->childs = ll_init();
     t->hooks = ll_init();
+    t->defhook = NULL;
+    t->signal_hook = NULL;
 
     if (!t->childs || !t->hooks) {
         /* TODO: Does this even work */
@@ -80,6 +82,8 @@ struct tracy *tracy_init(long opt) {
     /* TODO Check opt for validity */
     t->opt = opt;
 
+    t->defhook = NULL;
+    t->signal_hook = NULL;
     t->se.child_create = NULL;
 
     return t;
@@ -443,6 +447,17 @@ char* get_syscall_name(int syscall)
     }
 
     return NULL;
+}
+
+int get_syscall_number(const char *syscall)
+{
+    int i;
+    for (i = 0; syscall_to_string[i].name != NULL; i++) {
+        if(!strcmp(syscall_to_string[i].name, syscall)) {
+            return syscall_to_string[i].call_nr;
+        }
+    }
+    return -1;
 }
 
 static const struct _signal_to_str {
