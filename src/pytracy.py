@@ -1,6 +1,6 @@
 """Python bindings for Tracy."""
 import copy
-from ctypes import Structure, cdll, POINTER, CFUNCTYPE, cast, byref, sizeof
+from ctypes import Structure, cdll, POINTER, CFUNCTYPE, cast, byref
 from ctypes import c_long, c_int, c_void_p, c_byte, c_char_p
 from ctypes import create_string_buffer
 import sys
