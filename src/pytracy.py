@@ -181,6 +181,11 @@ _set_func('tracy_inject_syscall', c_int, POINTER(_Child), c_long,
           POINTER(SyscallArguments), POINTER(c_long))
 _set_func('tracy_inject_syscall_async', c_int, POINTER(_Child), c_long,
           POINTER(SyscallArguments), POINTER(c_long), )
+_set_func('tracy_modify_syscall_args', c_int, POINTER(_Child), c_long,
+          POINTER(SyscallArguments))
+_set_func('tracy_modify_syscall_regs', c_int, POINTER(_Child), c_long,
+          POINTER(SyscallArguments))
+_set_func('tracy_deny_syscall', c_int, POINTER(_Child))
 _set_func('tracy_read_mem', c_long, POINTER(_Child), c_void_p, c_long, c_long)
 _set_func('tracy_write_mem', c_long, POINTER(_Child), c_long, c_void_p, c_long)
 
@@ -284,6 +289,14 @@ class Child:
                                                      syscall_number,
                                                      args,
                                                      self.gc)
+
+    def modify_args(self, syscall_number, args):
+        """Modifies the arguments."""
+        _tracy.tracy_modify_syscall_args(self.child, syscall_number, args)
+
+    def modify_regs(self, syscall_number, regs):
+        """Modifies the registers."""
+        _tracy.tracy_modify_syscall_regs(self.child, syscall_number, regs)
 
 
 class Tracy:
