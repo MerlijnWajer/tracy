@@ -7,6 +7,18 @@ regard to kernel version, operating system or processor architecture.
 The interface, called Tracy, provides a means to watch, modify, augment
 and restrict program execution in a controlled environment.
 
+
+Example
+=======
+
+C API
+-----
+
+TODO
+
+Python API
+----------
+
 .. code-block:: python
     
     from pytracy import Tracy, Child, TRACE_CHILDREN
@@ -32,8 +44,11 @@ and restrict program execution in a controlled environment.
         t.execute(*sys.argv[1:])
         t.main()
 
+.. **
+
 Work In Progress
 ================
 
-We're still in the process of moving out files that are no longer
-relevant as well as updating our TODO file and documentation.
+Tracy is still work in progress, although already quite useful for certain
+tasks. We're working on supporting multiple system call ABIs, W^X support for
+safe tracing and BSD support.
