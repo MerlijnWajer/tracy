@@ -147,6 +147,8 @@ static int open_child_mem(struct tracy_child *c)
 static ssize_t tracy_ppm_read_mem(struct tracy_child *c,
         tracy_parent_addr_t dest, tracy_child_addr_t src, size_t n) {
     /* Open memory if it's not open yet */
+    int res;
+
     if (c->mem_fd < 0) {
         if (open_child_mem(c) < 0)
             return -2;
@@ -159,7 +161,12 @@ static ssize_t tracy_ppm_read_mem(struct tracy_child *c,
     errno = 0;
 
     /* And read. */
-    return read(c->mem_fd, dest, n);
+    res = read(c->mem_fd, dest, n);
+
+    close(c->mem_fd);
+    c->mem_fd = -1;
+
+    return res;
 }
 
 /* Read a string character per character.
@@ -317,6 +324,8 @@ static ssize_t tracy_poke_mem(struct tracy_child *c, tracy_child_addr_t dest,
 
 static ssize_t tracy_ppm_write_mem(struct tracy_child *c,
         tracy_child_addr_t dest, tracy_parent_addr_t src, size_t n) {
+    int res;
+
     /* Open memory if it's not open yet */
     if (c->mem_fd < 0) {
         if (open_child_mem(c) < 0)
@@ -330,7 +339,12 @@ static ssize_t tracy_ppm_write_mem(struct tracy_child *c,
     errno = 0;
 
     /* And write. */
-    return write(c->mem_fd, src, n);
+    res = write(c->mem_fd, src, n);
+
+    close(c->mem_fd);
+    c->mem_fd = -1;
+
+    return res;
 }
 
 ssize_t tracy_write_mem(struct tracy_child *child,
