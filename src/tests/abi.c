@@ -35,14 +35,21 @@ int abi_detect(struct tracy_event *s) {
     tracy_read_mem(s->child, buf, (char*)s->args.ip - TRACY_SYSCALL_OPSIZE,
             sizeof(char) * TRACY_SYSCALL_OPSIZE);
 
+    buf[0] ^= buf[1];
+    buf[1] ^= buf[0];
+    buf[0] ^= buf[1];
     sysinstr = *(unsigned long*)buf;
+
     if (s->child->pre_syscall) {
         printf("Pre. IP: %lx: %lx\n", s->args.ip, sysinstr);
-        if (sysinstr == 0x50f) {
-            puts("64 bit");
-        } else if (sysinstr == 0x80cd) {
-            puts("32 bit");
+        if (sysinstr == 0x0f05) {
+            puts("syscall");
+        } else if (sysinstr == 0x0f34) {
+            puts("sysenter");
+        } else if(sysinstr == 0xcd80) {
+            puts("int 0x80");
         }
+        /* TODO: sysenter */
     }
 
 
