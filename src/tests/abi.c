@@ -26,16 +26,25 @@
 
 int abi_detect(struct tracy_event *s) {
     char *buf;
+    unsigned long sysinstr;
 
     /* s->child->mem_fallback = 1; */
-    buf = malloc(sizeof(char) * TRACY_SYSCALL_OPSIZE);
-    tracy_read_mem(s->child, buf, (char*)s->args.ip - TRACY_SYSCALL_OPSIZE, sizeof(char) *
-            TRACY_SYSCALL_OPSIZE);
+    buf = malloc(sizeof(char) * sizeof(unsigned long));
+    tracy_read_mem(s->child, buf, (char*)s->args.ip - TRACY_SYSCALL_OPSIZE,
+            sizeof(char) * TRACY_SYSCALL_OPSIZE);
 
+    sysinstr = *(unsigned long*)buf & 0x0000FFFF;
     if (s->child->pre_syscall) {
-        printf("Pre. IP: %lx: |%d| |%d|\n", s->args.ip, buf[0], buf[1]);
-    } else {
+        printf("Pre. IP: %lx: %lx\n", s->args.ip, sysinstr);
+        if (sysinstr == 0x50f) {
+            puts("64 bit");
+        } else if (sysinstr == 0x80cd) {
+            puts("32 bit");
+        }
     }
+
+
+    free(buf);
 
     return TRACY_HOOK_CONTINUE;
 }
