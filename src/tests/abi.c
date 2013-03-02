@@ -25,35 +25,25 @@
 #include <unistd.h>
 
 int abi_detect(struct tracy_event *s) {
-    char *buf;
-    unsigned long sysinstr;
+#ifdef __x86_64__
+    struct TRACY_REGS_NAME a;
+#endif
 
 #ifdef __i386__
-    s->child->mem_fallback = 1;
+    puts("x86");
+    return TRACY_HOOK_CONTINUE;
 #endif
-    buf = malloc(sizeof(char) * sizeof(unsigned long));
-    tracy_read_mem(s->child, buf, (char*)s->args.ip - TRACY_SYSCALL_OPSIZE,
-            sizeof(char) * TRACY_SYSCALL_OPSIZE);
 
-    buf[0] ^= buf[1];
-    buf[1] ^= buf[0];
-    buf[0] ^= buf[1];
-    sysinstr = *(unsigned long*)buf;
 
-    if (s->child->pre_syscall) {
-        printf("Pre. IP: %lx: %lx\n", s->args.ip, sysinstr);
-        if (sysinstr == 0x0f05) {
-            puts("syscall");
-        } else if (sysinstr == 0x0f34) {
-            puts("sysenter");
-        } else if(sysinstr == 0xcd80) {
-            puts("int 0x80");
-        }
-        /* TODO: sysenter */
+#ifdef __x86_64__
+    PTRACE_CHECK(PTRACE_GETREGS, s->child->pid, 0, &a, -1);
+    if (a.cs == 0x33) {
+        puts("amd64");
+    } else if(a.cs == 0x23) {
+        puts("x86");
     }
-
-
-    free(buf);
+#endif
+    tracy_debug_current_pid(s->child->pid);
 
     return TRACY_HOOK_CONTINUE;
 }

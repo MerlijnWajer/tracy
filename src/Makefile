@@ -23,19 +23,21 @@ libtracy.a: $(TRACY_OS)
 	ar cr $@ $^
 
 libtracy.so: $(TRACY_OS)
-	gcc -shared -o $@ $^
+	gcc -shared -o $@ $^ $(CFLAGS)
 
 test_binaries=tests/hello tests/base tests/inject-simple \
 	tests/thread-simple tests/thread-simple-prog tests/fork \
 	tests/fork-prog tests/vfork-prog tests/bounce tests/bash \
 	tests/raw-clone tests/deny tests/attach tests/metronome \
-	tests/sig_suppress tests/async-inject tests/redirect tests/wxorx
+	tests/sig_suppress tests/async-inject tests/redirect tests/wxorx \
+	tests/abi
 	#tests/rwmem
 
 
 tests: $(test_binaries)
 #tests/rwmem: tests/rwmem.o $(TRACY_OS)
 tests/wxorx: tests/wxorx.o $(TRACY_OS)
+tests/abi: tests/abi.o $(TRACY_OS)
 tests/base: tests/base.o $(TRACY_OS)
 tests/sig_suppress: tests/sig_suppress.o $(TRACY_OS)
 tests/async-inject: tests/async-inject.o $(TRACY_OS)
@@ -64,6 +66,7 @@ ll.o: ll.h
 tests/redirect.o: $(TRACY_HS)
 tests/wxorx.o: $(TRACY_HS)
 tests/bash.o: $(TRACY_HS)
+tests/abi.o: $(TRACY_HS)
 tests/deny.o: $(TRACY_HS)
 tests/sig_suppress.o: $(TRACY_HS)
 tests/async-inject.o: $(TRACY_HS)
