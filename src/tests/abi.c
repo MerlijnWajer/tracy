@@ -24,23 +24,51 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#define T_SYSCALL 0x0f05
+#define T_INT0x80 0x0f34
+#define T_SYSENTER 0xcd80
+
 int abi_detect(struct tracy_event *s) {
 #ifdef __x86_64__
     struct TRACY_REGS_NAME a;
+    char *buf;
+    unsigned long sysinstr;
 #endif
 
 #ifdef __i386__
     puts("x86");
-    return TRACY_HOOK_CONTINUE;
 #endif
 
 
 #ifdef __x86_64__
+    buf = malloc(sizeof(char) * sizeof(unsigned long));
+    tracy_read_mem(s->child, buf, (char*)s->args.ip - TRACY_SYSCALL_OPSIZE,
+            sizeof(char) * TRACY_SYSCALL_OPSIZE);
+
+    buf[0] ^= buf[1];
+    buf[1] ^= buf[0];
+    buf[0] ^= buf[1];
+    sysinstr = *(unsigned long*)buf;
+
+
     PTRACE_CHECK(PTRACE_GETREGS, s->child->pid, 0, &a, -1);
+#if 0
     if (a.cs == 0x33) {
         puts("amd64");
     } else if(a.cs == 0x23) {
         puts("x86");
+    }
+#endif
+    if (a.cs == 0x23) {
+        /* Always 32 bit ABI */
+        puts("x86");
+    }
+    if (a.cs == 0x33) {
+        if (sysinstr == T_SYSCALL) {
+            puts("amd64");
+        } else if ((sysinstr == T_SYSENTER) || (sysinstr == T_INT0x80)) {
+            puts("x86");
+        }
     }
 #endif
     tracy_debug_current_pid(s->child->pid);
