@@ -1,0 +1,67 @@
+ABI Proposal
+============
+
+File layout
+-----------
+
+ABI detection + defines, includes, macros:
+
+    arch/<arch_here>/abi.h
+
+[ TODO: Exact contents, macro names, etc ]
+
+def_syscalls will need a version per ABI, which can also reside in the same
+folder:
+
+    arch/<arch_here>/<abi>_syscalls.h
+
+This file could be automatically generated.
+
+Events
+------
+
+The tracy_event structure will be modified with at least an extra varaible
+describing the current ABI of the event. This can then be used to determine if
+the event is hooked; as well as when modifying or injecting system calls.
+
+Hooking
+-------
+
+A process is able to mix ABIs. There are several questions we need to tackle:
+
+1) What events do we report (by default)?
+2) What do we do with unreported events (by default)?
+
+Reporting
+*********
+
+The API could be something like this:
+
+    hook("write", func, TRACY_ABI_NATIVE);
+
+And:
+
+    hook("write", func, TRACY_ABI_ALL);
+
+Rationale for TRACY_ABI_NATIVE as default:
+    It is very hard to work with mixed ABIs, especially in the case with (for
+    example) a 32 bit and 64 bit ABI. For this reason we believe it would be
+    best to (by default) only stick to the native ABI for hooking / reporting.
+
+Unreported Events
+*****************
+
+In the case that the programmer uses TRACY_ABI_NATIVE; and a non-native system
+call is made, we need to decide what to do:
+
+1) Do not report any event
+2) Automagically ``deny'' the system call
+
+Rationale for 1:
+    Not reporting any events seems like the most sane option; as this is simply
+    what the user specified; he only wanted NATIVE events.
+
+Modification
+------------
+
+
