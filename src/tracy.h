@@ -67,6 +67,11 @@ typedef int (*tracy_hook_func) (struct tracy_event *s);
 
 typedef void (*tracy_child_creation) (struct tracy_child *c);
 
+struct tracy_abi_syscall {
+    char *name;
+    int call_nr;
+};
+
 /*
  * Special events. A set of functions to be called when certain things
  * happen. Currently contains:
@@ -460,3 +465,6 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child);
     }
 
 #endif
+
+
+#include "arch/amd64/arch.h"
