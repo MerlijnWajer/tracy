@@ -17,6 +17,7 @@
 #ifndef TRACY_H
 #define TRACY_H
 
+#include <stdio.h>
 #include <sys/wait.h>
 #include "ll.h"
 
@@ -60,6 +61,8 @@ struct tracy_event {
     struct tracy_child *child;
     long syscall_num;
     long signal_num;
+
+    int abi;
 
     struct tracy_sc_args args;
     siginfo_t siginfo;

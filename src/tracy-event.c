@@ -442,6 +442,10 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
          * fork event to the user. XXX TODO FIXME */
         check_syscall(s);
 
+        /* TODO: Detect ABI here */
+        s->abi = get_abi(s);
+        printf("ABI: %d\n", s->abi);
+
         if (tracy_handle_syscall_hook(s)) {
             /* TODO: Child got killed. Event type -> quit */
             s->type = TRACY_EVENT_QUIT;

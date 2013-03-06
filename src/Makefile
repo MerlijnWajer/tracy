@@ -15,7 +15,14 @@ include Makerules
 
 TRACY_HS=tracy.h ll.h tracyarch.h
 TRACY_OS=tracy.o tracy-mem.o tracy-safe-fork.o tracy-modification.o \
-	tracy-event.o ll.o trampy.o
+	tracy-event.o ll.o trampy.o arch/amd64/arch.o
+
+uname_M = $(shell sh -c 'uname -m 2>/dev/null || echo not')
+ifeq ($(uname_M),x86_64)
+ARCH_HS=arch/amd64/arch.h arch/amd64/syscalls.h
+else
+ARCH_HS=
+endif
 
 default: libtracy.a libtracy.so $(TRACY_OS) tests
 
@@ -56,7 +63,7 @@ tests/metronome: tests/metronome.o
 #	tests/rwmem tests/hello
 
 # Tracy core
-tracy.o: def_syscalls.h def_signals.h $(TRACY_HS)
+tracy.o: def_syscalls.h def_signals.h $(TRACY_HS) $(ARCH_HS)
 tracy-mem.o: $(TRACY_HS)
 tracy-safe-fork.o: trampy.h $(TRACY_HS)
 tracy-modification.o: $(TRACY_HS)
@@ -78,12 +85,27 @@ tests/fork.o: $(TRACY_HS)
 tests/bouce.o: trampy.h
 tests/attach.o: $(TRACY_HS)
 
-
 def_syscalls.h:
 	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E -dM \
 		| grep "define SYS" | cut -f2 -d" " | \
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' > def_syscalls.h
 
-clean:
-	rm *.o *.a def_syscalls.h tests/*.o -f $(test_binaries)
 
+ifeq ($(uname_M),x86_64)
+arch/amd64/arch.o: $(TRACY_HS) arch/amd64/syscalls.h
+# Arch stuff
+arch/amd64/syscalls.h: $(TRACY_HS) arch/amd64/syscall_amd64.h \
+	arch/amd64/syscall_x86.h arch/amd64/syscall_x32.h
+
+arch/amd64/syscall_amd64.h:
+	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E -dM  | grep "define SYS" | cut -f2 -d" " | ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") | gcc $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) | gcc $(CFLAGS) -E - | grep -v '#' > arch/amd64/syscall_amd64.h
+arch/amd64/syscall_x86.h:
+	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E  -m32 -dM | grep "define SYS" | cut -f2 -d" " | ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") | gcc $(CFLAGS) - -E -m32   | ( echo "#include <sys/syscall.h>" ; cat ) | gcc $(CFLAGS) - -E -m32 | grep -v '#' > arch/amd64/syscall_x86.h
+arch/amd64/syscall_x32.h:
+	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E  -mx32 -dM | grep "define SYS" | cut -f2 -d" " | ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") | gcc $(CFLAGS) - -E -mx32   | ( echo "#include <sys/syscall.h>" ; cat ) | gcc $(CFLAGS) - -E -mx32 | grep -v '#' > arch/amd64/syscall_x32.h
+endif
+
+# TODO: Add arch clean
+clean:
+	rm *.o *.a def_syscalls.h tests/*.o -f $(test_binaries) \
+		arch/amd64/syscall_*.h arch/amd64/*.o
