@@ -52,6 +52,10 @@
 
 #include <execinfo.h>
 
+#ifdef __x86_64__
+#include "arch/amd64/syscalls.h"
+#endif
+
 /* Foreground PID, used by tracy main's interrupt handler */
 static pid_t global_fpid;
 
@@ -272,7 +276,7 @@ struct tracy_child* tracy_exec(struct tracy *t, char **argv) {
         return NULL;
     }
 
-    /* This child has been created by us - I doesn't get a SIGSTOP that we want
+    /* This child has been created by us - it doesn't get a SIGSTOP that we want
      * to ignore. */
     tc->received_first_sigstop = 1;
 

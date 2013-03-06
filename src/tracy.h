@@ -29,6 +29,8 @@
 
 #include <signal.h>
 
+#include "arch/amd64/arch.h"
+
 
 /* Tracy options, pass them to tracy_init(). */
 #define TRACY_TRACE_CHILDREN 1 << 0
@@ -465,6 +467,3 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child);
     }
 
 #endif
-
-
-#include "arch/amd64/arch.h"
