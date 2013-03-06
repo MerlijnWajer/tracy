@@ -15,16 +15,22 @@ include Makerules
 
 TRACY_HS=tracy.h ll.h tracyarch.h
 TRACY_OS=tracy.o tracy-mem.o tracy-safe-fork.o tracy-modification.o \
-	tracy-event.o ll.o trampy.o arch/amd64/arch.o
+	tracy-event.o ll.o trampy.o
+
 
 uname_M = $(shell sh -c 'uname -m 2>/dev/null || echo not')
 ifeq ($(uname_M),x86_64)
 ARCH_HS=arch/amd64/arch.h arch/amd64/syscalls.h
+ARCH_OS=arch/amd64/arch.o
+else ifeq ($(uname_M),armv5tel)
+ARCH_HS=arch/arm/arch.h arch/arm/syscalls.h
+ARCH_OS=arch/arm/arch.o
 else
 ARCH_HS=
+ARCH_OS=
 endif
 
-default: libtracy.a libtracy.so $(TRACY_OS) tests
+default: libtracy.a libtracy.so $(TRACY_OS) $(ARCH_OS) tests
 
 libtracy.a: $(TRACY_OS)
 	ar cr $@ $^
@@ -42,22 +48,22 @@ test_binaries=tests/hello tests/base tests/inject-simple \
 
 
 tests: $(test_binaries)
-#tests/rwmem: tests/rwmem.o $(TRACY_OS)
-tests/wxorx: tests/wxorx.o $(TRACY_OS)
-tests/abi: tests/abi.o $(TRACY_OS)
-tests/base: tests/base.o $(TRACY_OS)
-tests/sig_suppress: tests/sig_suppress.o $(TRACY_OS)
-tests/async-inject: tests/async-inject.o $(TRACY_OS)
-tests/redirect: tests/redirect.o $(TRACY_OS)
-tests/bash: tests/bash.o $(TRACY_OS)
-tests/deny: tests/deny.o $(TRACY_OS)
-tests/inject-simple: tests/inject-simple.o $(TRACY_OS)
-tests/thread-simple: tests/thread-simple.o $(TRACY_OS)
-tests/thread-simple-prog: tests/thread-simple-prog.o
-tests/fork: tests/fork.o $(TRACY_OS)
-tests/bounce: tests/bounce.o trampy.o
-tests/attach: tests/attach.o $(TRACY_OS)
-tests/metronome: tests/metronome.o
+#tests/rwmem: tests/rwmem.o $(TRACY_OS) $(ARCH_OS)
+tests/wxorx: tests/wxorx.o $(TRACY_OS) $(ARCH_OS)
+tests/abi: tests/abi.o $(TRACY_OS) $(ARCH_OS)
+tests/base: tests/base.o $(TRACY_OS) $(ARCH_OS)
+tests/sig_suppress: tests/sig_suppress.o $(TRACY_OS) $(ARCH_OS)
+tests/async-inject: tests/async-inject.o $(TRACY_OS) $(ARCH_OS)
+tests/redirect: tests/redirect.o $(TRACY_OS) $(ARCH_OS)
+tests/bash: tests/bash.o $(TRACY_OS) $(ARCH_OS)
+tests/deny: tests/deny.o $(TRACY_OS) $(ARCH_OS)
+tests/inject-simple: tests/inject-simple.o $(TRACY_OS) $(ARCH_OS)
+tests/thread-simple: tests/thread-simple.o $(TRACY_OS) $(ARCH_OS)
+tests/thread-simple-prog: tests/thread-simple-prog.o $(ARCH_OS)
+tests/fork: tests/fork.o $(TRACY_OS) $(ARCH_OS)
+tests/bounce: tests/bounce.o trampy.o $(ARCH_OS)
+tests/attach: tests/attach.o $(TRACY_OS) $(ARCH_OS)
+tests/metronome: tests/metronome.o $(ARCH_OS)
 
 #check-rwmem: tests/rwmem tests/hello
 #	tests/rwmem tests/hello
@@ -91,9 +97,9 @@ def_syscalls.h:
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' > def_syscalls.h
 
 
+# Arch stuff
 ifeq ($(uname_M),x86_64)
 arch/amd64/arch.o: $(TRACY_HS) arch/amd64/syscalls.h
-# Arch stuff
 arch/amd64/syscalls.h: $(TRACY_HS) arch/amd64/syscall_amd64.h \
 	arch/amd64/syscall_x86.h arch/amd64/syscall_x32.h
 
@@ -103,9 +109,16 @@ arch/amd64/syscall_x86.h:
 	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E  -m32 -dM | grep "define SYS" | cut -f2 -d" " | ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") | gcc $(CFLAGS) - -E -m32   | ( echo "#include <sys/syscall.h>" ; cat ) | gcc $(CFLAGS) - -E -m32 | grep -v '#' > arch/amd64/syscall_x86.h
 arch/amd64/syscall_x32.h:
 	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E  -mx32 -dM | grep "define SYS" | cut -f2 -d" " | ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") | gcc $(CFLAGS) - -E -mx32   | ( echo "#include <sys/syscall.h>" ; cat ) | gcc $(CFLAGS) - -E -mx32 | grep -v '#' > arch/amd64/syscall_x32.h
+else ifeq ($(uname_M),armv5tel)
+arch/arm/arch.o: $(TRACY_HS) arch/arm/syscalls.h
+arch/arm/syscalls.h: $(TRACY_HS) arch/arm/syscall_eabi.h
+
+arch/arm/syscall_eabi.h:
+	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E -dM  | grep "define SYS" | cut -f2 -d" " | ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") | gcc $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) | gcc $(CFLAGS) -E - | grep -v '#' > arch/arm/syscall_arm.h
 endif
 
 # TODO: Add arch clean
 clean:
 	rm *.o *.a def_syscalls.h tests/*.o -f $(test_binaries) \
-		arch/amd64/syscall_*.h arch/amd64/*.o
+		arch/amd64/syscall_*.h arch/amd64/*.o \
+		arch/arm/syscall_*.h arch/arm/*.o
