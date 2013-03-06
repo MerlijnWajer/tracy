@@ -59,11 +59,11 @@ tests/bash: tests/bash.o $(TRACY_OS) $(ARCH_OS)
 tests/deny: tests/deny.o $(TRACY_OS) $(ARCH_OS)
 tests/inject-simple: tests/inject-simple.o $(TRACY_OS) $(ARCH_OS)
 tests/thread-simple: tests/thread-simple.o $(TRACY_OS) $(ARCH_OS)
-tests/thread-simple-prog: tests/thread-simple-prog.o $(ARCH_OS)
+tests/thread-simple-prog: tests/thread-simple-prog.o
 tests/fork: tests/fork.o $(TRACY_OS) $(ARCH_OS)
-tests/bounce: tests/bounce.o trampy.o $(ARCH_OS)
+tests/bounce: tests/bounce.o trampy.o
 tests/attach: tests/attach.o $(TRACY_OS) $(ARCH_OS)
-tests/metronome: tests/metronome.o $(ARCH_OS)
+tests/metronome: tests/metronome.o
 
 #check-rwmem: tests/rwmem tests/hello
 #	tests/rwmem tests/hello
