@@ -90,6 +90,7 @@ static int tracy_internal_syscall(struct tracy_event *s) {
 
 
     switch(s->syscall_num) {
+        /* TODO, FIXME XXX: SYS_fork is not always valid, depends on the ABI */
         case SYS_fork:
             printf("Internal Syscall %s\n", get_syscall_name(s->syscall_num));
             if (tracy_safe_fork(s->child, &child)) {
@@ -445,6 +446,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         /* TODO: Detect ABI here */
         s->abi = get_abi(s);
         printf("ABI: %d\n", s->abi);
+        printf("Syscall: %ld: %s\n", s->syscall_num, SYSCALL_FROM_EVENT(s));
 
         if (tracy_handle_syscall_hook(s)) {
             /* TODO: Child got killed. Event type -> quit */

@@ -1,4 +1,4 @@
-#define ARCH_ABI_COUNT 2
+#define TRACY_ABI_COUNT 2
 
 #define TRACY_ABI_EABI 0
 #define TRACY_ABI_OABI 1

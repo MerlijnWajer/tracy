@@ -19,7 +19,6 @@
  * tracy.c: ptrace convenience library
  *
  * TODO:
- *  -   Define and harden async API.
  *  -   Write test cases
  *  -   Replace ll with a better datastructure.
  */
@@ -54,6 +53,9 @@
 
 #ifdef __x86_64__
 #include "arch/amd64/syscalls.h"
+#endif
+#ifdef __arm__
+#include "arch/arm/syscalls.h"
 #endif
 
 /* Foreground PID, used by tracy main's interrupt handler */
@@ -453,12 +455,45 @@ char* get_syscall_name(int syscall)
     return NULL;
 }
 
+char* get_syscall_name_abi(int syscall, int abi) {
+    int i = 0;
+
+    if (abi < 0 || abi > TRACY_ABI_COUNT) {
+        return NULL;
+    }
+
+    while (syscalls_abi[abi][i].name) {
+        if (syscalls_abi[abi][i].call_nr == syscall)
+            return syscalls_abi[abi][i].name;
+
+        i++;
+    }
+
+    return NULL;
+}
+
 int get_syscall_number(const char *syscall)
 {
     int i;
     for (i = 0; syscall_to_string[i].name != NULL; i++) {
         if(!strcmp(syscall_to_string[i].name, syscall)) {
             return syscall_to_string[i].call_nr;
+        }
+    }
+    return -1;
+}
+
+int get_syscall_number_abi(const char *syscall, int abi)
+{
+    int i;
+
+    if (abi < 0 || abi > TRACY_ABI_COUNT) {
+        return -1;
+    }
+
+    for (i = 0; syscalls_abi[abi][i].name != NULL; i++) {
+        if(!strcmp(syscalls_abi[abi][i].name, syscall)) {
+            return syscalls_abi[abi][i].call_nr;
         }
     }
     return -1;
