@@ -97,27 +97,55 @@ def_syscalls.h:
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' > def_syscalls.h
 
 
-# Arch stuff
 ifeq ($(uname_M),x86_64)
+#
+#					 *** AMD64 ***
+#
 arch/amd64/arch.o: $(TRACY_HS) arch/amd64/syscalls.h
 arch/amd64/syscalls.h: $(TRACY_HS) arch/amd64/syscall_amd64.h \
 	arch/amd64/syscall_x86.h arch/amd64/syscall_x32.h
 
 arch/amd64/syscall_amd64.h:
-	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E -dM  | grep "define SYS" | cut -f2 -d" " | ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") | gcc $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) | grep -v '# ' | gcc $(CFLAGS) -E - | grep '{.*' > arch/amd64/syscall_amd64.h
+	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E -dM  | \
+		grep "define SYS" | cut -f2 -d" " | \
+		( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; \
+		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
+		| gcc $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) \
+		| grep -v '# ' | gcc $(CFLAGS) -E - | grep '{.*' \
+		> arch/amd64/syscall_amd64.h
 arch/amd64/syscall_x86.h:
-	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E  -m32 -dM | grep "define SYS" | cut -f2 -d" " | ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") | gcc $(CFLAGS) - -E -m32   | ( echo "#include <sys/syscall.h>" ; cat ) | grep -v '# ' | gcc $(CFLAGS) - -E -m32 | grep '{.*' > arch/amd64/syscall_x86.h
+	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E  -m32 -dM | \
+		grep "define SYS" | cut -f2 -d" " | \
+		( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; \
+		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
+		| gcc $(CFLAGS) - -E -m32   | ( echo "#include <sys/syscall.h>" ; cat ) \
+		| grep -v '# ' | gcc $(CFLAGS) - -E -m32 | grep '{.*' \
+		> arch/amd64/syscall_x86.h
 arch/amd64/syscall_x32.h:
-	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E  -mx32 -dM | grep "define SYS" | cut -f2 -d" " | ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") | gcc $(CFLAGS) - -E -mx32   | ( echo "#include <sys/syscall.h>" ; cat ) | grep -v '# ' | gcc $(CFLAGS) - -E -mx32 | grep '{.*' > arch/amd64/syscall_x32.h
+	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E  -mx32 -dM | \
+		grep "define SYS" | cut -f2 -d" " | \
+		( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; \
+		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
+		| gcc $(CFLAGS) - -E -mx32   | ( echo "#include <sys/syscall.h>" ; cat ) \
+		| grep -v '# ' | gcc $(CFLAGS) - -E -mx32 | grep '{.*' \
+		> arch/amd64/syscall_x32.h
 else ifeq ($(uname_M),armv5tel)
+#
+#					 *** ARM ***
+#
 arch/arm/arch.o: $(TRACY_HS) arch/arm/syscalls.h
 arch/arm/syscalls.h: $(TRACY_HS) arch/arm/syscall_eabi.h
 
 arch/arm/syscall_eabi.h:
-	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E -dM  | grep "define SYS" | cut -f2 -d" " | ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") | gcc $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) | grep -v '# '| gcc $(CFLAGS) -E - | grep '{.*' > arch/arm/syscall_arm.h
+	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E -dM | \
+		grep "define SYS" | cut -f2 -d" " \
+		| ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; \
+		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
+		| gcc $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) \
+		| grep -v '# '| gcc $(CFLAGS) -E - | grep '{.*' \
+		> arch/arm/syscall_arm.h
 endif
 
-# TODO: Add arch clean
 clean:
 	rm *.o *.a def_syscalls.h tests/*.o -f $(test_binaries) \
 		arch/amd64/syscall_*.h arch/amd64/*.o \
