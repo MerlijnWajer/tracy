@@ -32,10 +32,10 @@ endif
 
 default: libtracy.a libtracy.so $(TRACY_OS) $(ARCH_OS) tests
 
-libtracy.a: $(TRACY_OS)
+libtracy.a: $(TRACY_OS) $(ARCH_OS)
 	ar cr $@ $^
 
-libtracy.so: $(TRACY_OS)
+libtracy.so: $(TRACY_OS) $(ARCH_OS)
 	gcc -shared -o $@ $^ $(CFLAGS)
 
 test_binaries=tests/hello tests/base tests/inject-simple \
