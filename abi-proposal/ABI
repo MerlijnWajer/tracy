@@ -4,25 +4,39 @@ ABI Proposal
 File layout
 -----------
 
-ABI detection + defines, includes, macros:
+ABI information:
 
-    arch/<arch_here>/abi.h
+    arch/<arch_here>/arch.h
 
-[ TODO: Exact contents, macro names, etc ]
+ABI detection:
 
-def_syscalls will need a version per ABI, which can also reside in the same
-folder:
+    arch/<arch_here>/arch.c
 
-    arch/<arch_here>/<abi>_syscalls.h
+Syscall definitions:
 
-This file could be automatically generated.
+    arch/<arch_here>/syscalls.h
+
+Generates syscall per abi:
+
+    arch/<arch_here>/syscall_<ABI>.h
 
 Events
 ------
 
-The tracy_event structure will be modified with at least an extra varaible
+The tracy_event structure will be modified with at least an extra variable
 describing the current ABI of the event. This can then be used to determine if
 the event is hooked; as well as when modifying or injecting system calls.
+
+struct tracy_event {
+    ...
+
+    int abi;
+}
+
+Translating syscall numbers to/from strings
+-------------------------------------------
+
+get_syscall_{name,number} will take an additional argument: int abi.
 
 Hooking
 -------
@@ -55,7 +69,7 @@ In the case that the programmer uses TRACY_ABI_NATIVE; and a non-native system
 call is made, we need to decide what to do:
 
 1) Do not report any event
-2) Automagically ``deny'' the system call
+2) Automagically "deny" the system call
 
 Rationale for 1:
     Not reporting any events seems like the most sane option; as this is simply
