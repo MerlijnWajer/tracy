@@ -1,4 +1,3 @@
-
 #define TRACY_REGS_NAME user_regs_struct /* pt_regs doesn't work */
 
 #define TRACY_SYSCALL_OPSIZE 2
@@ -23,3 +22,13 @@
 /* Register used to pass trampy code the tracer PID */
 #define TRAMPY_PID_REG ebp
 #define TRAMPY_PID_ARG a5
+
+#define TRACY_ABI_COUNT 1
+
+#define TRACY_ABI_X86 0
+
+#define TRACY_ABI_NATIVE TRACY_ABI_X86
+
+struct tracy_event;
+
+int get_abi(struct tracy_event *s);

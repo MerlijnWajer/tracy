@@ -97,6 +97,10 @@ def_syscalls.h:
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' > def_syscalls.h
 
 
+# XXX: Depending on uname -m is bad because it doesn't allow us to build tracy
+# for say x86. (Although I don't think you want that on amd64, because of ABI
+# mixing) Still, we need a build option for it. Like make platform=amd64
+
 ifeq ($(uname_M),x86_64)
 #
 #					 *** AMD64 ***
