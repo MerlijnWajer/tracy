@@ -1,8 +1,32 @@
+#define TRACY_REGS_NAME user_regs_struct /* pt_regs doesn't work */
+
+#define TRACY_SYSCALL_OPSIZE 2
+
+#define TRACY_SYSCALL_REGISTER orig_rax
+#define TRACY_SYSCALL_N rax
+
+#define TRACY_RETURN_CODE rax
+#define TRACY_IP_REG rip
+
+#define TRACY_STACK_POINTER rsp
+
+#define TRACY_ARG_0 rdi
+#define TRACY_ARG_1 rsi
+#define TRACY_ARG_2 rdx
+#define TRACY_ARG_3 r10
+#define TRACY_ARG_4 r8
+#define TRACY_ARG_5 r9
+
+#define TRACY_NR_MMAP __NR_mmap
+
+/* Register used to pass trampy code the tracer PID */
+#define TRAMPY_PID_REG r8
+#define TRAMPY_PID_ARG a4
+
 /*
  * TODO:
  * - Implement x32 in arch/amd64/arch.c
  */
-
 #define TRACY_ABI_COUNT 3
 
 #define TRACY_ABI_AMD64 0
