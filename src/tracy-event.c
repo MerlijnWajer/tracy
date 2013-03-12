@@ -445,8 +445,10 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
         /* TODO: Detect ABI here */
         s->abi = get_abi(s);
+#if 0
         printf("ABI: %d\n", s->abi);
         printf("Syscall: %ld: %s\n", s->syscall_num, SYSCALL_FROM_EVENT(s));
+#endif
 
         if (tracy_handle_syscall_hook(s)) {
             /* TODO: Child got killed. Event type -> quit */
