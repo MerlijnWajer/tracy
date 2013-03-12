@@ -22,7 +22,9 @@ int get_abi(struct tracy_event *s) {
 
     PTRACE_CHECK(PTRACE_GETREGS, s->child->pid, 0, &a, -1);
 
+#if 0
     printf("CS = %lx; sysinstr = %lx; ip = %lx\n", a.cs, sysinstr, s->args.ip);
+#endif
 
     if (a.cs == 0x23) {
         return TRACY_ABI_X86;
