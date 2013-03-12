@@ -92,7 +92,7 @@ static int tracy_internal_syscall(struct tracy_event *s) {
     switch(s->syscall_num) {
         /* TODO, FIXME XXX: SYS_fork is not always valid, depends on the ABI */
         case SYS_fork:
-            printf("Internal Syscall %s\n", get_syscall_name(s->syscall_num));
+            printf("Internal Syscall %s\n", get_syscall_name_abi(s->syscall_num, s->abi));
             if (tracy_safe_fork(s->child, &child)) {
                 printf("tracy_safe_fork failed!\n");
                 tracy_debug_current(s->child);
@@ -116,7 +116,7 @@ static int tracy_internal_syscall(struct tracy_event *s) {
             break;
 
         case SYS_clone:
-            printf("Internal Syscall %s\n", get_syscall_name(s->syscall_num));
+            printf("Internal Syscall %s\n", get_syscall_name_abi(s->syscall_num, s->abi));
             if (tracy_safe_fork(s->child, &child)) {
                 printf("tracy_safe_fork failed!\n");
                 tracy_debug_current(s->child);
@@ -148,7 +148,7 @@ static int tracy_internal_syscall(struct tracy_event *s) {
             break;
 
         case SYS_vfork:
-            printf("Internal Syscall %s\n", get_syscall_name(s->syscall_num));
+            printf("Internal Syscall %s\n", get_syscall_name_abi(s->syscall_num, s->abi));
             if (tracy_safe_fork(s->child, &child)) {
                 printf("tracy_safe_fork failed!\n");
                 tracy_debug_current(s->child);
@@ -235,7 +235,7 @@ static int tracy_handle_syscall_hook(struct tracy_event *e) {
 
     tracy = e->child->tracy;
 
-    name = get_syscall_name(e->syscall_num);
+    name = get_syscall_name_abi(e->syscall_num, e->abi);
 
     if (!name) {
         return 0;

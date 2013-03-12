@@ -601,7 +601,7 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
 
     if (TRACY_PRINT_SYSCALLS(t))
         printf(_y("%04d System call: %s (%ld) Pre: %d")"\n",
-                e->child->pid, get_syscall_name(e->syscall_num),
+                e->child->pid, get_syscall_name_abi(e->syscall_num, e->abi),
                 e->syscall_num, e->child->pre_syscall);
 
     hash = hash_syscall(syscall);

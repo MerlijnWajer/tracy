@@ -151,7 +151,11 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
     orig_syscall = args.TRACY_SYSCALL_REGISTER;
     orig_trampy_pid_reg = args.TRAMPY_PID_REG;
 
+    printf(_r("Safe forking syscall"));
+#if 0
+    /* TODO: Fix for ABI */
     printf(_r("Safe forking syscall:")" "_g("%s")"\n", get_syscall_name(args.TRACY_SYSCALL_REGISTER));
+#endif
 
     /* Check if this is a vfork-type syscall */
     if (orig_syscall == __NR_vfork)
