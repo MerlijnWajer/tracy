@@ -525,7 +525,7 @@ char* get_signal_name(int signal)
 }
 
 /* Python hashing algorithm for strings */
-static int hash_syscall(char * syscall) {
+static int hash_syscall(char * syscall, int abi) {
     int l, v, i;
 
     l = strlen(syscall);
@@ -536,6 +536,7 @@ static int hash_syscall(char * syscall) {
 
     for(i = 0; i < l; i++)
         v = (1000003 * v) ^ (int)syscall[i];
+    v = (v << 4) + abi;
 
     v = v ^ l;
     return v;
@@ -551,7 +552,8 @@ static int hash_syscall(char * syscall) {
  * not exist on say, BSD)
  *
  */
-int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func) {
+int tracy_set_hook(struct tracy *t, char *syscall, long abi,
+        tracy_hook_func func) {
 
     struct tracy_ll_item *item;
     int hash;
@@ -560,17 +562,21 @@ int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func) {
             tracy_hook_func pfunc;
         } _hax;
 
-    hash = hash_syscall(syscall);
+    /* XXX: Do this for each abi in abi_mask */
+
+    hash = hash_syscall(syscall, abi);
 
     item = ll_find(t->hooks, hash);
     _hax.pfunc = func;
 
     if (!item) {
         if (ll_add(t->hooks, hash, _hax.pvoid)) {
+
+            /* XXX: Add debug/print here */
             return -1;
-            /* Whoops */
         }
     } else {
+        /* XXX: Add debug/print here */
         return -1;
     }
 
@@ -604,7 +610,7 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
                 e->child->pid, get_syscall_name_abi(e->syscall_num, e->abi),
                 e->syscall_num, e->child->pre_syscall);
 
-    hash = hash_syscall(syscall);
+    hash = hash_syscall(syscall, e->abi);
 
     item = ll_find(t->hooks, hash);
 
@@ -629,28 +635,26 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
  *
  */
 int tracy_debug_current(struct tracy_child *child) {
-    return tracy_debug_current_pid(child->pid);
-}
 
-int tracy_debug_current_pid(pid_t pid) {
     struct TRACY_REGS_NAME a;
+    long abi;
 
-    PTRACE_CHECK(PTRACE_GETREGS, pid, 0, &a, -1);
+    PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &a, -1);
+
+    abi = child->event.abi;
 
     printf("DEBUG: 0: %ld 1: %ld 2: %ld 3: %ld 4: %ld 5: %ld"
             " s: %ld, R: %ld, PC: %ld SP: %ld\n",
-            a.TRACY_ARG_0, a.TRACY_ARG_1,
-            a.TRACY_ARG_2, a.TRACY_ARG_3,
-            a.TRACY_ARG_4, a.TRACY_ARG_5,
+            get_reg(&a, 0, abi), get_reg(&a, 1, abi), get_reg(&a, 2, abi),
+            get_reg(&a, 3, abi), get_reg(&a, 4, abi), get_reg(&a, 5, abi),
             a.TRACY_SYSCALL_REGISTER, a.TRACY_RETURN_CODE,
             a.TRACY_IP_REG, a.TRACY_STACK_POINTER
             );
 
     printf("DEBUG: 0: %lx 1: %lx 2: %lx 3: %lx 4: %lx 5: %lx"
             " s: %lx, R: %lx, PC: %lx SP: %lx\n",
-            a.TRACY_ARG_0, a.TRACY_ARG_1,
-            a.TRACY_ARG_2, a.TRACY_ARG_3,
-            a.TRACY_ARG_4, a.TRACY_ARG_5,
+            get_reg(&a, 0, abi), get_reg(&a, 1, abi), get_reg(&a, 2, abi),
+            get_reg(&a, 3, abi), get_reg(&a, 4, abi), get_reg(&a, 5, abi),
             a.TRACY_SYSCALL_REGISTER, a.TRACY_RETURN_CODE,
             a.TRACY_IP_REG, a.TRACY_STACK_POINTER
             );

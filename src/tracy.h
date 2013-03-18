@@ -328,7 +328,7 @@ char* get_signal_name(int signal);
  * Returns 0 on success, -1 on failure.
  */
 
-int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func);
+int tracy_set_hook(struct tracy *t, char *syscall, long abi, tracy_hook_func func);
 
 /*
  * tracy_set_signal_hook
@@ -390,7 +390,6 @@ int tracy_munmap(struct tracy_child *child, long *ret,
 
 /* -- Debug functions -- */
 int tracy_debug_current(struct tracy_child *child);
-int tracy_debug_current_pid(pid_t pid);
 void tracy_backtrace(void);
 
 /* Synchronous injection */

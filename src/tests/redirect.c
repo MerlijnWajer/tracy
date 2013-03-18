@@ -30,12 +30,15 @@ int hook_write(struct tracy_event *e) {
     struct tracy_sc_args a;
 
     if (e->child->pre_syscall) {
+        printf("ABI: %d\n", e->abi);
+        tracy_debug_current(e->child);
         if (e->args.a0 == 2) {
             memcpy(&a, &(e->args), sizeof(struct tracy_sc_args));
             a.a0 = 1;
             if (tracy_modify_syscall_args(e->child, a.syscall, &a)) {
                 return TRACY_HOOK_ABORT;
             }
+            tracy_debug_current(e->child);
         }
     }
 
@@ -47,7 +50,8 @@ int main(int argc, char** argv) {
 
     /* Tracy options */
     tracy = tracy_init(TRACY_TRACE_CHILDREN);
-    tracy_set_hook(tracy, "write", hook_write);
+    tracy_set_hook(tracy, "write", TRACY_ABI_NATIVE, hook_write);
+    tracy_set_hook(tracy, "write", TRACY_ABI_X86, hook_write);
     /*tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE);*/
 
     if (argc < 2) {

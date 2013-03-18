@@ -1,4 +1,5 @@
-#define TRACY_REGS_NAME user_regs_struct /* pt_regs doesn't work */
+#define TRACY_REGS_NAME user_regs_struct
+/* pt_regs doesn't work - user_regs_struct has more fields */
 
 #define TRACY_SYSCALL_OPSIZE 2
 
@@ -10,12 +11,15 @@
 
 #define TRACY_STACK_POINTER rsp
 
+/*
+ * XXX: DEPRECATED.
 #define TRACY_ARG_0 rdi
 #define TRACY_ARG_1 rsi
 #define TRACY_ARG_2 rdx
 #define TRACY_ARG_3 r10
 #define TRACY_ARG_4 r8
 #define TRACY_ARG_5 r9
+*/
 
 #define TRACY_NR_MMAP __NR_mmap
 
@@ -39,3 +43,5 @@
 struct tracy_event;
 
 int get_abi(struct tracy_event *s);
+long get_reg(struct TRACY_REGS_NAME *r, int reg, int abi);
+long set_reg(struct TRACY_REGS_NAME *r, int reg, int abi, long val);

@@ -30,7 +30,9 @@ ARCH_HS=
 ARCH_OS=
 endif
 
-default: libtracy.a libtracy.so $(TRACY_OS) $(ARCH_OS) tests
+default: libtracy.a libtracy.so $(TRACY_OS) $(ARCH_OS)
+
+# default is no longer tests
 
 libtracy.a: $(TRACY_OS) $(ARCH_OS)
 	ar cr $@ $^

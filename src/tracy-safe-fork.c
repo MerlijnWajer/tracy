@@ -162,7 +162,9 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
         is_vforking = 1;
 
     /* Clone can also cause vfork behaviour */
-    if (orig_syscall == __NR_clone && args.TRACY_ARG_0 & CLONE_VFORK) {
+
+#pragma message "getreg(&args, 0, 0) is abi dependent and wrong"
+    if (orig_syscall == __NR_clone && get_reg(&args, 0, 0) & CLONE_VFORK) {
         puts(_b("clone with CLONE_VFORK detected, treating as vfork call"));
         is_vforking = 1;
     }

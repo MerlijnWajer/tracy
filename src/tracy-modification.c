@@ -250,12 +250,13 @@ int tracy_modify_syscall_args(struct tracy_child *child, long syscall_number,
     #endif
 
     if (a) {
-        newargs.TRACY_ARG_0 = a->a0;
-        newargs.TRACY_ARG_1 = a->a1;
-        newargs.TRACY_ARG_2 = a->a2;
-        newargs.TRACY_ARG_3 = a->a3;
-        newargs.TRACY_ARG_4 = a->a4;
-        newargs.TRACY_ARG_5 = a->a5;
+#pragma message "Verify that this abi is ok; do we want to pass it instead?"
+        set_reg(&newargs, 0, child->event.abi, a->a0);
+        set_reg(&newargs, 1, child->event.abi, a->a1);
+        set_reg(&newargs, 2, child->event.abi, a->a2);
+        set_reg(&newargs, 3, child->event.abi, a->a3);
+        set_reg(&newargs, 4, child->event.abi, a->a4);
+        set_reg(&newargs, 5, child->event.abi, a->a5);
     }
 
     PTRACE_CHECK(PTRACE_SETREGS, child->pid, 0, &newargs, -1);

@@ -425,13 +425,16 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
                     s->syscall_num, !s->child->pre_syscall);
         */
 
+        /* Detect ABI here */
+        s->abi = get_abi(s);
+
         /* Store arguments in the cross platform/arch struct */
-        s->args.a0 = regs.TRACY_ARG_0;
-        s->args.a1 = regs.TRACY_ARG_1;
-        s->args.a2 = regs.TRACY_ARG_2;
-        s->args.a3 = regs.TRACY_ARG_3;
-        s->args.a4 = regs.TRACY_ARG_4;
-        s->args.a5 = regs.TRACY_ARG_5;
+        s->args.a0 = get_reg(&regs, 0, s->abi);
+        s->args.a1 = get_reg(&regs, 1, s->abi);
+        s->args.a2 = get_reg(&regs, 2, s->abi);
+        s->args.a3 = get_reg(&regs, 3, s->abi);
+        s->args.a4 = get_reg(&regs, 4, s->abi);
+        s->args.a5 = get_reg(&regs, 5, s->abi);
         s->args.sp = regs.TRACY_STACK_POINTER;
 
         s->args.return_code = regs.TRACY_RETURN_CODE;
@@ -442,13 +445,6 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         /* If we fork, then I can't think of a way to nicely send a pre and post
          * fork event to the user. XXX TODO FIXME */
         check_syscall(s);
-
-        /* TODO: Detect ABI here */
-        s->abi = get_abi(s);
-#if 0
-        printf("ABI: %d\n", s->abi);
-        printf("Syscall: %ld: %s\n", s->syscall_num, SYSCALL_FROM_EVENT(s));
-#endif
 
         if (tracy_handle_syscall_hook(s)) {
             /* TODO: Child got killed. Event type -> quit */

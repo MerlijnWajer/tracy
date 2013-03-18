@@ -42,3 +42,111 @@ int get_abi(struct tracy_event *s) {
 
     return -1;
 }
+
+long get_reg(struct TRACY_REGS_NAME *r, int reg, int abi) {
+    switch (abi) {
+        case TRACY_ABI_AMD64:
+        case TRACY_ABI_X32:
+            switch (reg) {
+                case 0:
+                    return r->rdi;
+                    break;
+                case 1:
+                    return r->rsi;
+                    break;
+                case 2:
+                    return r->rdx;
+                    break;
+                case 3:
+                    return r->r10;
+                    break;
+                case 4:
+                    return r->r8;
+                    break;
+                case 5:
+                    return r->r9;
+                    break;
+                }
+
+            break;
+        case TRACY_ABI_X86:
+            switch (reg) {
+                case 0:
+                    return r->rbx;
+                    break;
+                case 1:
+                    return r->rcx;
+                    break;
+                case 2:
+                    return r->rdx;
+                    break;
+                case 3:
+                    return r->rsi;
+                    break;
+                case 4:
+                    return r->rdi;
+                    break;
+                case 5:
+                    return r->rbp;
+                    break;
+                }
+            break;
+    }
+
+    /* We should never reach this */
+    return -1;
+}
+
+long set_reg(struct TRACY_REGS_NAME *r, int reg, int abi, long val) {
+    switch (abi) {
+        case TRACY_ABI_AMD64:
+        case TRACY_ABI_X32:
+            switch (reg) {
+                case 0:
+                    r->rdi = val;
+                    break;
+                case 1:
+                    r->rsi = val;
+                    break;
+                case 2:
+                    r->rdx = val;
+                    break;
+                case 3:
+                    r->r10 = val;
+                    break;
+                case 4:
+                    r->r8 = val;
+                    break;
+                case 5:
+                    r->r9 = val;
+                    break;
+                }
+            break;
+
+        case TRACY_ABI_X86:
+            switch (reg) {
+                case 0:
+                    r->rbx = val;
+                    break;
+                case 1:
+                    r->rcx = val;
+                    break;
+                case 2:
+                    r->rdx = val;
+                    break;
+                case 3:
+                    r->rsi = val;
+                    break;
+                case 4:
+                    r->rdi = val;
+                    break;
+                case 5:
+                    r->rbp = val;
+                    break;
+                }
+            break;
+
+    }
+    return 0;
+
+}
