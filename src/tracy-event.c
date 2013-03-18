@@ -90,6 +90,7 @@ static int tracy_internal_syscall(struct tracy_event *s) {
 
 
     switch(s->syscall_num) {
+#pragma message "SYS_{fork,vfork,clone} cannot be used directly; not abi safe"
         /* TODO, FIXME XXX: SYS_fork is not always valid, depends on the ABI */
         case SYS_fork:
             printf("Internal Syscall %s\n", get_syscall_name_abi(s->syscall_num, s->abi));
@@ -120,6 +121,8 @@ static int tracy_internal_syscall(struct tracy_event *s) {
             if (tracy_safe_fork(s->child, &child)) {
                 printf("tracy_safe_fork failed!\n");
                 tracy_debug_current(s->child);
+#pragma message "We still need to decide if we want to kill a child or not, perhaps"\
+                " a strict flag?"
                 /* XXX REMOVE ME*/
                 /*abort();*/
                 /* Probably kill child, or at least make sure it can't fork */
@@ -180,6 +183,7 @@ static int tracy_internal_syscall(struct tracy_event *s) {
 
 /* Empty tracy event.
  * This is returned by tracy_wait_event when all the children have died. */
+#pragma message "none_event needs to be nulled"
 static struct tracy_event none_event; /* TODO XXX FIXME NULL THIS */
 
 /* Function to handle the signal hook.
@@ -396,11 +400,13 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
                 fprintf(stderr, "tracy_modify_syscall_regs failed\n");
                 tracy_backtrace();
                 /* TODO: Kill child? */
+#pragma message "Kill child here?"
             }
             if (tracy_modify_syscall_args(s->child, s->child->denied_nr, &(s->args))) {
                 fprintf(stderr, "tracy_modify_syscall_args failed\n");
                 tracy_backtrace();
                 /* TODO: Kill child? */
+#pragma message "Kill child?"
             }
             s->child->denied_nr = 0;
 
@@ -447,7 +453,6 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         check_syscall(s);
 
         if (tracy_handle_syscall_hook(s)) {
-            /* TODO: Child got killed. Event type -> quit */
             s->type = TRACY_EVENT_QUIT;
             s->signal_num = SIGKILL;
 
