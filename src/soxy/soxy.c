@@ -450,23 +450,27 @@ int main(int argc, char *argv[]) {
     tracy->se.child_create = &soxy_child_create;
 
 #ifdef __i386__
-    if(tracy_set_hook(tracy, "socketcall", &soxy_hook_socketcall)) {
+    if(tracy_set_hook(tracy, "socketcall", TRACY_ABI_NATIVE,
+                &soxy_hook_socketcall)) {
         fprintf(stderr, "Error hooking socketcall(2)\n");
         return EXIT_FAILURE;
     }
 #else
-    if(tracy_set_hook(tracy, "socket", &soxy_hook_socket)) {
+    if(tracy_set_hook(tracy, "socket", TRACY_ABI_NATIVE,
+                &soxy_hook_socket)) {
         fprintf(stderr, "Error hooking socket(2)\n");
         return EXIT_FAILURE;
     }
 
-    if(tracy_set_hook(tracy, "connect", &soxy_hook_connect)) {
+    if(tracy_set_hook(tracy, "connect", TRACY_ABI_NATIVE,
+                &soxy_hook_connect)) {
         fprintf(stderr, "Error hooking connect(2)\n");
         return EXIT_FAILURE;
     }
 #endif
 
-    if(tracy_set_hook(tracy, "close", &soxy_hook_close)) {
+    if(tracy_set_hook(tracy, "close", TRACY_ABI_NATIVE,
+                &soxy_hook_close)) {
         fprintf(stderr, "Error hooking close(2)\n");
         return EXIT_FAILURE;
     }
