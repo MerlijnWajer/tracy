@@ -153,6 +153,6 @@ arch/arm/syscall_eabi.h:
 endif
 
 clean:
-	rm *.o *.a def_syscalls.h tests/*.o -f $(test_binaries) \
+	rm *.o *.a *.so def_syscalls.h tests/*.o -f $(test_binaries) \
 		arch/amd64/syscall_*.h arch/amd64/*.o \
-		arch/arm/syscall_*.h arch/arm/*.o
+		arch/arm/syscall_*.h arch/arm/*.o \

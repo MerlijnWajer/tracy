@@ -1,1 +1,8 @@
-tracy-safe-fork / internal_syscall
+tracy-safe-fork / internal_syscall:
+- grep for SYS_ and __NR_ ; these can never be valid for multiple ABIs.
+
+tracy_mmap / tracy_munmap
+- should work, but may have problems with 64 bit program using 32 bit abi
+    (temporarily), because we will probably want to use a 64 bit mmap.
+
+Python bindings need to be updated. (Go bindings? ☺)
