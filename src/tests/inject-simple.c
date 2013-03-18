@@ -25,7 +25,7 @@
 #include <unistd.h>
 
 #define set_hook(NAME) \
-    if (tracy_set_hook(tracy, #NAME, hook_##NAME)) { \
+    if (tracy_set_hook(tracy, #NAME, TRACY_ABI_NATIVE, hook_##NAME)) { \
         printf("Could not hook "#NAME" syscall\n"); \
         return EXIT_FAILURE; \
     }

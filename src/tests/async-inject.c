@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
     tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE |
             TRACY_VERBOSE_SIGNAL | TRACY_VERBOSE_SYSCALL);
 
-    tracy_set_hook(tracy, "write", &_write);
+    tracy_set_hook(tracy, "write", TRACY_ABI_NATIVE, &_write);
 
     if (argc < 2) {
         printf("Usage: ./example <program-name>\n");

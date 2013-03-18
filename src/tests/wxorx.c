@@ -123,17 +123,17 @@ int main (int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    if (tracy_set_hook(tracy, "mmap", hook_mmap)) {
+    if (tracy_set_hook(tracy, "mmap", TRACY_ABI_NATIVE, hook_mmap)) {
         printf("failed to hook mmap syscall.\n");
         return EXIT_FAILURE;
     }
 
-    if (tracy_set_hook(tracy, "munmap", hook_munmap)) {
+    if (tracy_set_hook(tracy, "munmap", TRACY_ABI_NATIVE, hook_munmap)) {
         printf("failed to hook munmap syscall.\n");
         return EXIT_FAILURE;
     }
 
-    if (tracy_set_hook(tracy, "mprotect", hook_mprotect)) {
+    if (tracy_set_hook(tracy, "mprotect", TRACY_ABI_NATIVE, hook_mprotect)) {
         printf("failed to hook mprotectsyscall.\n");
         return EXIT_FAILURE;
     }

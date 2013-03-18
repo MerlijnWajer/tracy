@@ -59,6 +59,7 @@ int abi_detect(struct tracy_event *s) {
         puts("x86");
     }
 #endif
+    printf("sysinstr: %lx\n", sysinstr);
     if (a.cs == 0x23) {
         /* Always 32 bit ABI */
         puts("x86");
@@ -71,13 +72,14 @@ int abi_detect(struct tracy_event *s) {
         }
     }
 #endif
-    tracy_debug_current_pid(s->child->pid);
+    tracy_debug_current(s->child);
 
     return TRACY_HOOK_CONTINUE;
 }
 
 int main(int argc, char** argv) {
     struct tracy *tracy;
+
 
     /* Tracy options */
     tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_MEMORY_FALLBACK);

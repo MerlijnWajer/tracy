@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
     /*tracy = tracy_init(TRACY_TRACE_CHILDREN);*/
     tracy = tracy_init(TRACY_TRACE_CHILDREN);
 
-    if (tracy_set_hook(tracy, "write", hook_write)) {
+    if (tracy_set_hook(tracy, "write", TRACY_ABI_NATIVE, hook_write)) {
         fprintf(stderr, "Could not hook getpid\n");
         return EXIT_FAILURE;
     }
