@@ -30,15 +30,12 @@ int hook_write(struct tracy_event *e) {
     struct tracy_sc_args a;
 
     if (e->child->pre_syscall) {
-        printf("ABI: %d\n", e->abi);
-        tracy_debug_current(e->child);
         if (e->args.a0 == 2) {
             memcpy(&a, &(e->args), sizeof(struct tracy_sc_args));
             a.a0 = 1;
             if (tracy_modify_syscall_args(e->child, a.syscall, &a)) {
                 return TRACY_HOOK_ABORT;
             }
-            tracy_debug_current(e->child);
         }
     }
 

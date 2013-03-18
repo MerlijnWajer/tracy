@@ -11,16 +11,6 @@
 
 #define TRACY_STACK_POINTER rsp
 
-/*
- * XXX: DEPRECATED.
-#define TRACY_ARG_0 rdi
-#define TRACY_ARG_1 rsi
-#define TRACY_ARG_2 rdx
-#define TRACY_ARG_3 r10
-#define TRACY_ARG_4 r8
-#define TRACY_ARG_5 r9
-*/
-
 #define TRACY_NR_MMAP __NR_mmap
 
 /* Register used to pass trampy code the tracer PID */
