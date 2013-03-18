@@ -20,6 +20,14 @@
 
 #include "soxy.h"
 
+#define tracee_perror(err, str) \
+{ \
+    long tmp = errno; \
+    errno = err; \
+    perror(str); \
+    errno = tmp; \
+}
+
 /* TODO: Store this somewhere in a safe manner */
 long boe, ba;
 
@@ -114,21 +122,23 @@ static int soxy_connect(struct tracy_event *e,
     ret = 0;
 
     if (tracy_inject_syscall(e->child, __NR_socketcall, &(e->args), &ret) || ret < 0) {
-        fprintf(stderr, "soxy_connect: tracy_inject_syscall failed\n");
+        tracee_perror(-ret, "soxy_connect: socketcall, tracy_inject_syscall failed");
         _exit(1);
     }
 
     return ret;
     /* TODO: munmap */
 #else
-    long ret;
+    long ret = 0;
 
     e->args.a0 = sockfd;
     e->args.a1 = (long)addr;
     e->args.a2 = addrlen;
 
-    if (tracy_inject_syscall(e->child, __NR_connect, &(e->args), &ret) || ret < 0) {
-        fprintf(stderr, "soxy_connect: tracy_inject_syscall failed\n");
+    if (tracy_inject_syscall(e->child,
+                get_syscall_number_abi("connect", TRACY_ABI_NATIVE),
+                &(e->args), &ret) || ret < 0) {
+        tracee_perror(-ret, "soxy_connect: tracy_inject_syscall failed");
         _exit(1);
     }
 
@@ -167,6 +177,8 @@ static int soxy_set_blocking(struct tracy_event *e, int fd, long *flags) {
     struct tracy_sc_args fcntl_args = {fd, F_GETFL, 0,
         0, 0, 0, 0, 0, 0, 0};
     if (tracy_inject_syscall(e->child, __NR_fcntl, &fcntl_args, flags)) {
+
+        tracee_perror(-*flags, "soxy_set_blocking: F_GETFL failed");
         fprintf(stderr, "F_GETFL failed\n");
         return 0;
     }
@@ -180,7 +192,7 @@ static int soxy_set_blocking(struct tracy_event *e, int fd, long *flags) {
         struct tracy_sc_args fcntl_args = {fd, F_SETFL, *flags,
             0, 0, 0, 0, 0, 0, 0};
         if (tracy_inject_syscall(e->child, __NR_fcntl, &fcntl_args, &ret)) {
-            fprintf(stderr, "F_GETFL failed\n");
+            tracee_perror(-ret, "soxy_set_blocking: F_GETFL failed");
             return 0;
         }
         fprintf(stderr, "fcntl returns: %ld\n", ret);
@@ -198,7 +210,7 @@ static int soxy_set_nonblocking(struct tracy_event *e, int fd, int flags) {
     struct tracy_sc_args fcntl_args = {fd, F_SETFL, flags,
         0, 0, 0, 0, 0, 0, 0};
     if (tracy_inject_syscall(e->child, __NR_fcntl, &fcntl_args, &ret)) {
-        fprintf(stderr, "F_GETFL failed\n");
+        tracee_perror(-ret, "soxy_set_blocking: F_SETFL failed");
         return 1;
     }
     fprintf(stderr, "fcntl returns: %ld\n", ret);
@@ -345,7 +357,7 @@ static int soxy_connect_proxy_server(struct tracy_event *e, int fd)
         0, 0};
     if(tracy_inject_syscall(e->child, __NR_write, &args1, &ret) != 0 ||
             ret != 3) {
-        perror("tracy_inject_syscall(write-send-auth-packet)");
+        tracee_perror(-ret, "tracy_inject_syscall(write-send-auth-packet)");
         return -1;
     }
 
@@ -354,7 +366,7 @@ static int soxy_connect_proxy_server(struct tracy_event *e, int fd)
         0, 0, 0};
     if(tracy_inject_syscall(e->child, __NR_read, &args2, &ret) != 0 ||
             ret != 2) {
-        perror("tracy_inject_syscall(recv-auth-response)");
+        tracee_perror(-ret, "tracy_inject_syscall(recv-auth-response)");
         return -1;
     }
 
@@ -420,7 +432,7 @@ static int soxy_connect_addr(struct tracy_event *e, int fd,
     if(tracy_inject_syscall(e->child, __NR_read, &args1, &ret) != 0 ||
             ret != sizeof(soxy_ipv4_reply_t)) {
         printf("ret = %ld\n", ret);
-        perror("tracy_inject_syscall(read-ipv4-reply)");
+        tracee_perror(-ret, "tracy_inject_syscall(read-ipv4-reply)");
         return -1;
     }
 
