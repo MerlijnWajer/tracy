@@ -48,7 +48,9 @@ int main(int argc, char** argv) {
     /* Tracy options */
     tracy = tracy_init(TRACY_TRACE_CHILDREN);
     tracy_set_hook(tracy, "write", TRACY_ABI_NATIVE, hook_write);
+#ifdef __x86_64__
     tracy_set_hook(tracy, "write", TRACY_ABI_X86, hook_write);
+#endif
     /*tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE);*/
 
     if (argc < 2) {

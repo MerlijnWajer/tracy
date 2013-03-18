@@ -46,3 +46,5 @@
 struct tracy_event;
 
 int get_abi(struct tracy_event *s);
+long get_reg(struct TRACY_REGS_NAME *r, int reg, int abi);
+long set_reg(struct TRACY_REGS_NAME *r, int reg, int abi, long val);

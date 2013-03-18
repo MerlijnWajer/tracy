@@ -149,7 +149,7 @@ arch/arm/syscall_eabi.h:
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
 		| gcc $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) \
 		| grep -v '# '| gcc $(CFLAGS) -E - | grep '{.*' \
-		> arch/arm/syscall_arm.h
+		> arch/arm/syscall_eabi.h
 endif
 
 clean:
