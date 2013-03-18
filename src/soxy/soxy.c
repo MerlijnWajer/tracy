@@ -417,7 +417,7 @@ static int soxy_connect_addr(struct tracy_event *e, int fd,
             0, 0, 0, 0, 0, 0};
         if(tracy_inject_syscall(e->child, __NR_write, &args, &ret) != 0 ||
                 ret != sizeof(req)) {
-            perror("tracy_inject_syscall(ipv4-connect-request)");
+            tracee_perror(-ret, "tracy_inject_syscall(ipv4-connect-request)");
             return -1;
         }
     }
