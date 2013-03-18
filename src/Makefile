@@ -150,9 +150,25 @@ arch/arm/syscall_eabi.h:
 		| gcc $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) \
 		| grep -v '# '| gcc $(CFLAGS) -E - | grep '{.*' \
 		> arch/arm/syscall_eabi.h
+else ifeq ($(uname_M),i686)
+#
+#					 *** x86 ***
+#
+arch/x86/arch.o: $(TRACY_HS) arch/x86/syscalls.h
+arch/x86/syscalls.h: $(TRACY_HS) arch/x86/syscall_eabi.h
+
+arch/x86/syscall_x86.h:
+	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E -dM | \
+		grep "define SYS" | cut -f2 -d" " \
+		| ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; \
+		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
+		| gcc $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) \
+		| grep -v '# '| gcc $(CFLAGS) -E - | grep '{.*' \
+		> arch/x86/syscall_x86.h
 endif
 
 clean:
 	rm *.o *.a *.so def_syscalls.h tests/*.o -f $(test_binaries) \
 		arch/amd64/syscall_*.h arch/amd64/*.o \
 		arch/arm/syscall_*.h arch/arm/*.o \
+		arch/x86/syscall_*.h arch/x86/*.o
