@@ -45,7 +45,7 @@ The following tracy options are available:
 - **TRACY_USE_SAFE_TRACE**
 
   Enables experimental tracing of all created children. Instead of relying on
-  Linux' mechanism to automatically tracy all created children, we utilise our
+  Linux' mechanism to automatically trace all created children, we utilise our
   own safe tracing mechanism. Theoretically this should also work on BSD
   platforms, but has not yet been tested.
 

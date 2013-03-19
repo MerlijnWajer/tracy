@@ -161,12 +161,19 @@ the PTRACE_KILL argument.
 
 Return 0 upon success, -1 upon failure.
 
-get_syscall_name
-----------------
+get_syscall_name_abi
+--------------------
 
 .. code-block:: c
 
-    char* get_syscall_name(int syscall);
+    char* get_syscall_name_abi(int syscall, int abi);
+
+get_syscall_number_abi
+----------------------
+
+.. code-block:: c
+
+    char* get_syscall_number_abi(char * syscall, int abi);
 
 get_signal_name
 ---------------
@@ -283,8 +290,9 @@ tracy_inject_syscall
 .. **
 
 Inject a system call in process defined by tracy_child *child*.
-The syscall_number is the number of the system call; use *SYS_foo* or
-*__NR_foo* to retrieve these numbers. *a* is a pointer to the system
+The syscall_number is the number of the system call; use
+`get_syscall_number_abi`_ to get the right number.
+*a* is a pointer to the system
 call arguments. The *return_code* will be set to the return code of the
 system call.
 
@@ -300,9 +308,9 @@ tracy_inject_syscall_async
 .. **
 
 Inject a system call in process defined by tracy_child *child*.
-The syscall_number is the number of the system call; use *SYS_foo* or
-*__NR_foo* to retrieve these numbers. *a* is a pointer to the system
-call arguments.
+The syscall_number is the number of the system call; use
+`get_syscall_number_abi`_ to get the right number.
+*a* is a pointer to the system call arguments.
 
 The injection will be asynchronous; meaning that this function will return
 before the injection has finished. To be notified when injection has

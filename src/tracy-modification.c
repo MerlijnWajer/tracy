@@ -33,8 +33,9 @@
  * tracy_inject_syscall
  *
  * Inject a system call in process defined by tracy_child *child*.
- * The syscall_number is the number of the system call; use *SYS_foo* or
- * *__NR_foo* to retrieve these numbers. *a* is a pointer to the system
+ * The syscall_number is the number of the system call; use
+ * get_syscall_number_abi to get the right number.
+ * *a* is a pointer to the system
  * call arguments. The *return_code* will be set to the return code of the
  * system call.
  *
@@ -76,9 +77,9 @@ int tracy_inject_syscall(struct tracy_child *child, long syscall_number,
  * tracy_inject_syscall_async
  *
  * Inject a system call in process defined by tracy_child *child*.
- * The syscall_number is the number of the system call; use *SYS_foo* or
- * *__NR_foo* to retrieve these numbers. *a* is a pointer to the system
- * call arguments.
+ * The syscall_number is the number of the system call; use
+ * get_syscall_number_abi to get the right number.
+ * *a* is a pointer to the system call arguments.
  *
  * The injection will be asynchronous; meaning that this function will return
  * before the injection has finished. To be notified when injection has

@@ -372,6 +372,7 @@ int tracy_mmap(struct tracy_child *child, tracy_child_addr_t *ret,
         tracy_child_addr_t addr, size_t length, int prot, int flags, int fd,
         off_t pgoffset) {
     struct tracy_sc_args a;
+    long mmap_nr;
 
     a.a0 = (long) addr;
     a.a1 = (long) length;
@@ -384,7 +385,9 @@ int tracy_mmap(struct tracy_child *child, tracy_child_addr_t *ret,
      * mmap and mmap2 here, however we should add an expression
      * that normalises the offset parameter passed to both flavors of mmap.
      */
-    if (tracy_inject_syscall(child, TRACY_NR_MMAP, &a, (long*)ret))
+#pragma message "mmap2?"
+    mmap_nr = get_syscall_number_abi("mmap2", child->event.abi);
+    if (tracy_inject_syscall(child, mmap_nr, &a, (long*)ret))
         return -1;
 
     return 0;
@@ -394,11 +397,13 @@ int tracy_mmap(struct tracy_child *child, tracy_child_addr_t *ret,
 int tracy_munmap(struct tracy_child *child, long *ret,
        tracy_child_addr_t addr, size_t length) {
     struct tracy_sc_args a;
+    long munmap_nr;
 
     a.a0 = (long) addr;
     a.a1 = (long) length;
 
-    if (tracy_inject_syscall(child, __NR_munmap, &a, ret)) {
+    munmap_nr = get_syscall_number_abi("munmap", child->event.abi);
+    if (tracy_inject_syscall(child, munmap_nr, &a, ret)) {
         return -1;
     }
 
