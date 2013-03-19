@@ -325,7 +325,7 @@ int tracy_deny_syscall(struct tracy_child *child) {
         return -1;
     }
     nr = child->event.syscall_num;
-    r = tracy_modify_syscall_args(child, __NR_getpid, NULL);
+    r = tracy_modify_syscall_args(child, get_syscall_number_abi("getpid", child->event.abi), NULL);
     if (!r)
         child->denied_nr = nr;
     return r;
