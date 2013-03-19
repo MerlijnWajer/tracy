@@ -387,6 +387,8 @@ int tracy_mmap(struct tracy_child *child, tracy_child_addr_t *ret,
      */
 #pragma message "mmap2?"
     mmap_nr = get_syscall_number_abi("mmap2", child->event.abi);
+    if (mmap_nr == -1)
+        mmap_nr = get_syscall_number_abi("mmap", child->event.abi);
     if (tracy_inject_syscall(child, mmap_nr, &a, (long*)ret))
         return -1;
 
