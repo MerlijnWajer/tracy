@@ -28,6 +28,20 @@
     errno = tmp; \
 }
 
+#ifdef __i386__
+#define HAVE_SOCKETCALL(x) \
+    1
+#endif
+#ifdef __x86_64__
+#define HAVE_SOCKETCALL(x) \
+    (x == TRACY_ABI_X86)
+#endif
+#ifdef __arm__
+#define HAVE_SOCKETCALL(x) \
+    0
+#endif
+
+
 /* TODO: Store this somewhere in a safe manner */
 long boe, ba;
 
@@ -61,20 +75,26 @@ static int proxy_set(struct tracy_event *e, int fd, proxy_t *proxy) {
     }
 }
 
-#ifdef __i386__
 static int soxy_hook_socketcall(struct tracy_event *e) {
     long nr;
     long read;
-    unsigned long *args = malloc(sizeof(long) * 3);
-    nr = e->args.a0;
+    uint32_t *args = malloc(sizeof(uint32_t) * 3);
+    nr = (long)(int)e->args.a0;
 
     read = tracy_read_mem(e->child, (tracy_parent_addr_t) args,
-            (tracy_child_addr_t) e->args.a1, sizeof(long) * 3);
+            (tracy_child_addr_t) e->args.a1, sizeof(uint32_t) * 3);
 
-    if (read != sizeof(long) * 3) {
+    if (read != sizeof(uint32_t) * 3) {
         fprintf(stderr, "Reading socketcall arguments failed\n");
         _exit(1);
     }
+
+    printf("Syscall: %d", nr);
+    printf(" args: %ld, %ld, %ld\n",
+            args[0],
+            args[1],
+            args[2]);
+
     if (nr == SYS_SOCKET) {
         e->args.a0 = args[0];
         e->args.a1 = args[1];
@@ -87,15 +107,14 @@ static int soxy_hook_socketcall(struct tracy_event *e) {
         return soxy_hook_connect(e);
     }
 }
-#endif
-
-static int soxy_connect(struct tracy_event *e,
+static int connect_socketcall(
+        struct tracy_event *e,
         int sockfd, const struct sockaddr *addr,
         socklen_t addrlen) {
-#ifdef __i386__
     ssize_t args_len;
     unsigned long *args;
     long ret;
+    long socketcall_nr;
     tracy_child_addr_t mem;
 
     if(tracy_mmap(e->child, &mem, NULL, 0x1000,
@@ -117,43 +136,55 @@ static int soxy_connect(struct tracy_event *e,
         _exit(1);
     }
 
-    e->args.a0 = SYS_CONNECT;
+    e->args.a0 = get_syscall_number_abi("connect", e->abi);
     e->args.a1 = (long)mem;
     ret = 0;
 
-    if (tracy_inject_syscall(e->child, __NR_socketcall, &(e->args), &ret) || ret < 0) {
+    socketcall_nr = get_syscall_number_abi("socketcall", e->abi);
+    if (tracy_inject_syscall(e->child, socketcall_nr, &(e->args), &ret) || ret < 0) {
         tracee_perror(-ret, "soxy_connect: socketcall, tracy_inject_syscall failed");
         _exit(1);
     }
 
     return ret;
-    /* TODO: munmap */
-#else
-    long ret = 0;
+}
 
-    e->args.a0 = sockfd;
-    e->args.a1 = (long)addr;
-    e->args.a2 = addrlen;
+static int soxy_connect(struct tracy_event *e,
+        int sockfd, const struct sockaddr *addr,
+        socklen_t addrlen, int socket_call) {
+    if (socket_call) {
+        return connect_socketcall(e, sockfd, addr, addrlen);
+    } else {
+        long ret = 0;
 
-    if (tracy_inject_syscall(e->child,
-                get_syscall_number_abi("connect", TRACY_ABI_NATIVE),
-                &(e->args), &ret) || ret < 0) {
-        tracee_perror(-ret, "soxy_connect: tracy_inject_syscall failed");
-        _exit(1);
+        e->args.a0 = sockfd;
+        e->args.a1 = (long)addr;
+        e->args.a2 = addrlen;
+
+        if (tracy_inject_syscall(e->child,
+                    get_syscall_number_abi("connect", TRACY_ABI_NATIVE),
+                    &(e->args), &ret) || ret < 0) {
+            tracee_perror(-ret, "soxy_connect: tracy_inject_syscall failed");
+            _exit(1);
+        }
+
+        return ret;
     }
-
-    return ret;
-#endif
 }
 
 static int soxy_hook_socket(struct tracy_event *e) {
     proxy_t * proxy;
+
+    fprintf(stderr, "hook_socket\n");
     if (e->child->pre_syscall) {
         /* FIXME */
+        printf("Storing boe, ba\n");
         boe = e->args.a0;
-        ba = e->args.a1;
+        ba =  e->args.a1;
 
     } else {
+        puts("Post-socket\n");
+        printf("boe: %ld; ba: %ld\n", boe, ba);
         if(boe == AF_INET && ba == SOCK_STREAM) {
             fprintf(stderr, "We found a relevant fd\n");
             proxy = (proxy_t *) calloc(1, sizeof(proxy_t));
@@ -172,11 +203,13 @@ static int soxy_hook_socket(struct tracy_event *e) {
 /* This function will temporarily change a socket from being non-blocking to
  * blocking to ease the initial SOCKS 5 connection. */
 static int soxy_set_blocking(struct tracy_event *e, int fd, long *flags) {
-    long ret;
+    long ret, fcntl_nr;
     long nonblocking;
     struct tracy_sc_args fcntl_args = {fd, F_GETFL, 0,
         0, 0, 0, 0, 0, 0, 0};
-    if (tracy_inject_syscall(e->child, __NR_fcntl, &fcntl_args, flags)) {
+
+    fcntl_nr = get_syscall_number_abi("fcntl", e->abi);
+    if (tracy_inject_syscall(e->child, fcntl_nr, &fcntl_args, flags)) {
 
         tracee_perror(-*flags, "soxy_set_blocking: F_GETFL failed");
         fprintf(stderr, "F_GETFL failed\n");
@@ -191,7 +224,7 @@ static int soxy_set_blocking(struct tracy_event *e, int fd, long *flags) {
 
         struct tracy_sc_args fcntl_args = {fd, F_SETFL, *flags,
             0, 0, 0, 0, 0, 0, 0};
-        if (tracy_inject_syscall(e->child, __NR_fcntl, &fcntl_args, &ret)) {
+        if (tracy_inject_syscall(e->child, fcntl_nr, &fcntl_args, &ret)) {
             tracee_perror(-ret, "soxy_set_blocking: F_GETFL failed");
             return 0;
         }
@@ -206,10 +239,11 @@ static int soxy_set_blocking(struct tracy_event *e, int fd, long *flags) {
 /* This function will change a socket from blocking to non-blocking to
  * undo the effect of ``soxy_set_blocking''. */
 static int soxy_set_nonblocking(struct tracy_event *e, int fd, int flags) {
-    long ret;
+    long ret, fcntl_nr;
     struct tracy_sc_args fcntl_args = {fd, F_SETFL, flags,
         0, 0, 0, 0, 0, 0, 0};
-    if (tracy_inject_syscall(e->child, __NR_fcntl, &fcntl_args, &ret)) {
+    fcntl_nr = get_syscall_number_abi("fcntl", e->abi);
+    if (tracy_inject_syscall(e->child, fcntl_nr, &fcntl_args, &ret)) {
         tracee_perror(-ret, "soxy_set_blocking: F_SETFL failed");
         return 1;
     }
@@ -221,6 +255,8 @@ static int soxy_hook_connect(struct tracy_event *e) {
     long flags;
     long nonblocking;
     int fd;
+
+    fprintf(stderr, "hook_connect\n");
 
     if(e->child->pre_syscall) {
         struct sockaddr_in addr;
@@ -283,11 +319,17 @@ static int soxy_hook_connect(struct tracy_event *e) {
             // Set arguments
             memcpy(&args, &e->args, sizeof(args));
             args.return_code = proxy->return_code;
-#ifdef __i686__
-            tracy_modify_syscall_regs(e->child, __NR_socketcall, &args);
-#else
-            tracy_modify_syscall_regs(e->child, __NR_connect, &args);
-#endif
+            if (HAVE_SOCKETCALL(e->abi)) {
+                {
+                long socketcall_nr = get_syscall_number_abi("socketcall", e->abi);
+                tracy_modify_syscall_regs(e->child, socketcall_nr, &args);
+                }
+            } else {
+                {
+                long connect_nr = get_syscall_number_abi("connect", e->abi);
+                tracy_modify_syscall_regs(e->child, connect_nr, &args);
+                }
+            }
         }
     }
     return 0;
@@ -333,15 +375,17 @@ static int soxy_connect_proxy_server(struct tracy_event *e, int fd)
     }
 
     // write the proxy server's sockaddr
-    if(tracy_write_mem(e->child, proxy->map, &proxy_addr, proxy_addr_len)
-            != (ssize_t) proxy_addr_len) {
+    long r;
+    r = tracy_write_mem(e->child, proxy->map, &proxy_addr, proxy_addr_len);
+    printf("r: %ld\n", r);
+    if(r != (ssize_t) proxy_addr_len) {
         perror("tracy_write_mem(proxy-sockaddr)");
         return -1;
     }
 
     // connect to the proxy server
     long ret = 0;
-    ret = soxy_connect(e, fd, proxy->map, proxy_addr_len);
+    ret = soxy_connect(e, fd, proxy->map, proxy_addr_len, HAVE_SOCKETCALL(e->abi));
     if (ret < 0) {
         fprintf(stderr, "connect-proxy-server: ret = %ld\n", ret);
         return -1;
@@ -355,7 +399,9 @@ static int soxy_connect_proxy_server(struct tracy_event *e, int fd)
 
     struct tracy_sc_args args1 = {fd, (long) proxy->map, 3, 0, 0, 0, 0, 0,
         0, 0};
-    if(tracy_inject_syscall(e->child, __NR_write, &args1, &ret) != 0 ||
+
+    long write_nr = get_syscall_number_abi("write", e->abi);
+    if(tracy_inject_syscall(e->child, write_nr, &args1, &ret) != 0 ||
             ret != 3) {
         tracee_perror(-ret, "tracy_inject_syscall(write-send-auth-packet)");
         return -1;
@@ -364,7 +410,8 @@ static int soxy_connect_proxy_server(struct tracy_event *e, int fd)
     // retrieve proxy server's response
     struct tracy_sc_args args2 = {fd, (long) proxy->map, 0x1000, 0, 0, 0, 0,
         0, 0, 0};
-    if(tracy_inject_syscall(e->child, __NR_read, &args2, &ret) != 0 ||
+    long read_nr = get_syscall_number_abi("read", e->abi);
+    if(tracy_inject_syscall(e->child, read_nr, &args2, &ret) != 0 ||
             ret != 2) {
         tracee_perror(-ret, "tracy_inject_syscall(recv-auth-response)");
         return -1;
@@ -461,6 +508,13 @@ int main(int argc, char *argv[]) {
 
     tracy->se.child_create = &soxy_child_create;
 
+#ifdef __x86_64__
+    if(tracy_set_hook(tracy, "socketcall", TRACY_ABI_X86,
+                &soxy_hook_socketcall)) {
+        fprintf(stderr, "Error hooking socketcall(2)\n");
+        return EXIT_FAILURE;
+    }
+#endif
 #ifdef __i386__
     if(tracy_set_hook(tracy, "socketcall", TRACY_ABI_NATIVE,
                 &soxy_hook_socketcall)) {

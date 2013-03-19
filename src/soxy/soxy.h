@@ -44,7 +44,7 @@ typedef struct __attribute__((packed)) _soxy_ipv4_reply_t {
 static int soxy_hook_socket(struct tracy_event *e);
 static int soxy_hook_connect(struct tracy_event *e);
 static int soxy_connect(struct tracy_event *e, int sockfd,
-        const struct sockaddr *addr, socklen_t addrlen);
+        const struct sockaddr *addr, socklen_t addrlen, int socket_call);
 static int soxy_connect_proxy_server(struct tracy_event *e, int fd);
 static int soxy_connect_addr(struct tracy_event *e, int fd,
     struct sockaddr *addr);
