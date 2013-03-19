@@ -90,10 +90,7 @@ static int soxy_hook_socketcall(struct tracy_event *e) {
     }
 
     printf("Syscall: %d", nr);
-    printf(" args: %ld, %ld, %ld\n",
-            args[0],
-            args[1],
-            args[2]);
+    printf(" args: %d, %d, %d\n", args[0], args[1], args[2]);
 
     if (nr == SYS_SOCKET) {
         e->args.a0 = args[0];
@@ -136,12 +133,17 @@ static int connect_socketcall(
         _exit(1);
     }
 
-    e->args.a0 = get_syscall_number_abi("connect", e->abi);
-    e->args.a1 = (long)mem;
+    e->args.a0 = SYS_CONNECT;
+    e->args.a1 = (long)(uint32_t)mem;
+    printf("Arguments: %ld | %lx\n", e->args.a0, e->args.a1);
     ret = 0;
 
     socketcall_nr = get_syscall_number_abi("socketcall", e->abi);
-    if (tracy_inject_syscall(e->child, socketcall_nr, &(e->args), &ret) || ret < 0) {
+    printf("socketcall_nr: %ld\n", socketcall_nr);
+    long res = tracy_inject_syscall(e->child, socketcall_nr, &(e->args), &ret);
+    printf("res: %ld\n", res);
+    printf("ret: %ld\n", ret);
+    if (res || ret < 0) {
         tracee_perror(-ret, "soxy_connect: socketcall, tracy_inject_syscall failed");
         _exit(1);
     }
