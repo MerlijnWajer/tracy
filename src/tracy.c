@@ -54,6 +54,9 @@
 #ifdef __x86_64__
 #include "arch/amd64/syscalls.h"
 #endif
+#ifdef __i386__
+#include "arch/x86/syscalls.h"
+#endif
 #ifdef __arm__
 #include "arch/arm/syscalls.h"
 #endif

@@ -25,6 +25,9 @@ ARCH_OS=arch/amd64/arch.o
 else ifeq ($(uname_M),armv5tel)
 ARCH_HS=arch/arm/arch.h arch/arm/syscalls.h
 ARCH_OS=arch/arm/arch.o
+else ifeq ($(uname_M),i686)
+ARCH_HS=arch/x86/arch.h arch/x86/syscalls.h
+ARCH_OS=arch/x86/arch.o
 else
 ARCH_HS=
 ARCH_OS=
@@ -155,7 +158,7 @@ else ifeq ($(uname_M),i686)
 #					 *** x86 ***
 #
 arch/x86/arch.o: $(TRACY_HS) arch/x86/syscalls.h
-arch/x86/syscalls.h: $(TRACY_HS) arch/x86/syscall_eabi.h
+arch/x86/syscalls.h: $(TRACY_HS) arch/x86/syscall_x86.h
 
 arch/x86/syscall_x86.h:
 	echo "#include <sys/syscall.h>" | gcc $(CFLAGS) - -E -dM | \
