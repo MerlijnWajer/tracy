@@ -21,12 +21,6 @@
  * ARM does nasty stuff
  * http://www.arm.linux.org.uk/developer/patches/viewpatch.php?id=3105/4
  */
-#define TRACY_ARG_0 ARM_r0
-#define TRACY_ARG_1 ARM_r1
-#define TRACY_ARG_2 ARM_r2
-#define TRACY_ARG_3 ARM_r3
-#define TRACY_ARG_4 ARM_r4
-#define TRACY_ARG_5 ARM_r5
 
 #define TRACY_NR_MMAP __NR_mmap2
 
