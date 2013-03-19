@@ -93,6 +93,7 @@ long get_reg(struct TRACY_REGS_NAME *r, int reg, int abi) {
             break;
     }
 
+#pragma message "get_reg: return -1 could also be a valid register value, maybe do something else?"
     /* We should never reach this */
     return -1;
 }
