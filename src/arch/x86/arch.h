@@ -10,13 +10,6 @@
 
 #define TRACY_STACK_POINTER esp
 
-#define TRACY_ARG_0 ebx
-#define TRACY_ARG_1 ecx
-#define TRACY_ARG_2 edx
-#define TRACY_ARG_3 esi
-#define TRACY_ARG_4 edi
-#define TRACY_ARG_5 ebp
-
 #define TRACY_NR_MMAP __NR_mmap2
 
 /* Register used to pass trampy code the tracer PID */
