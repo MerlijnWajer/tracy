@@ -63,6 +63,7 @@ static void get_proxy_server(struct sockaddr *addr, socklen_t *proxy_addr_len) {
 
 static proxy_t *proxy_find(struct tracy_event *e, int fd) {
     struct tracy_ll_item *p = ll_find((struct tracy_ll *) e->child->custom, fd);
+    printf("*** Searching for proxy with fd: %d\n", fd);
     return (p != NULL) ? (proxy_t *) p->data : NULL;
 }
 
@@ -71,6 +72,7 @@ static int proxy_set(struct tracy_event *e, int fd, proxy_t *proxy) {
         return ll_del((struct tracy_ll *) e->child->custom, fd);
     }
     else {
+        printf("*** Setting proxy: %d\n", fd);
         return ll_add((struct tracy_ll *) e->child->custom, fd, proxy);
     }
 }
@@ -89,8 +91,8 @@ static int soxy_hook_socketcall(struct tracy_event *e) {
         _exit(1);
     }
 
-    printf("Syscall: %d", nr);
-    printf(" args: %d, %d, %d\n", args[0], args[1], args[2]);
+    printf("Syscall: %ld", nr);
+    printf(" args: %u, %x, %u\n", args[0], args[1], args[2]);
 
     if (nr == SYS_SOCKET) {
         e->args.a0 = args[0];
@@ -109,6 +111,7 @@ static int connect_socketcall(
         int sockfd, const struct sockaddr *addr,
         socklen_t addrlen) {
     ssize_t args_len;
+    /* XXX: was unsigned long */
     unsigned long *args;
     long ret;
     long socketcall_nr;
@@ -123,9 +126,19 @@ static int connect_socketcall(
 
     args_len = sizeof(int) + sizeof(const struct sockaddr *) + sizeof(socklen_t);
     args = malloc(args_len);
-    args[0] = sockfd;
-    args[1] = (long)addr;
-    args[2] = addrlen;
+    if HAVE_SOCKETCALL(e->abi) {
+        uint32_t *p = (uint32_t)args;
+        p[0] = sockfd;
+        p[1] = (long)addr;
+        p[2] = addrlen;
+        printf("Args: Sockfd: %d, Addr: %x, Addrlen: %d\n", p[0], p[1], p[2]);
+    } else {
+        args[0] = sockfd;
+        args[1] = (long)addr;
+        args[2] = addrlen;
+        printf("Args: Sockfd: %ld, Addr: %lx, Addrlen: %ld\n", args[0], args[1], args[2]);
+    }
+
 
     if(tracy_write_mem(e->child, mem, args, args_len)
             != (ssize_t) args_len) {
@@ -293,7 +306,7 @@ static int soxy_hook_connect(struct tracy_event *e) {
 
             // we have now successfully "authed" to the proxy server, now it's
             // time to give the proxy server the information where to connect.
-            if(soxy_connect_addr(e, e->args.a0, (struct sockaddr *) &addr)
+            if(soxy_connect_addr(e, fd, (struct sockaddr *) &addr)
                     < 0) {
                 return 0;
             }
@@ -320,7 +333,7 @@ static int soxy_hook_connect(struct tracy_event *e) {
         if(proxy != NULL && proxy->change_return_code != 0) {
             // Set arguments
             memcpy(&args, &e->args, sizeof(args));
-            args.return_code = proxy->return_code;
+            args.return_code = (int32_t) proxy->return_code;
             if (HAVE_SOCKETCALL(e->abi)) {
                 {
                 long socketcall_nr = get_syscall_number_abi("socketcall", e->abi);
@@ -392,7 +405,6 @@ static int soxy_connect_proxy_server(struct tracy_event *e, int fd)
         fprintf(stderr, "connect-proxy-server: ret = %ld\n", ret);
         return -1;
     }
-
     // request auth method (we only support no-auth)
     if(tracy_write_mem(e->child, proxy->map, "\x05\x01\x00", 3) != 3) {
         perror("tracy_write_mem(request-auth-packet)");
@@ -464,7 +476,8 @@ static int soxy_connect_addr(struct tracy_event *e, int fd,
         // send the packet over the socket
         struct tracy_sc_args args = {fd, (long) proxy->map, sizeof(req), 0,
             0, 0, 0, 0, 0, 0};
-        if(tracy_inject_syscall(e->child, __NR_write, &args, &ret) != 0 ||
+        long write_nr = get_syscall_number_abi("write", e->abi);
+        if(tracy_inject_syscall(e->child, write_nr, &args, &ret) != 0 ||
                 ret != sizeof(req)) {
             tracee_perror(-ret, "tracy_inject_syscall(ipv4-connect-request)");
             return -1;
@@ -478,7 +491,8 @@ static int soxy_connect_addr(struct tracy_event *e, int fd,
     // receive the response from the server
     struct tracy_sc_args args1 = {fd, (long) proxy->map, 0x1000, 0, 0, 0, 0,
         0, 0, 0};
-    if(tracy_inject_syscall(e->child, __NR_read, &args1, &ret) != 0 ||
+    long read_nr = get_syscall_number_abi("read", e->abi);
+    if(tracy_inject_syscall(e->child, read_nr, &args1, &ret) != 0 ||
             ret != sizeof(soxy_ipv4_reply_t)) {
         printf("ret = %ld\n", ret);
         tracee_perror(-ret, "tracy_inject_syscall(read-ipv4-reply)");
