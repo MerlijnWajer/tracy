@@ -63,7 +63,6 @@ static void get_proxy_server(struct sockaddr *addr, socklen_t *proxy_addr_len) {
 
 static proxy_t *proxy_find(struct tracy_event *e, int fd) {
     struct tracy_ll_item *p = ll_find((struct tracy_ll *) e->child->custom, fd);
-    printf("*** Searching for proxy with fd: %d\n", fd);
     return (p != NULL) ? (proxy_t *) p->data : NULL;
 }
 
@@ -111,7 +110,6 @@ static int connect_socketcall(
         int sockfd, const struct sockaddr *addr,
         socklen_t addrlen) {
     ssize_t args_len;
-    /* XXX: was unsigned long */
     unsigned long *args;
     long ret;
     long socketcall_nr;
@@ -138,7 +136,6 @@ static int connect_socketcall(
         args[2] = addrlen;
         printf("Args: Sockfd: %ld, Addr: %lx, Addrlen: %ld\n", args[0], args[1], args[2]);
     }
-
 
     if(tracy_write_mem(e->child, mem, args, args_len)
             != (ssize_t) args_len) {
@@ -190,7 +187,6 @@ static int soxy_connect(struct tracy_event *e,
 static int soxy_hook_socket(struct tracy_event *e) {
     proxy_t * proxy;
 
-    fprintf(stderr, "hook_socket\n");
     if (e->child->pre_syscall) {
         /* FIXME */
         printf("Storing boe, ba\n");
@@ -198,7 +194,6 @@ static int soxy_hook_socket(struct tracy_event *e) {
         ba =  e->args.a1;
 
     } else {
-        puts("Post-socket\n");
         printf("boe: %ld; ba: %ld\n", boe, ba);
         if(boe == AF_INET && ba == SOCK_STREAM) {
             fprintf(stderr, "We found a relevant fd\n");
@@ -271,8 +266,6 @@ static int soxy_hook_connect(struct tracy_event *e) {
     long nonblocking;
     int fd;
 
-    fprintf(stderr, "hook_connect\n");
-
     if(e->child->pre_syscall) {
         struct sockaddr_in addr;
 
@@ -306,8 +299,7 @@ static int soxy_hook_connect(struct tracy_event *e) {
 
             // we have now successfully "authed" to the proxy server, now it's
             // time to give the proxy server the information where to connect.
-            if(soxy_connect_addr(e, fd, (struct sockaddr *) &addr)
-                    < 0) {
+            if(soxy_connect_addr(e, fd, (struct sockaddr *) &addr) < 0) {
                 return 0;
             }
 
@@ -337,12 +329,16 @@ static int soxy_hook_connect(struct tracy_event *e) {
             if (HAVE_SOCKETCALL(e->abi)) {
                 {
                 long socketcall_nr = get_syscall_number_abi("socketcall", e->abi);
-                tracy_modify_syscall_regs(e->child, socketcall_nr, &args);
+                if (tracy_modify_syscall_regs(e->child, socketcall_nr, &args)) {
+                    fprintf(stderr, "Tracy_modify_syscall_regs failed\n");
+                }
                 }
             } else {
                 {
                 long connect_nr = get_syscall_number_abi("connect", e->abi);
-                tracy_modify_syscall_regs(e->child, connect_nr, &args);
+                if(tracy_modify_syscall_regs(e->child, connect_nr, &args)) {
+                    fprintf(stderr, "Tracy_modify_syscall_regs failed\n");
+                }
                 }
             }
         }
@@ -392,7 +388,6 @@ static int soxy_connect_proxy_server(struct tracy_event *e, int fd)
     // write the proxy server's sockaddr
     long r;
     r = tracy_write_mem(e->child, proxy->map, &proxy_addr, proxy_addr_len);
-    printf("r: %ld\n", r);
     if(r != (ssize_t) proxy_addr_len) {
         perror("tracy_write_mem(proxy-sockaddr)");
         return -1;
