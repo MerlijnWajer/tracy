@@ -124,7 +124,7 @@ static int connect_socketcall(
 
     args_len = sizeof(int) + sizeof(const struct sockaddr *) + sizeof(socklen_t);
     args = malloc(args_len);
-    if HAVE_SOCKETCALL(e->abi) {
+    if (HAVE_SOCKETCALL(e->abi)) {
         uint32_t *p = (uint32_t)args;
         p[0] = sockfd;
         p[1] = (long)addr;
