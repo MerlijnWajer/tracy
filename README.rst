@@ -14,7 +14,47 @@ Example
 C API
 -----
 
-TODO
+.. code-block:: C
+
+    int hook_write(struct tracy_event * e) {
+        if (e->child->pre_syscall) {
+            if(e->args.a0 == 1) {
+                return TRACY_HOOK_DENY;
+            }
+        }
+
+        return TRACY_HOOK_CONTINUE;
+    }
+
+    int main(int argc, char** argv) {
+        struct tracy * tracy;
+
+        tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE);
+
+        if (tracy_set_hook(tracy, "write", TRACY_ABI_NATIVE, hook_write)) {
+            fprintf(stderr, "Could not hook getpid\n");
+            return EXIT_FAILURE;
+        }
+
+        if (argc < 2) {
+            printf("Usage: ./example <program-name>\n");
+            return EXIT_FAILURE;
+        }
+
+        argv++; argc--;
+
+        if (!tracy_exec(tracy, argv)) {
+            perror("tracy_exec");
+            return EXIT_FAILURE;
+        }
+
+        tracy_main(tracy);
+
+        tracy_free(tracy);
+
+        return EXIT_SUCCESS;
+    }
+
 
 Python API
 ----------

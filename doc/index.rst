@@ -10,7 +10,6 @@ Welcome to Tracy's documentation!
    :maxdepth: 2
 
    intro.rst
-   todo.rst
    reference.rst
    examples.rst
    devdoc.rst
