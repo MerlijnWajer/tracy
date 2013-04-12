@@ -223,11 +223,11 @@ struct tracy_child* tracy_exec(struct tracy *t, char **argv) {
          * restart the child and let it call exec() */
         raise(SIGTRAP);
 
-        execv(argv[0], argv);
+        execvp(argv[0], argv);
 
         if (errno) {
             perror("tracy_exec");
-            fprintf(stderr, "execv failed.\n");
+            fprintf(stderr, "execvp failed.\n");
             _exit(1);
         }
     }
