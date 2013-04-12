@@ -3,11 +3,12 @@ API Reference
 
 This section contains documentation on all public functions exported by Tracy.
 
-Tracy object
-~~~~~~~~~~~~
+Tracy instance
+~~~~~~~~~~~~~~
 
-A Tracy object is required for all tracy functions; make sure you only create
-and initialise one. Creating more than one instance in one process
+A Tracy instance is required for all tracy functions; make sure you
+only create and initialise one.
+Creating more than one instance in one process
 (especially: using them) is madness and should not be done.
 
 .. _rtracy_init:
@@ -39,7 +40,7 @@ on success. Current possible options for *opt*:
 
 Multiple options can be passed by using the OR operator.
 
-Returns the tracy record created.
+Returns the tracy instance created.
 
 tracy_free
 ----------
@@ -190,11 +191,12 @@ tracy_set_hook
 
 .. code-block:: c
 
-    int tracy_set_hook(struct tracy *t, char *syscall, tracy_hook_func func);
+    int tracy_set_hook(struct tracy *t, char *syscall, long abi, tracy_hook_func func);
 
 .. **
 
-Set the hook for a system call.
+Set the hook for a system call with the given ABI. If you want to hook a system
+call on multiple ABIs, you need to call tracy_set_hook for each ABI.
 
 Returns 0 on success, -1 on failure.
 
@@ -316,77 +318,6 @@ The injection will be asynchronous; meaning that this function will return
 before the injection has finished. To be notified when injection has
 finished, pass a value other than NULL as *callback*.
 
-..
-    tracy_inject_syscall_pre_start
-    ------------------------------
-    
-    .. code-block:: c
-    
-        int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a, tracy_hook_func callback);
-    
-    .. **
-    
-    Change the system call, its arguments and the other registers to inject
-    a system call. Doesn't continue the execution of the child.
-    
-    Call tracy_inject_syscall_pre_end to reset registers and retrieve the return
-    value.
-    
-    Returns 0 on success; -1 on failure.
-    
-    tracy_inject_syscall_pre_end
-    ----------------------------
-    
-    .. code-block:: c
-    
-        int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code);
-    
-    .. **
-    
-    Call this after having called tracy_inject_syscall_pre_start, tracy_continue
-    and waitpid on the child. This function will reset the registers to the
-    proper values and store the return value in *return_code*.
-    
-    If you use tracy's event structure (you probably do), then you do not need to
-    call this function. In fact, you shouldn't.
-    
-    Returns 0 on success; -1 on failure.
-    
-    tracy_inject_syscall_post_start
-    -------------------------------
-    
-    .. code-block:: c
-    
-        int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a, tracy_hook_func callback);
-    
-    .. **
-    
-    Change the system call, its arguments and the other registers to inject
-    a system call. Doesn't continue the execution of the child.
-    
-    Call tracy_inject_syscall_post_end to reset registers and retrieve the return
-    value.
-    
-    Returns 0 on success; -1 on failure.
-    
-    tracy_inject_syscall_post_end
-    -----------------------------
-    
-    .. code-block:: c
-    
-        int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code);
-    
-    .. **
-    
-    Call this after having called tracy_inject_syscall_post_start, tracy_continue
-    and waitpid on the child. This function will reset the registers to the
-    proper values and store the return value in *return_code*.
-    
-    If you use tracy's event structure (you probably do), then you do not need to
-    call this function. In fact, you shouldn't.
-    
-    Returns 0 on success; -1 on failure.
-
 System call modification
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -427,7 +358,6 @@ Make sure that you set it to the right value when passing args to this
 function.
 
 Returns 0 on success, -1 on failure.
-
 
 
 tracy_deny_syscall
