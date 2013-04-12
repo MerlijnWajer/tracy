@@ -1,6 +1,9 @@
 API Example
 ===========
 
+Below are some examples of the Tracy API. If you are looking for the API
+reference, skip to the next chapter.
+
 Creating a Tracy instance
 -------------------------
 
@@ -220,7 +223,7 @@ System call hooks
     }
 
     struct tracy * t = tracy_init(...);
-    tracy_set_hook(t, "write", hook_write);
+    tracy_set_hook(t, "write", TRACY_NATIVE_ABI, hook_write);
 
 Hook return values
 ~~~~~~~~~~~~~~~~~~
@@ -304,7 +307,7 @@ Synchronous injection
 
     int _write(struct tracy_event * e) {
         long ret;
-        if (tracy_inject_syscall(e->child, __NR_write, &(e->args), &ret))
+        if (tracy_inject_syscall(e->child, get_syscall_number_abi("write", e->abi), &(e->args), &ret))
                 return TRACY_HOOK_ABORT;
 
         printf("Returned: %ld\n", ret);
@@ -322,12 +325,14 @@ Asynchronous injection
             printf("We just injected something. Result: %ld\n", e->args.return_code);
             return 0;
         }
-        if (tracy_inject_syscall_async(e->child, __NR_write, &(e->args), &_write))
-                return TRACY_HOOK_ABORT;
+
+        if (tracy_inject_syscall_async(e->child, get_syscall_number_abi("write", e->abi), &(e->args), &_write))
+            return TRACY_HOOK_ABORT;
 
         return TRACY_HOOK_CONTINUE;
     }
 
 Cleaning up
 -----------
+
 

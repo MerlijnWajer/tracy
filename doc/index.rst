@@ -10,8 +10,8 @@ Welcome to Tracy's documentation!
    :maxdepth: 2
 
    intro.rst
-   reference.rst
    examples.rst
+   reference.rst
    devdoc.rst
 
 Indices and tables
