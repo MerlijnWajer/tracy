@@ -16,6 +16,11 @@ C API
 
 .. code-block:: C
 
+    #include <stdio.h>
+    #include <stdlib.h>
+
+    #include "tracy.h"
+
     int hook_write(struct tracy_event * e) {
         if (e->child->pre_syscall) {
             if(e->args.a0 == 1) {
@@ -90,5 +95,5 @@ Work In Progress
 ================
 
 Tracy is still work in progress, although already quite useful for certain
-tasks. We're working on supporting multiple system call ABIs, W^X support for
-safe tracing and BSD support.
+tasks. We're working W^X support for safe tracing with multiple ABIs and
+BSD support.
