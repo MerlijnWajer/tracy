@@ -16,9 +16,7 @@ C API
 
 .. code-block:: C
 
-    #include <stdio.h>
     #include <stdlib.h>
-
     #include "tracy.h"
 
     int hook_write(struct tracy_event * e) {
