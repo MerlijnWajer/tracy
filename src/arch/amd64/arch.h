@@ -25,7 +25,6 @@
 
 #define TRACY_ABI_AMD64 0
 #define TRACY_ABI_X86 1
-#define TRACY_ABI_X32 2
 
 #define TRACY_ABI_NATIVE TRACY_ABI_AMD64
 

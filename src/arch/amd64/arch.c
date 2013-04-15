@@ -46,7 +46,7 @@ int get_abi(struct tracy_event *s) {
 long get_reg(struct TRACY_REGS_NAME *r, int reg, int abi) {
     switch (abi) {
         case TRACY_ABI_AMD64:
-        case TRACY_ABI_X32:
+        /*case TRACY_ABI_X32:*/
             switch (reg) {
                 case 0:
                     return r->rdi;
@@ -101,7 +101,7 @@ long get_reg(struct TRACY_REGS_NAME *r, int reg, int abi) {
 long set_reg(struct TRACY_REGS_NAME *r, int reg, int abi, long val) {
     switch (abi) {
         case TRACY_ABI_AMD64:
-        case TRACY_ABI_X32:
+        /*case TRACY_ABI_X32:*/
             switch (reg) {
                 case 0:
                     r->rdi = val;

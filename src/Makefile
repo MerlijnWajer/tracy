@@ -113,7 +113,8 @@ ifeq ($(uname_M),x86_64)
 #
 arch/amd64/arch.o: $(TRACY_HS) arch/amd64/syscalls.h
 arch/amd64/syscalls.h: $(TRACY_HS) arch/amd64/syscall_amd64.h \
-	arch/amd64/syscall_x86.h arch/amd64/syscall_x32.h
+	arch/amd64/syscall_x86.h
+	#arch/amd64/syscall_x32.h
 
 arch/amd64/syscall_amd64.h:
 	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -dM  | \
@@ -131,14 +132,14 @@ arch/amd64/syscall_x86.h:
 		| $(CC) $(CFLAGS) - -E -m32   | ( echo "#include <sys/syscall.h>" ; cat ) \
 		| grep -v '# ' | $(CC) $(CFLAGS) - -E -m32 | grep '{.*' \
 		> arch/amd64/syscall_x86.h
-arch/amd64/syscall_x32.h:
-	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E  -mx32 -dM | \
-		grep "define SYS" | cut -f2 -d" " | \
-		( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; \
-		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
-		| $(CC) $(CFLAGS) - -E -mx32   | ( echo "#include <sys/syscall.h>" ; cat ) \
-		| grep -v '# ' | $(CC) $(CFLAGS) - -E -mx32 | grep '{.*' \
-		> arch/amd64/syscall_x32.h
+#arch/amd64/syscall_x32.h:
+#	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E  -mx32 -dM | \
+#		grep "define SYS" | cut -f2 -d" " | \
+#		( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; \
+#		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
+#		| $(CC) $(CFLAGS) - -E -mx32   | ( echo "#include <sys/syscall.h>" ; cat ) \
+#		| grep -v '# ' | $(CC) $(CFLAGS) - -E -mx32 | grep '{.*' \
+#		> arch/amd64/syscall_x32.h
 else ifeq ($(uname_M),armv5tel)
 #
 #					 *** ARM ***
