@@ -35,7 +35,7 @@ C API
         tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE);
 
         if (tracy_set_hook(tracy, "write", TRACY_ABI_NATIVE, hook_write)) {
-            fprintf(stderr, "Could not hook getpid\n");
+            fprintf(stderr, "Could not hook write\n");
             return EXIT_FAILURE;
         }
 
