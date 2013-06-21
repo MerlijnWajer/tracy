@@ -323,7 +323,9 @@ char* get_signal_name(int signal);
 /*
  * tracy_set_hook
  *
- * Set the hook for a system call.
+ * Set the hook for a system call with the given ABI. If you want
+ * to hook a system call on multiple ABIs, you need to call
+ * tracy_set_hook for each ABI.
  *
  * Returns 0 on success, -1 on failure.
  */
