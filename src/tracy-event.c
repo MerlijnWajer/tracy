@@ -433,6 +433,9 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
         /* Detect ABI here */
         s->args.ip = regs.TRACY_IP_REG;
+
+        /* XXX: get_abi relies on the IP ; make sure we set it before we call
+         * get_abi */
         s->abi = get_abi(s);
 
         /* Store arguments in the cross platform/arch struct */
