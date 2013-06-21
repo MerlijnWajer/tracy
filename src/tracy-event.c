@@ -432,6 +432,7 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         */
 
         /* Detect ABI here */
+        s->args.ip = regs.TRACY_IP_REG;
         s->abi = get_abi(s);
 
         /* Store arguments in the cross platform/arch struct */
@@ -444,14 +445,12 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         s->args.sp = regs.TRACY_STACK_POINTER;
 
         s->args.return_code = regs.TRACY_RETURN_CODE;
-        s->args.ip = regs.TRACY_IP_REG;
 
         s->type = TRACY_EVENT_SYSCALL;
 
         /* If we fork, then I can't think of a way to nicely send a pre and post
          * fork event to the user. XXX TODO FIXME */
         check_syscall(s);
-
         if (tracy_handle_syscall_hook(s)) {
             s->type = TRACY_EVENT_QUIT;
             s->signal_num = SIGKILL;
