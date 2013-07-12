@@ -20,13 +20,26 @@ TRACY_OS=tracy.o tracy-mem.o tracy-safe-fork.o tracy-modification.o \
 
 
 uname_M = $(shell sh -c 'uname -m 2>/dev/null || echo not')
-ifeq ($(uname_M),x86_64)
+
+arch=
+ifeq ($(uname_M),armv5tel)
+arch="arm"
+else ifeq ($(uname_M),armv7l)
+arch="arm"
+else ifeq ($(uname_M),x86_64)
+arch="x86_64"
+else ifeq ($(uname_M),i686)
+arch="i686"
+endif
+
+
+ifeq ($(arch), "x86_64")
 ARCH_HS=arch/amd64/arch.h arch/amd64/syscalls.h
 ARCH_OS=arch/amd64/arch.o
-else ifeq ($(uname_M),armv5tel)
+else ifeq ($(arch), "arm")
 ARCH_HS=arch/arm/arch.h arch/arm/syscalls.h
 ARCH_OS=arch/arm/arch.o
-else ifeq ($(uname_M),i686)
+else ifeq ($(arch), "i686")
 ARCH_HS=arch/x86/arch.h arch/x86/syscalls.h
 ARCH_OS=arch/x86/arch.o
 else
@@ -107,7 +120,7 @@ def_syscalls.h:
 # for say x86. (Although I don't think you want that on amd64, because of ABI
 # mixing) Still, we need a build option for it. Like make platform=amd64
 
-ifeq ($(uname_M),x86_64)
+ifeq ($(arch),"x86_64")
 #
 #					 *** AMD64 ***
 #
@@ -139,7 +152,7 @@ arch/amd64/syscall_x32.h:
 		| $(CC) $(CFLAGS) - -E -mx32   | ( echo "#include <sys/syscall.h>" ; cat ) \
 		| grep -v '# ' | $(CC) $(CFLAGS) - -E -mx32 | grep '{.*' \
 		> arch/amd64/syscall_x32.h
-else ifeq ($(uname_M),armv5tel)
+else ifeq ($(arch),"arm")
 #
 #					 *** ARM ***
 #
@@ -154,7 +167,7 @@ arch/arm/syscall_eabi.h:
 		| $(CC) $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) \
 		| grep -v '# '| $(CC) $(CFLAGS) -E - | grep '{.*' \
 		> arch/arm/syscall_eabi.h
-else ifeq ($(uname_M),i686)
+else ifeq ($(arch),"i686")
 #
 #					 *** x86 ***
 #
