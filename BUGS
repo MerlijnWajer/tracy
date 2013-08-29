@@ -2,5 +2,9 @@ Known bugs:
 
  * Fails to compile with very recent glibc (I will try to fix this soon)
  * Python bindings are currently broken because of the ABI change
+ * ABI detection is not race safe. This should not be a problem for anyone,
+   except when they're writing secure jails.
 
  * No BSD support yet. I will try a FreeBSD port sometime soon.
+ * No support for <Arch>
+ * No proper tests

@@ -7,9 +7,19 @@ regard to kernel version, operating system or processor architecture.
 The interface, called Tracy, provides a means to watch, modify, augment
 and restrict program execution in a controlled environment.
 
+If you wish to use Tracy is a project do not want the project to be GPL, contact
+me!
 
-Example
+
+Website
 =======
+
+See http://hetgrotebos.org/wiki/Tracy for the homepage.
+
+
+
+Examples
+========
 
 C API
 -----
@@ -61,6 +71,8 @@ C API
 
 Python API
 ----------
+
+(EXAMPLE OUTDATED)
 
 .. code-block:: python
     
