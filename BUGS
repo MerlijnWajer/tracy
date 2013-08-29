@@ -1,0 +1,6 @@
+Known bugs:
+
+ * Fails to compile with very recent glibc (I will try to fix this soon)
+ * Python bindings are currently broken because of the ABI change
+
+ * No BSD support yet. I will try a FreeBSD port sometime soon.
