@@ -3,8 +3,8 @@
 #include "../../tracy.h"
 
 #define T_SYSCALL 0x050f
-#define T_INT0x80 0x340f
-#define T_SYSENTER 0x80cd
+#define T_INT0x80 0x80cd
+#define T_SYSENTER 0x340f
 
 int get_abi(struct tracy_event *s) {
     char *buf;
