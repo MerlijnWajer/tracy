@@ -96,7 +96,19 @@ int signal_hook(struct tracy_event *e) {
     if (e->signal_num == SIGSEGV) {
         puts("Segfault detected!");
         printf("pid: %d\n", e->child->pid);
-        printf("App Addr: %lx\n", (unsigned long)e->siginfo.si_addr);
+
+        /*
+        printf("Signal code: %d\n", e->siginfo.si_code);
+        printf("Signal Status: %d\n", e->siginfo.si_status);
+        printf("Sending pid, if any: %d\n", e->siginfo.si_pid);
+        */
+
+        /* kill(getpid(), SIGSEGV) will have si_code = 0 */
+        if (e->siginfo.si_code > 0) {
+            printf("App Addr: %lx\n", (unsigned long)e->siginfo.si_addr);
+        } else {
+            puts("Normal signal");
+        }
     }
 
     return TRACY_HOOK_CONTINUE;
