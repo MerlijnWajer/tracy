@@ -59,7 +59,7 @@ struct tracy_event {
     long syscall_num;
     long signal_num;
 
-    int abi;
+    long abi;
 
     struct tracy_sc_args args;
     siginfo_t siginfo;
