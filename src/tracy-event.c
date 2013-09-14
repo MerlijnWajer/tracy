@@ -488,9 +488,19 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
         /* Resume, set signal to 0; we don't want to pass SIGTRAP.
          * TODO: Unless it is sent by userspace? */
+#ifdef TRACY_DELIVER_SIGTRAP
+        if (t->opt & TRACY_VERBOSE)
+            fprintf(stderr, "SIGTRAP from userspace; passing it along\n");
+        s->type = TRACY_EVENT_SIGNAL;
+        s->signal_num = SIGTRAP;
+        return s;
+#else
+        if (t->opt & TRACY_VERBOSE)
+            fprintf(stderr, "SIGTRAP from userspace; suppressing it\n");
         tracy_continue(s, 1);
 
         goto start;
+#endif
         /*return tracy_wait_event(t, c_pid);*/
     } else if (signal_id == SIGSTOP && (t->opt & TRACY_TRACE_CHILDREN) &&
         !(t->opt & TRACY_USE_SAFE_TRACE) && !s->child->received_first_sigstop) {

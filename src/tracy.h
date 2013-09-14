@@ -30,6 +30,19 @@
 
 #include <signal.h>
 
+
+/* Possible directives:
+ *
+ * - TRACY_DELIVER_SIGTRAP:
+ *   Pass along a SIGTRAP signal if it doesn't seem to come from the kernel, in
+ *   other words, send along SIGTRAP signals to tracees if they'd kill()
+ *   themselves with SIGTRAP.
+ */
+
+#if 0
+#define TRACY_DELIVER_SIGTRAP
+#endif
+
 /* Tracy options, pass them to tracy_init(). */
 #define TRACY_TRACE_CHILDREN 1 << 0
 #define TRACY_VERBOSE 1 << 1
