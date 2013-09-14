@@ -126,7 +126,7 @@ ifeq ($(arch),"x86_64")
 #
 arch/amd64/arch.o: $(TRACY_HS) arch/amd64/syscalls.h
 arch/amd64/syscalls.h: $(TRACY_HS) arch/amd64/syscall_amd64.h \
-	arch/amd64/syscall_x86.h arch/amd64/syscall_x32.h
+	arch/amd64/syscall_x86.h
 
 arch/amd64/syscall_amd64.h:
 	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -dM  | \
