@@ -647,7 +647,7 @@ int tracy_debug_current(struct tracy_child *child) {
     abi = child->event.abi;
 
     printf("DEBUG: 0: %ld 1: %ld 2: %ld 3: %ld 4: %ld 5: %ld"
-            " s: %ld, R: %ld, PC: %ld SP: %ld\n",
+            " s: %Lu, R: %Lu, PC: %Lu SP: %Lu\n",
             get_reg(&a, 0, abi), get_reg(&a, 1, abi), get_reg(&a, 2, abi),
             get_reg(&a, 3, abi), get_reg(&a, 4, abi), get_reg(&a, 5, abi),
             a.TRACY_SYSCALL_REGISTER, a.TRACY_RETURN_CODE,
@@ -655,7 +655,7 @@ int tracy_debug_current(struct tracy_child *child) {
             );
 
     printf("DEBUG: 0: %lx 1: %lx 2: %lx 3: %lx 4: %lx 5: %lx"
-            " s: %lx, R: %lx, PC: %lx SP: %lx\n",
+            " s: %Lx, R: %Lx, PC: %Lx SP: %Lx\n",
             get_reg(&a, 0, abi), get_reg(&a, 1, abi), get_reg(&a, 2, abi),
             get_reg(&a, 3, abi), get_reg(&a, 4, abi), get_reg(&a, 5, abi),
             a.TRACY_SYSCALL_REGISTER, a.TRACY_RETURN_CODE,

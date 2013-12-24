@@ -1,6 +1,8 @@
 .PHONY: default clean check-inject tests
 
-CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror -Wno-unused-result -pipe
+# Nuked -pedantic because recent glibc changed to long long unsigned ints for
+# TRACY_SYSCALL_REGISTER etc. Can't print those with -pedantic...
+CFLAGS+=-ansi -Wall -Wextra -Werror -Wno-unused-result -pipe
 CFLAGS+=-D_POSIX_SOURCE -D_GNU_SOURCE
 CFLAGS+=-pthread -fPIC
 
