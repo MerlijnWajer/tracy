@@ -83,7 +83,7 @@ long set_reg(struct TRACY_REGS_NAME *r, int reg, int abi, long val) {
                 case 8:
                     r->gpr[8] = val;
                     break;
-                case 8:
+                case 9:
                     r->gpr[9] = val;
                     break;
                 

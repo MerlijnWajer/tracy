@@ -48,7 +48,7 @@
         #define ENTER_KERNEL \
             "mov %0, %%rax\n" \
             "syscall\n"
-
+    
     #elif defined(__i386__)
         /* x86 performs syscalls using the 0x80 interrupt,
          * the syscall number is stored within the EAX register
@@ -95,7 +95,20 @@
             "swi %0\n"
         /* OABI SWI_BASE */
         #define TRACY_SWI_BASE (0x900000)
-
+    #elif defined(__powerpc__)
+        /* On powerpc the syscall number is stored in r0,
+         * the arguments in r3-r9 we use r30 for the storing of the pid
+         * 
+         * 
+         */
+        #define SET_SYSCALL "i"
+        #define INLINE_ARG0 "i"
+        #define INLINE_ARG1 "i"
+        #define LOAD_TRACER_PID "li 31, %1\n"
+        #define ENTER_KERNEL "
+                li 0, %0\n
+                sc\n"
+        
     #else
         #error Architecture not supported by Trampy on Linux
 
