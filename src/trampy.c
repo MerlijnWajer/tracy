@@ -105,9 +105,9 @@
         #define INLINE_ARG0 "i"
         #define INLINE_ARG1 "i"
         #define LOAD_TRACER_PID "li 31, %1\n"
-        #define ENTER_KERNEL "
-                li 0, %0\n
-                sc\n"
+        #define ENTER_KERNEL \
+                "li 0, %0\n" \
+                "sc\n"
         
     #else
         #error Architecture not supported by Trampy on Linux
