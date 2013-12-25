@@ -32,6 +32,8 @@ else ifeq ($(uname_M),x86_64)
 arch="x86_64"
 else ifeq ($(uname_M),i686)
 arch="i686"
+else ifeq ($(uname_M),ppc)
+arch="ppc"
 endif
 
 
@@ -44,6 +46,9 @@ ARCH_OS=arch/arm/arch.o
 else ifeq ($(arch), "i686")
 ARCH_HS=arch/x86/arch.h arch/x86/syscalls.h
 ARCH_OS=arch/x86/arch.o
+else ifeq ($(arch), "ppc")
+ARCH_HS=arch/ppc/arch.h arch/ppc/syscalls.h
+ARCH_OS=arch/ppc/arch.o
 else
 ARCH_HS=
 ARCH_OS=
@@ -184,6 +189,22 @@ arch/x86/syscall_x86.h:
 		| $(CC) $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) \
 		| grep -v '# '| $(CC) $(CFLAGS) -E - | grep '{.*' \
 		> arch/x86/syscall_x86.h
+else ifeq ($(arch),"ppc")
+#
+#					 *** ppc ***
+#
+arch/ppc/arch.o: $(TRACY_HS) arch/ppc/syscalls.h
+arch/ppc/syscalls.h: $(TRACY_HS) arch/ppc/syscall_ppc.h
+
+arch/ppc/syscall_ppc.h:
+	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -dM | \
+		grep "define SYS" | cut -f2 -d" " \
+		| ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; \
+		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
+		| $(CC) $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) \
+		| grep -v '# '| $(CC) $(CFLAGS) -E - | grep '{.*' \
+		> arch/ppc/syscall_ppc.h
+
 endif
 
 clean:
@@ -191,3 +212,5 @@ clean:
 		arch/amd64/syscall_*.h arch/amd64/*.o \
 		arch/arm/syscall_*.h arch/arm/*.o \
 		arch/x86/syscall_*.h arch/x86/*.o
+		arch/ppc/syscall_*.h arch/ppc/*.o
+		
