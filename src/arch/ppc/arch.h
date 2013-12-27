@@ -5,9 +5,9 @@
 
 /* ARM EABI puts System call number in r7 */
 #define TRACY_SYSCALL_REGISTER gpr[0]
-#define TRACY_SYSCALL_N gpr[3]
+#define TRACY_SYSCALL_N orig_gpr3 
 
-#define TRACY_RETURN_CODE link
+#define TRACY_RETURN_CODE result /*STERF */ 
 
 #define TRACY_IP_REG ctr
 
@@ -16,7 +16,7 @@
 #define TRACY_NR_MMAP __NR_mmap2
 
 /* Register used to pass trampy code the tracer PID */
-#define TRAMPY_PID_REG gpr[30] //TODO :fix this
+#define TRAMPY_PID_REG gpr[9] //TODO :fix this
 #define TRAMPY_PID_ARG a4
 
 
