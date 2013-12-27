@@ -211,6 +211,6 @@ clean:
 	rm *.o *.a *.so def_syscalls.h tests/*.o -f $(test_binaries) \
 		arch/amd64/syscall_*.h arch/amd64/*.o \
 		arch/arm/syscall_*.h arch/arm/*.o \
-		arch/x86/syscall_*.h arch/x86/*.o
+		arch/x86/syscall_*.h arch/x86/*.o \
 		arch/ppc/syscall_*.h arch/ppc/*.o
 		
