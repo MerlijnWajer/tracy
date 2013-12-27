@@ -48,7 +48,7 @@
         #define ENTER_KERNEL \
             "mov %0, %%rax\n" \
             "syscall\n"
-
+    
     #elif defined(__i386__)
         /* x86 performs syscalls using the 0x80 interrupt,
          * the syscall number is stored within the EAX register
@@ -108,7 +108,7 @@
         #define ENTER_KERNEL \
                 "li 0, %0\n" \
                 "sc\n"
-
+        
     #else
         #error Architecture not supported by Trampy on Linux
 
