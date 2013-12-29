@@ -1,7 +1,7 @@
 #define TRACY_REGS_NAME pt_regs
 
 /* Unsure about some of the registers */
-#define TRACY_SYSCALL_OPSIZE 8
+#define TRACY_SYSCALL_OPSIZE 4
 
 /* ARM EABI puts System call number in r7 */
 #define TRACY_SYSCALL_REGISTER gpr[0]
@@ -9,7 +9,7 @@
 
 #define TRACY_RETURN_CODE result /*STERF */ 
 
-#define TRACY_IP_REG ctr
+#define TRACY_IP_REG link 
 
 #define TRACY_STACK_POINTER gpr[1]
 
