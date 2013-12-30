@@ -45,8 +45,7 @@ int main()
 #if defined(__x86_64__)
     rval = syscall(__NR_clone, CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, 0, 0, &tid);
 #elif defined(__powerpc__)
-   // rval = syscall(__NR_clone, CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, 0, 0, &tid);
-    rval = syscall(__NR_clone, 1, 2, 3, 4, 5, 6);
+    rval = syscall(__NR_clone, CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, 0, 0, &tid);
 #elif defined(__arm__)
     /* FIXME */
     rval = syscall(__NR_clone, CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, 0, 0, &tid);

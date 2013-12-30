@@ -30,9 +30,6 @@ long get_reg(struct TRACY_REGS_NAME *r, int reg, int abi) {
                 case 5:
                     return r->gpr[8];
                     break;
-                case 6:
-                    return r->gpr[9];
-                    break;
                 }
 
             break;
@@ -63,9 +60,6 @@ long set_reg(struct TRACY_REGS_NAME *r, int reg, int abi, long val) {
                     break;
                 case 5:
                     r->gpr[8] = val;
-                    break;
-                case 6:
-                    r->gpr[9] = val;
                     break;
                 }
             break;
