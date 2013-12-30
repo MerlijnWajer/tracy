@@ -415,4 +415,3 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
 
     return 0;
 }
-

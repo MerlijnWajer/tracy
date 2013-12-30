@@ -15,7 +15,7 @@ static pid_t no_cache_getpid()
 {
     pid_t pid;
 
-#if defined(__x86_64__) || defined(__arm__)
+#if defined(__x86_64__) || defined(__arm__) || defined(__powerpc__)
     pid = syscall(__NR_getpid);
 #elif defined(__i386__)
     __asm__(
@@ -43,6 +43,8 @@ int main()
     printf("Test initial PID (and TID) is %d\n", tid);
 
 #if defined(__x86_64__)
+    rval = syscall(__NR_clone, CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, 0, 0, &tid);
+#elif defined(__powerpc__)
     rval = syscall(__NR_clone, CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, 0, 0, &tid);
 #elif defined(__arm__)
     /* FIXME */

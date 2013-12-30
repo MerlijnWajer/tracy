@@ -60,6 +60,9 @@
 #ifdef __arm__
 #include "arch/arm/syscalls.h"
 #endif
+#ifdef __powerpc__
+#include "arch/ppc/syscalls.h"
+#endif
 
 /* Foreground PID, used by tracy main's interrupt handler */
 static pid_t global_fpid;
