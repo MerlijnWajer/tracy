@@ -98,8 +98,6 @@
     #elif defined(__powerpc__)
         /* On powerpc the syscall number is stored in r0,
          * the arguments in r3-r9 we use r30 for the storing of the pid
-         * 
-         * 
          */
         #define SET_SYSCALL "i"
         #define INLINE_ARG0 "i"
@@ -108,7 +106,6 @@
         #define ENTER_KERNEL \
                 "li 0, %0\n" \
                 "sc\n"
-        
     #else
         #error Architecture not supported by Trampy on Linux
 

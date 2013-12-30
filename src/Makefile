@@ -213,4 +213,3 @@ clean:
 		arch/arm/syscall_*.h arch/arm/*.o \
 		arch/x86/syscall_*.h arch/x86/*.o \
 		arch/ppc/syscall_*.h arch/ppc/*.o
-		

@@ -3,11 +3,11 @@
 #define TRACY_SYSCALL_OPSIZE 4
 
 #define TRACY_SYSCALL_REGISTER gpr[0]
-#define TRACY_SYSCALL_N orig_gpr3 
+#define TRACY_SYSCALL_N orig_gpr3
 
 #define TRACY_RETURN_CODE result
 
-#define TRACY_IP_REG link 
+#define TRACY_IP_REG link
 
 #define TRACY_STACK_POINTER gpr[1]
 
