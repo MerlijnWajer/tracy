@@ -649,6 +649,24 @@ int tracy_debug_current(struct tracy_child *child) {
 
     abi = child->event.abi;
 
+
+#if __GLIBC_MINOR__ <= 15
+    printf("DEBUG: 0: %ld 1: %ld 2: %ld 3: %ld 4: %ld 5: %ld"
+            " s: %lu, R: %lu, PC: %lu SP: %lu\n",
+            get_reg(&a, 0, abi), get_reg(&a, 1, abi), get_reg(&a, 2, abi),
+            get_reg(&a, 3, abi), get_reg(&a, 4, abi), get_reg(&a, 5, abi),
+            a.TRACY_SYSCALL_REGISTER, a.TRACY_RETURN_CODE,
+            a.TRACY_IP_REG, a.TRACY_STACK_POINTER
+            );
+
+    printf("DEBUG: 0: %lx 1: %lx 2: %lx 3: %lx 4: %lx 5: %lx"
+            " s: %lx, R: %lx, PC: %lx SP: %lx\n",
+            get_reg(&a, 0, abi), get_reg(&a, 1, abi), get_reg(&a, 2, abi),
+            get_reg(&a, 3, abi), get_reg(&a, 4, abi), get_reg(&a, 5, abi),
+            a.TRACY_SYSCALL_REGISTER, a.TRACY_RETURN_CODE,
+            a.TRACY_IP_REG, a.TRACY_STACK_POINTER
+            );
+#else
     printf("DEBUG: 0: %ld 1: %ld 2: %ld 3: %ld 4: %ld 5: %ld"
             " s: %Lu, R: %Lu, PC: %Lu SP: %Lu\n",
             get_reg(&a, 0, abi), get_reg(&a, 1, abi), get_reg(&a, 2, abi),
@@ -664,6 +682,7 @@ int tracy_debug_current(struct tracy_child *child) {
             a.TRACY_SYSCALL_REGISTER, a.TRACY_RETURN_CODE,
             a.TRACY_IP_REG, a.TRACY_STACK_POINTER
             );
+#endif
 
     /*tracy_backtrace();*/
 
