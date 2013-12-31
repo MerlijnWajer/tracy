@@ -10,6 +10,12 @@ and restrict program execution in a controlled environment.
 If you wish to use Tracy in a project but do not want the project to be
 GPL, contact me for possible licensing options.
 
+Currently supported architectures (In decreasing order of testing):
+
+* amd64
+* x86
+* arm
+* ppc32
 
 Website
 =======
