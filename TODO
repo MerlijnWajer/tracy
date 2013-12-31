@@ -1,0 +1,6 @@
+* Add python module (compiled from C, not ctypes; maybe a high level wrapper
+around the C module, but no ctypes). For python API.
+* Look at src/BROKEN_WITH_ABI and fix appropriately.
+* Add support for injection/modification with a different ABI than current.
+* Add support for loading relocatable code in the binary. Some kind of modules?
+  Would be awesome. Load dl in the process?

@@ -78,4 +78,6 @@ Rationale for 1:
 Modification
 ------------
 
-
+TODO: Add an ABI option for specifying the ABI. This will require either jumping
+to our own code (meaning we have to inject some); or simply temporarily
+overriding the instruction we are at (which is not safe, at all)
