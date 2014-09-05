@@ -201,10 +201,13 @@ typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
  * tracy_init creates the tracy record and returns a pointer to this record on
  * success. Possible options for ``opt'':
  *
- *  -   TRACY_TRACY_CHILDREN (Trace children of the tracee created with fork,
+ *  -   TRACY_TRACE_CHILDREN (Trace children of the tracee created with fork,
  *      vfork or clone.)
+ *
  *  -   TRACY_USE_SAFE_TRACE (Do not rely on Linux' auto-trace on fork abilities
  *      and instead use our own safe implementation)
+ *
+ *      This option is still experimental.
  *
  * Returns the tracy record created.
  */
