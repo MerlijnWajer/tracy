@@ -313,6 +313,19 @@ int tracy_continue(struct tracy_event *s, int sigoverride);
  */
 int tracy_kill_child(struct tracy_child *c);
 
+/*
+ * tracy_detach_child
+ *
+ * tracy_detach_child attempts to detach from child *c*.
+ *
+ * Returns 0 upon success; -1 upon failure.
+ *
+ */
+int tracy_detach_child(struct tracy_child *c);
+
+/*
+ *
+ */
 int tracy_remove_child(struct tracy_child *c);
 
 /*
