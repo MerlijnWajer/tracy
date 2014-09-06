@@ -44,15 +44,15 @@
 #endif
 
 /* Tracy options, pass them to tracy_init(). */
-#define (TRACY_TRACE_CHILDREN 1 << 0)
-#define (TRACY_VERBOSE 1 << 1)
-#define (TRACY_VERBOSE_SIGNAL 1 << 2)
-#define (TRACY_VERBOSE_SYSCALL 1 << 3)
+#define TRACY_TRACE_CHILDREN (1 << 0)
+#define TRACY_VERBOSE (1 << 1)
+#define TRACY_VERBOSE_SIGNAL (1 << 2)
+#define TRACY_VERBOSE_SYSCALL (1 << 3)
 
 /* Enable automatic usage of ptrace's memory API when PPM (/proc based) fails */
-#define (TRACY_MEMORY_FALLBACK 1 << 4)
+#define TRACY_MEMORY_FALLBACK (1 << 4)
 
-#define (TRACY_USE_SAFE_TRACE 1 << 31)
+#define TRACY_USE_SAFE_TRACE (1 << 31)
 
 #define TRACY_PRINT_SIGNALS(t) \
         ((t)->opt & TRACY_VERBOSE_SIGNAL)
