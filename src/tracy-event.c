@@ -206,6 +206,10 @@ static int tracy_handle_signal_hook(struct tracy_event *e, int *suppress) {
             *suppress = 1;
             break;
 
+        case TRACY_HOOK_DETACH_CHILD:
+            tracy_detach_child(e->child);
+            return 1; /* TODO: Why 1? */
+
         case TRACY_HOOK_KILL_CHILD:
             tracy_kill_child(e->child);
             return 1;
@@ -248,6 +252,10 @@ static int tracy_handle_syscall_hook(struct tracy_event *e) {
     switch (hook_ret) {
         case TRACY_HOOK_CONTINUE:
             break;
+
+        case TRACY_HOOK_DETACH_CHILD:
+            tracy_detach_child(e->child);
+            return 1; /* TODO: Why 1? */
 
         case TRACY_HOOK_KILL_CHILD:
             tracy_kill_child(e->child);

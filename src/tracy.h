@@ -188,10 +188,11 @@ typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
 /* Define hook return values */
 #define TRACY_HOOK_CONTINUE 0
 #define TRACY_HOOK_KILL_CHILD 1
-#define TRACY_HOOK_ABORT 2
-#define TRACY_HOOK_NOHOOK 3
-#define TRACY_HOOK_SUPPRESS 4
-#define TRACY_HOOK_DENY 5
+#define TRACY_HOOK_DETACH_CHILD 2
+#define TRACY_HOOK_ABORT 3
+#define TRACY_HOOK_NOHOOK 4
+#define TRACY_HOOK_SUPPRESS 5
+#define TRACY_HOOK_DENY 6
 
 /* Setting up and tearing down a tracy session */
 
@@ -372,6 +373,7 @@ int tracy_set_hook(struct tracy *t, char *syscall, long abi, tracy_hook_func fun
  *
  *  -   TRACY_HOOK_CONTINUE will send the signal and proceed as normal
  *  -   TRACY_HOOK_SUPPRESS will not send a signal and process as normal
+ *  -   TRACY_HOOK_DETACH_CHILD if the child should be detached.
  *  -   TRACY_HOOK_KILL_CHILD if the child should be killed.
  *  -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
  *
@@ -394,6 +396,7 @@ int tracy_set_default_hook(struct tracy *t, tracy_hook_func f);
  * Returns the return value of the hook. Hooks should return:
  *
  *  -   TRACY_HOOK_CONTINUE if everything is fine.
+ *  -   TRACY_HOOK_DETACH_CHILD if the child should be detached.
  *  -   TRACY_HOOK_KILL_CHILD if the child should be killed.
  *  -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
  *  -   TRACY_HOOK_NOHOOK is no hook is in place for this system call.
