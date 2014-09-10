@@ -183,16 +183,17 @@ char* tracy_read_string(struct tracy_child *c,
     bufwalk = buf; /* We increase this to check the currently read char */
 
     while (tracy_read_mem(c, bufwalk++, curr++, 1) == 1) {
-        if (buf[bp] == 0) {
+        if (buf[bp++] == 0)
             break;
-        }
-        bp++;
+
         if (bp == (lim-1)) {
+            /* XXX Need OOM handling */
             buf = realloc(buf, lim+(4096*sizeof(char)));
             lim += 4096;
         }
     }
 
+    /* XXX On failure of mem read, needs to null terminate string */
     buf = realloc(buf, bp * sizeof(char));
     return buf;
 }
