@@ -143,8 +143,11 @@ int tracy_inject_syscall_pre_end(struct tracy_child *child, long *return_code) {
     /* POST */
     child->inj.reg.TRACY_IP_REG -= TRACY_SYSCALL_OPSIZE;
 
+    /* TODO: Rethink SYSCALL_N */
+#if 0
     /* vvvv This is probably not required vvvv */
     child->inj.reg.TRACY_SYSCALL_N = child->inj.reg.TRACY_SYSCALL_REGISTER;
+#endif
 
     PTRACE_CHECK(PTRACE_SETREGS, child->pid, 0, &child->inj.reg, -1);
 
@@ -243,7 +246,9 @@ int tracy_modify_syscall_args(struct tracy_child *child, long syscall_number,
     PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &newargs, -1);
 
     newargs.TRACY_SYSCALL_REGISTER = syscall_number;
+#if 0
     newargs.TRACY_SYSCALL_N = syscall_number; /* TODO: REMOVE SYSCALL_N ???*/
+#endif
 
     #ifdef __arm__
     /* ARM requires us to call this function to set the system call. */
@@ -291,7 +296,11 @@ int tracy_modify_syscall_regs(struct tracy_child *child, long syscall_number,
     PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &newargs, -1);
 
     newargs.TRACY_SYSCALL_REGISTER = syscall_number;
+
+    /* TODO: Rethink SYSCALL_N */
+#if 0
     newargs.TRACY_SYSCALL_N = syscall_number;
+#endif
 
     #ifdef __arm__
     /* ARM requires us to call this function to set the system call. */

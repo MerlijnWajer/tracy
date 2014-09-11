@@ -207,6 +207,8 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child)
      * tracy_modify_syscall().
      */
     args_ret.TRACY_SYSCALL_REGISTER = orig_syscall;
+
+    /* TODO: Rethink SYSCALL_N */
     args_ret.TRACY_SYSCALL_N = orig_syscall;
 
     /* This stores our pid in a specific register, which will then be used by
