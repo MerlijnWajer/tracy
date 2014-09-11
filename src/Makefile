@@ -69,7 +69,7 @@ test_binaries=tests/hello tests/base tests/inject-simple \
 	tests/fork-prog tests/vfork-prog tests/bounce tests/bash \
 	tests/raw-clone tests/deny tests/attach tests/metronome \
 	tests/sig_suppress tests/async-inject tests/redirect tests/wxorx \
-	tests/abi tests/attach-detach
+	tests/abi tests/attach-detach tests/fuzz-write
 	#tests/rwmem
 
 
@@ -90,6 +90,7 @@ tests/fork: tests/fork.o $(TRACY_OS) $(ARCH_OS)
 tests/bounce: tests/bounce.o trampy.o
 tests/attach: tests/attach.o $(TRACY_OS) $(ARCH_OS)
 tests/attach-detach: tests/attach-detach.o $(TRACY_OS) $(ARCH_OS)
+tests/fuzz-write: tests/fuzz-write.o $(TRACY_OS) $(ARCH_OS)
 tests/metronome: tests/metronome.o
 
 #check-rwmem: tests/rwmem tests/hello
@@ -118,6 +119,7 @@ tests/fork.o: $(TRACY_HS)
 tests/bouce.o: trampy.h
 tests/attach.o: $(TRACY_HS)
 tests/attach-detach.o: $(TRACY_HS)
+tests/fuzz-write.o: $(TRACY_HS)
 
 def_syscalls.h:
 	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -dM \
