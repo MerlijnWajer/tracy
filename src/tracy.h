@@ -188,10 +188,11 @@ typedef void *tracy_child_addr_t, *tracy_parent_addr_t;
 /* Define hook return values */
 #define TRACY_HOOK_CONTINUE 0
 #define TRACY_HOOK_KILL_CHILD 1
-#define TRACY_HOOK_ABORT 2
-#define TRACY_HOOK_NOHOOK 3
-#define TRACY_HOOK_SUPPRESS 4
-#define TRACY_HOOK_DENY 5
+#define TRACY_HOOK_DETACH_CHILD 2
+#define TRACY_HOOK_ABORT 3
+#define TRACY_HOOK_NOHOOK 4
+#define TRACY_HOOK_SUPPRESS 5
+#define TRACY_HOOK_DENY 6
 
 /* Setting up and tearing down a tracy session */
 
@@ -316,6 +317,19 @@ int tracy_continue(struct tracy_event *s, int sigoverride);
  */
 int tracy_kill_child(struct tracy_child *c);
 
+/*
+ * tracy_detach_child
+ *
+ * tracy_detach_child attempts to detach from child *c*.
+ *
+ * Returns 0 upon success; -1 upon failure.
+ *
+ */
+int tracy_detach_child(struct tracy_child *c);
+
+/*
+ *
+ */
 int tracy_remove_child(struct tracy_child *c);
 
 /*
@@ -365,6 +379,8 @@ int tracy_set_hook(struct tracy *t, char *syscall, long abi, tracy_hook_func fun
  *  -   TRACY_HOOK_KILL_CHILD if the child should be killed.
  *  -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
  *
+ * TODO: Add TRACY_DETACH_CHILD on signal. But that needs some more thought - we
+ * need to pass the signal to the child if we are going to detach, etc.
  */
 int tracy_set_signal_hook(struct tracy *t, tracy_hook_func f);
 /*
@@ -384,6 +400,7 @@ int tracy_set_default_hook(struct tracy *t, tracy_hook_func f);
  * Returns the return value of the hook. Hooks should return:
  *
  *  -   TRACY_HOOK_CONTINUE if everything is fine.
+ *  -   TRACY_HOOK_DETACH_CHILD if the child should be detached.
  *  -   TRACY_HOOK_KILL_CHILD if the child should be killed.
  *  -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
  *  -   TRACY_HOOK_NOHOOK is no hook is in place for this system call.

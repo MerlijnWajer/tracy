@@ -206,6 +206,12 @@ static int tracy_handle_signal_hook(struct tracy_event *e, int *suppress) {
             *suppress = 1;
             break;
 
+#if 0
+        case TRACY_HOOK_DETACH_CHILD:
+            tracy_detach_child(e->child);
+            return 1;
+#endif
+
         case TRACY_HOOK_KILL_CHILD:
             tracy_kill_child(e->child);
             return 1;
@@ -230,7 +236,11 @@ static int tracy_handle_signal_hook(struct tracy_event *e, int *suppress) {
  * Function to handle per-system call hooks.
  * Action taken depends on whether a hook exists at all.
  * If the hook exists, action taken depends on the hook return value.
+ *
+ * Function returns 1 if the child is detached or killed.
  */
+
+/* TODO: Why return 1 and not -1, need to work on consistency */
 static int tracy_handle_syscall_hook(struct tracy_event *e) {
     int hook_ret;
 
@@ -248,6 +258,10 @@ static int tracy_handle_syscall_hook(struct tracy_event *e) {
     switch (hook_ret) {
         case TRACY_HOOK_CONTINUE:
             break;
+
+        case TRACY_HOOK_DETACH_CHILD:
+            tracy_detach_child(e->child);
+            return 1;
 
         case TRACY_HOOK_KILL_CHILD:
             tracy_kill_child(e->child);

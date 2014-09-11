@@ -114,8 +114,8 @@ static void free_children(struct tracy_ll *children)
         /* Detach or kill */
         if (tc->attached) {
             fprintf(stderr, _b("Detaching from child %d")"\n", tc->pid);
-            PTRACE_CHECK_NORETURN(PTRACE_DETACH, tc->pid, NULL, NULL);
             /* TODO: What can we do in case of failure? */
+            tracy_detach_child(tc);
         } else {
             fprintf(stderr, _b("Killing child %d")"\n", tc->pid);
             tracy_kill_child(tc);
@@ -397,17 +397,43 @@ struct tracy_child * tracy_add_child(struct tracy *t, int pid) {
     return child;
 }
 
+int tracy_detach_child(struct tracy_child *c) {
+    /* TODO: Check c->attached value? */
+    int c_pid;
+
+    c_pid = c->pid;
+
+    if (c->tracy->opt & TRACY_VERBOSE)
+        printf("tracy_detach_child: %d\n", c_pid);
+
+    PTRACE_CHECK_NORETURN(PTRACE_DETACH, c_pid, NULL, NULL);
+    if (tracy_remove_child(c)) {
+        fprintf(stderr, "tracy_remove_child: Could not remove child %d\n", c_pid);
+        return 1;
+    }
+
+    return 0;
+}
+
 int tracy_kill_child(struct tracy_child *c) {
     if (c->tracy->opt & TRACY_VERBOSE)
         printf("tracy_kill_child: %d\n", c->pid);
 
-    kill(c->pid, SIGKILL);
+    if(kill(c->pid, SIGKILL)) {
+        perror("tracy_kill_child: kill");
 
-    waitpid(c->pid, NULL, __WALL);
+        return -1;
+    }
+
+    if(waitpid(c->pid, NULL, __WALL) < 0) {
+        perror("tracy_kill_child: waitpid");
+
+        return -1;
+    }
 
     if (tracy_remove_child(c)) {
         puts("Could not remove child");
-        /* TODO: Quit tracy here? */
+        return -1;
     }
 
     return 0;
