@@ -675,42 +675,29 @@ int tracy_debug_current(struct tracy_child *child) {
 
     abi = child->event.abi;
 
+#define __tracy_print_debug(fmt) \
+    { \
+    printf("DEBUG: 0: %ld 1: %ld 2: %ld 3: %ld 4: %ld 5: %ld" \
+            " s: " fmt ", R: " fmt ", PC: " fmt " SP: " fmt "\n", \
+            get_reg(&a, 0, abi), get_reg(&a, 1, abi), get_reg(&a, 2, abi), \
+            get_reg(&a, 3, abi), get_reg(&a, 4, abi), get_reg(&a, 5, abi), \
+            a.TRACY_SYSCALL_REGISTER, a.TRACY_RETURN_CODE, \
+            a.TRACY_IP_REG, a.TRACY_STACK_POINTER \
+            ); \
+    }
 
-#if __GLIBC_MINOR__ <= 15
-    printf("DEBUG: 0: %ld 1: %ld 2: %ld 3: %ld 4: %ld 5: %ld"
-            " s: %lu, R: %lu, PC: %lu SP: %lu\n",
-            get_reg(&a, 0, abi), get_reg(&a, 1, abi), get_reg(&a, 2, abi),
-            get_reg(&a, 3, abi), get_reg(&a, 4, abi), get_reg(&a, 5, abi),
-            a.TRACY_SYSCALL_REGISTER, a.TRACY_RETURN_CODE,
-            a.TRACY_IP_REG, a.TRACY_STACK_POINTER
-            );
-
-    printf("DEBUG: 0: %lx 1: %lx 2: %lx 3: %lx 4: %lx 5: %lx"
-            " s: %lx, R: %lx, PC: %lx SP: %lx\n",
-            get_reg(&a, 0, abi), get_reg(&a, 1, abi), get_reg(&a, 2, abi),
-            get_reg(&a, 3, abi), get_reg(&a, 4, abi), get_reg(&a, 5, abi),
-            a.TRACY_SYSCALL_REGISTER, a.TRACY_RETURN_CODE,
-            a.TRACY_IP_REG, a.TRACY_STACK_POINTER
-            );
+#ifdef __arm__
+    __tracy_print_debug("%lu");
+    __tracy_print_debug("%lx");
 #else
-    printf("DEBUG: 0: %ld 1: %ld 2: %ld 3: %ld 4: %ld 5: %ld"
-            " s: %Lu, R: %Lu, PC: %Lu SP: %Lu\n",
-            get_reg(&a, 0, abi), get_reg(&a, 1, abi), get_reg(&a, 2, abi),
-            get_reg(&a, 3, abi), get_reg(&a, 4, abi), get_reg(&a, 5, abi),
-            a.TRACY_SYSCALL_REGISTER, a.TRACY_RETURN_CODE,
-            a.TRACY_IP_REG, a.TRACY_STACK_POINTER
-            );
-
-    printf("DEBUG: 0: %lx 1: %lx 2: %lx 3: %lx 4: %lx 5: %lx"
-            " s: %Lx, R: %Lx, PC: %Lx SP: %Lx\n",
-            get_reg(&a, 0, abi), get_reg(&a, 1, abi), get_reg(&a, 2, abi),
-            get_reg(&a, 3, abi), get_reg(&a, 4, abi), get_reg(&a, 5, abi),
-            a.TRACY_SYSCALL_REGISTER, a.TRACY_RETURN_CODE,
-            a.TRACY_IP_REG, a.TRACY_STACK_POINTER
-            );
-#endif
-
-    /*tracy_backtrace();*/
+#if __GLIBC_MINOR__ <= 15
+    __tracy_print_debug("%lu");
+    __tracy_print_debug("%lx");
+#else
+    __tracy_print_debug("%Lu");
+    __tracy_print_debug("%Lx");
+#endif /* glibc_minor <= 15 */
+#endif /* __arm__ */
 
     return 0;
 }
