@@ -506,15 +506,4 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child);
         DEST_VAR = _force_cast_ ## __LINE__.dest_type; \
     }
 
-
-#define SYSCALL_FROM_EVENT(event) \
-( \
-    get_syscall_name_abi(event->syscall_num, event->abi) \
-)
-
-/* TODO XXX FIXME: What is get_syscall_name returns NULL? */
-#define EVENT_IS_SYSCALL(event, syscall) \
-{ \
-    strcmp(SYSCALL_NAME_FROM_EVENT(event), syscall) == 0; \
-}
 #endif
