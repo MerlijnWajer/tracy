@@ -9,7 +9,7 @@
 
 /* ARM EABI puts System call number in r7 */
 #define TRACY_SYSCALL_REGISTER ARM_r7
-#define TRACY_SYSCALL_N ARM_r8
+#define TRACY_SYSCALL_N ARM_r7
 
 #define TRACY_RETURN_CODE ARM_r0
 
