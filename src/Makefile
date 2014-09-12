@@ -1,8 +1,7 @@
 .PHONY: default clean check-inject tests
 
-# Nuked -pedantic because recent glibc changed to long long unsigned ints for
-# TRACY_SYSCALL_REGISTER etc. Can't print those with -pedantic...
 CFLAGS+=-ansi -pedantic -Wall -Wextra -Werror -Wno-unused-result -pipe
+CFLAGS+=-Wno-long-long # Allow long long in print statements with -pedantic
 CFLAGS+=-D_POSIX_SOURCE -D_GNU_SOURCE
 CFLAGS+=-pthread -fPIC
 

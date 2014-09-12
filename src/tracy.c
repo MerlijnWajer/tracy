@@ -694,8 +694,8 @@ int tracy_debug_current(struct tracy_child *child) {
     __tracy_print_debug("%lu");
     __tracy_print_debug("%lx");
 #else
-    __tracy_print_debug("%Lu");
-    __tracy_print_debug("%Lx");
+    __tracy_print_debug("%llu");
+    __tracy_print_debug("%llx");
 #endif /* glibc_minor <= 15 */
 #endif /* __arm__ */
 
