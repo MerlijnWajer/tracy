@@ -248,6 +248,10 @@ Hook return values
     Return this *only* from a signal hook. This will cause the signal that
     would normally be sent to be suppressed instead.
 
+* **TRACY_HOOK_DETACH_CHILD**
+  
+    Return this if the child should be detached. Only valid for syscall hooks.
+
 - **TRACY_HOOK_DENY**
 
     Return this **only** from a system call hook. This will cause the

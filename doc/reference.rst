@@ -56,7 +56,6 @@ tracy_free frees all the data associated with tracy:
 -   Any children being traced are either detached (if we attached) or killed
     if tracy started them.
 
--   Datastructures used internally.
 
 tracy_quit
 ----------
@@ -162,6 +161,17 @@ the PTRACE_KILL argument.
 
 Return 0 upon success, -1 upon failure.
 
+tracy_detach_child
+-------------------
+
+.. code-block:: c
+
+    int tracy_detach_child(struct tracy_child *c);
+
+tracy_detach_child attempts to detach from child *c*.
+Returns 0 upon success; -1 upon failure.
+
+
 get_syscall_name_abi
 --------------------
 
@@ -201,6 +211,13 @@ Valid values for *abi* depend on the platform, but **TRACY_ABI_NATIVE** is
 always available and is the sane choice unless you are trying to mix several
 ABIs.
 
+Hook functions should return:
+
+* TRACY_HOOK_CONTINUE if everything is fine.
+* TRACY_HOOK_DETACH_CHILD if the child should be detached.
+* TRACY_HOOK_KILL_CHILD if the child should be killed.
+* TRACY_HOOK_ABORT if tracy should kill all childs and quit.
+
 Returns 0 on success, -1 on failure.
 
 tracy_set_signal_hook
@@ -221,10 +238,10 @@ the SIGTRAP's from ptrace are not sent, and neither is the first
 SIGSTOP.
 Possible return values by the tracy_hook_func for the signal:
 
-    -   TRACY_HOOK_CONTINUE will send the signal and proceed as normal
-    -   TRACY_HOOK_SUPPRESS will not send a signal and process as normal
-    -   TRACY_HOOK_KILL_CHILD if the child should be killed.
-    -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
+* TRACY_HOOK_CONTINUE will send the signal and proceed as normal
+* TRACY_HOOK_SUPPRESS will not send a signal and process as normal
+* TRACY_HOOK_KILL_CHILD if the child should be killed.
+* TRACY_HOOK_ABORT if tracy should kill all childs and quit.
 
 
 tracy_set_default_hook
@@ -255,10 +272,11 @@ tracy_execute_hook
 
 Returns the return value of the hook. Hooks should return:
 
-    -   TRACY_HOOK_CONTINUE if everything is fine.
-    -   TRACY_HOOK_KILL_CHILD if the child should be killed.
-    -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
-    -   TRACY_HOOK_NOHOOK is no hook is in place for this system call.
+* TRACY_HOOK_CONTINUE if everything is fine.
+* TRACY_HOOK_DETACH_CHILD if the child should be detached.
+* TRACY_HOOK_KILL_CHILD if the child should be killed.
+* TRACY_HOOK_ABORT if tracy should kill all childs and quit.
+* TRACY_HOOK_NOHOOK is no hook is in place for this system call.
 
 
 Memory manipulation

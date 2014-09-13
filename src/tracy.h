@@ -220,7 +220,6 @@ struct tracy *tracy_init(long opt);
  * tracy_free frees all the data associated with tracy:
  * -    Any children being traced are either detached (if we attached) or killed
  *      if tracy started them
- * -    Datastructures used internally.
  *
  */
 void tracy_free(struct tracy *t);
@@ -357,6 +356,13 @@ char* get_signal_name(int signal);
  * to hook a system call on multiple ABIs, you need to call
  * tracy_set_hook for each ABI.
  *
+ * Hook functions should return:
+ *
+ * -   TRACY_HOOK_CONTINUE if everything is fine.
+ * -   TRACY_HOOK_DETACH_CHILD if the child should be detached.
+ * -   TRACY_HOOK_KILL_CHILD if the child should be killed.
+ * -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
+ *
  * Returns 0 on success, -1 on failure.
  */
 
@@ -396,14 +402,14 @@ int tracy_set_default_hook(struct tracy *t, tracy_hook_func f);
 /*
  * tracy_execute_hook
  *
+ * Returns the hook-value of the hook function, which can be one of the
+ * following:
  *
- * Returns the return value of the hook. Hooks should return:
- *
- *  -   TRACY_HOOK_CONTINUE if everything is fine.
- *  -   TRACY_HOOK_DETACH_CHILD if the child should be detached.
- *  -   TRACY_HOOK_KILL_CHILD if the child should be killed.
- *  -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
- *  -   TRACY_HOOK_NOHOOK is no hook is in place for this system call.
+ * -   TRACY_HOOK_CONTINUE if everything is fine.
+ * -   TRACY_HOOK_DETACH_CHILD if the child should be detached.
+ * -   TRACY_HOOK_KILL_CHILD if the child should be killed.
+ * -   TRACY_HOOK_ABORT if tracy should kill all childs and quit.
+ * -   TRACY_HOOK_NOHOOK if no hook is in place for this system call.
  *
  */
 int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e);
