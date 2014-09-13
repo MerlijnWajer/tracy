@@ -1,13 +1,17 @@
-* Add python module (compiled from C, not ctypes; maybe a high level wrapper
-around the C module, but no ctypes). For python API.
+* Sync documentation with tracy.h and recent developments
+* Add TRACY_DETACH_CHILD to signal hook. But that needs some more thought - we
+  need to pass the signal to the child if we are going to detach, etc.
 * Look at src/BROKEN_WITH_ABI and fix appropriately.
 * Decide whether TRACY_HOOK_ABORT should kill all processes regardless if we
   started them or attached to them, or that it should detach ones that we
   attached to and kill the rest, etc...
-* Add support for injection/modification with a different ABI than current.
+* Add support for musl (mostly done, requires a small change to lseek and ifdef
+  statements around the backtrace/execinfo.h)
+
 * Add support for loading relocatable code in the binary. Some kind of modules?
   Would be awesome. Load dl in the process?
+* Add python module (compiled from C, not ctypes; maybe a high level wrapper
+around the C module, but no ctypes). For python API.
 
+* Add support for injection/modification with a different ABI than current.
 
-* TODO: Add TRACY_DETACH_CHILD to signal hook. But that needs some more thought - we
-  need to pass the signal to the child if we are going to detach, etc.
