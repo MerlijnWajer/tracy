@@ -88,7 +88,6 @@ static int tracy_internal_syscall(struct tracy_event *s) {
     if (!s->child->pre_syscall)
         return -1;
 
-
     switch(s->syscall_num) {
 #pragma message "SYS_{fork,vfork,clone} cannot be used directly; not abi safe"
         /* TODO, FIXME XXX: SYS_fork is not always valid, depends on the ABI */
@@ -515,7 +514,6 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
 
         goto start;
 #endif
-        /*return tracy_wait_event(t, c_pid);*/
     } else if (signal_id == SIGSTOP && (t->opt & TRACY_TRACE_CHILDREN) &&
         !(t->opt & TRACY_USE_SAFE_TRACE) && !s->child->received_first_sigstop) {
         /* We ignore the first SIGSTOP signal when
@@ -541,8 +539,18 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
         /* Clear siginfo struct */
         memset(&(s->siginfo), 0, sizeof(siginfo_t));
 
-        /* Store signal info in event */
-        PTRACE_CHECK(PTRACE_GETSIGINFO, pid, NULL, &(s->siginfo), NULL);
+        /*
+         * TODO: if statement below is just a test. We need to handle these
+         * signals properly it seems. Some info:
+         * - https://www.gnu.org/software/libc/manual/html_node/Job-Control-Signals.html
+         * - https://stackoverflow.com/questions/11886812/whats-the-difference-between-sigstop-and-sigtstp
+         * - "group stop" http://man7.org/linux/man-pages/man2/ptrace.2.html
+         */
+        if (!((signal_id == SIGTSTP) || (signal_id == SIGTTIN) ||
+                    (signal_id = SIGTTOU))) {
+            /* Store signal info in event */
+            PTRACE_CHECK(PTRACE_GETSIGINFO, pid, NULL, &(s->siginfo), NULL);
+        }
 
         /* Signal for the child, pass it along. */
         s->signal_num = signal_id;
