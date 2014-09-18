@@ -13,7 +13,7 @@ LDFLAGS+=-rdynamic -pthread
 
 build ?= debug
 
-include Makerules
+include rules.mk
 
 TRACY_HS=tracy.h ll.h tracyarch.h
 TRACY_OS=tracy.o tracy-mem.o tracy-safe-fork.o tracy-modification.o \
