@@ -49,7 +49,9 @@
 #include "ll.h"
 #include "tracy.h"
 
+#ifdef TRACY_HAVE_EXECINFO
 #include <execinfo.h>
+#endif
 
 #ifdef __x86_64__
 #include "arch/amd64/syscalls.h"
@@ -703,6 +705,7 @@ int tracy_debug_current(struct tracy_child *child) {
 }
 
 void tracy_backtrace(void) {
+#if TRACY_HAVE_EXECINFO
     void *array [40];
     size_t size;
 
@@ -712,6 +715,7 @@ void tracy_backtrace(void) {
         return;
     }
     backtrace_symbols_fd(array, 10, 2);
+#endif
 
     return;
 }

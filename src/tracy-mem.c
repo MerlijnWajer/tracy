@@ -155,7 +155,7 @@ static ssize_t tracy_ppm_read_mem(struct tracy_child *c,
     }
 
     /* Try seeking this memory postion */
-    if (lseek(c->mem_fd, (off_t)src, SEEK_SET) == (off_t)-1)
+    if (lseek(c->mem_fd, (off_t)(uintptr_t)src, SEEK_SET) == (off_t)-1)
         return -1;
 
     errno = 0;
@@ -334,7 +334,7 @@ static ssize_t tracy_ppm_write_mem(struct tracy_child *c,
     }
 
     /* Try seeking this memory postion */
-    if (lseek(c->mem_fd, (off_t)dest, SEEK_SET) == (off_t)-1)
+    if (lseek(c->mem_fd, (off_t)(uintptr_t)dest, SEEK_SET) == (off_t)-1)
         return -1;
 
     errno = 0;
