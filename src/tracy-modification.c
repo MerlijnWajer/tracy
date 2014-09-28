@@ -233,11 +233,13 @@ int tracy_inject_syscall_post_end(struct tracy_child *child, long *return_code) 
  *
  * Returns 0 on success, -1 on failure.
  *
+ * Note: On some architectures (like ARM) the "r0" is the same as the
+ * "return_code", so if you set "return_code" first with
+ * tracy_modify_syscall_regs and then call tracy_modify_syscall_args to
+ * set/restore args, the "return_code" is lost.
  */
 int tracy_modify_syscall_args(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a) {
-
-    /* change_syscall */
     struct TRACY_REGS_NAME newargs;
 
     PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &newargs, -1);
@@ -268,12 +270,13 @@ int tracy_modify_syscall_args(struct tracy_child *child, long syscall_number,
 /*
  * tracy_modify_syscall_regs
  *
- * This function allows you to change the system call number and arguments of a
- * paused child. You can use it to change a0..a5
+ * This function allows you to change the system call number, the instruction
+ * pointer and the stack pointer and the return code.
  *
  * Changes the system call number to *syscall_number* and if *a* is not NULL,
- * changes the registers of the system call to the contents of *a*. These
- * registers currently include: ip, sp, return_code.
+ * changes the instruction pointer and stack pointer and return code registers
+ * to the contents of *a*. These registers currently include: ip, sp,
+ * return_code.
  *
  * Returns 0 on success, -1 on failure.
  *
@@ -281,11 +284,13 @@ int tracy_modify_syscall_args(struct tracy_child *child, long syscall_number,
  * Make sure that you set it to the right value when passing args to this
  * function.
  *
+ * Note: On some architectures (like ARM) the "r0" is the same as the
+ * "return_code", so if you set "return_code" first with
+ * tracy_modify_syscall_regs and then call tracy_modify_syscall_args to
+ * set/restore args, the "return_code" is lost.
  */
 int tracy_modify_syscall_regs(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a) {
-
-    /* change_syscall */
     struct TRACY_REGS_NAME newargs;
 
     PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &newargs, -1);

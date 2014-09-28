@@ -403,12 +403,11 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
             s->args.syscall = s->child->denied_nr;
 
             /* Args don't matter with denied syscalls, so we don't set them */
-            s->args.ip = regs.TRACY_IP_REG;
-            s->type = TRACY_EVENT_SYSCALL;
 
             /* Set return code to -EPERM to indicate a denied system call. */
             s->args.return_code = -EPERM;
             s->args.sp = regs.TRACY_STACK_POINTER;
+            s->args.ip = regs.TRACY_IP_REG;
 
             if (tracy_modify_syscall_regs(s->child, s->child->denied_nr, &(s->args))) {
                 fprintf(stderr, "tracy_modify_syscall_regs failed\n");
@@ -416,13 +415,9 @@ struct tracy_event *tracy_wait_event(struct tracy *t, pid_t c_pid) {
                 /* TODO: Kill child? */
 #pragma message "Kill child here?"
             }
-            if (tracy_modify_syscall_args(s->child, s->child->denied_nr, &(s->args))) {
-                fprintf(stderr, "tracy_modify_syscall_args failed\n");
-                tracy_backtrace();
-                /* TODO: Kill child? */
-#pragma message "Kill child?"
-            }
+
             s->child->denied_nr = 0;
+            s->type = TRACY_EVENT_SYSCALL;
 
             check_syscall(s);
 
