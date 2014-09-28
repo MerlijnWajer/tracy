@@ -17,6 +17,12 @@ Currently supported architectures (In decreasing order of testing):
 * arm
 * ppc32
 
+With support for the following C libraries:
+
+* glibc
+* musl
+
+
 Website
 =======
 
