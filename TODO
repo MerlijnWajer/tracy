@@ -5,8 +5,6 @@
 * Decide whether TRACY_HOOK_ABORT should kill all processes regardless if we
   started them or attached to them, or that it should detach ones that we
   attached to and kill the rest, etc...
-* Add support for musl (mostly done, requires a small change to lseek and ifdef
-  statements around the backtrace/execinfo.h)
 
 * Add support for loading relocatable code in the binary. Some kind of modules?
   Would be awesome. Load dl in the process?

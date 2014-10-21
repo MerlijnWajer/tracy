@@ -7,6 +7,9 @@ CFLAGS+=-pthread -fPIC
 
 
 LDFLAGS+=-rdynamic -pthread
+
+# To build statically, simply do: LDFLAGS=-static make ...
+
 #CFLAGS+=-O2
 #CFLAGS+=-m32
 #LDFLAGS+=-m32
