@@ -2,8 +2,8 @@ Known bugs:
 
  * Python bindings are currently broken because of the ABI change
  * ABI detection on amd64 is not race safe. This should not be a problem
- * for almost anyone, except when they're writing secure jails.
+   for almost anyone, except when they're writing secure jails.
 
  * No BSD support yet. I will try a FreeBSD port sometime soon.
- * No support for MIPS,PPC64,ARM64
- * No proper tests
+ * No support for MIPS, PPC64, ARM64
+ * No 'proper' tests
