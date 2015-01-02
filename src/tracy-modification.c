@@ -107,6 +107,8 @@ int tracy_inject_syscall_async(struct tracy_child *child, long syscall_number,
  */
 int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_number,
         struct tracy_sc_args *a, tracy_hook_func callback) {
+    struct TRACY_REGS_NAME newargs;
+
     /* TODO CHECK PRE_SYSCALL BIT */
 
     PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &child->inj.reg, -1);
@@ -115,6 +117,40 @@ int tracy_inject_syscall_pre_start(struct tracy_child *child, long syscall_numbe
     child->inj.injecting = 1;
     child->inj.pre = 1;
     child->inj.syscall_num = syscall_number;
+
+#ifdef __arm__
+    if(child->tracy->opt & TRACY_WORKAROUND_ARM_7475_1) {
+        /* change call to getpid */
+        tracy_modify_syscall_args(child, get_syscall_number_abi("getpid", child->event.abi), &child->inj.reg);
+
+        PTRACE_CHECK(PTRACE_SYSCALL, child->pid, NULL, 0, -1);
+
+        /* Wait for POST */
+        waitpid(child->pid, NULL, __WALL);
+
+        PTRACE_CHECK(PTRACE_GETREGS, child->pid, 0, &newargs, -1);
+
+        /* ARM: 7475/1: update args 4-6 now because we can't do that in pre */
+        if (a) {
+#pragma message "Verify that this abi is ok; do we want to pass it instead?"
+            set_reg(&newargs, 4, child->event.abi, a->a4);
+            set_reg(&newargs, 5, child->event.abi, a->a5);
+            set_reg(&newargs, 6, child->event.abi, a->a5);
+        }
+
+        /* POST, go back to PRE */
+        newargs.TRACY_IP_REG -= TRACY_SYSCALL_OPSIZE;
+
+        PTRACE_CHECK(PTRACE_SETREGS, child->pid, 0, &newargs, -1);
+
+        PTRACE_CHECK(PTRACE_SYSCALL, child->pid, NULL, 0, -1);
+
+        /* Wait for PRE, this shouldn't take long as we literally only wait for
+        * the OS to notice that we set the PC back it should give us control back
+        * on PRE-syscall. */
+        waitpid(child->pid, NULL, __WALL);
+    }
+#endif
 
     return tracy_modify_syscall_args(child, syscall_number, a);
 }
@@ -184,6 +220,16 @@ int tracy_inject_syscall_post_start(struct tracy_child *child, long syscall_numb
 
     /* POST, go back to PRE */
     newargs.TRACY_IP_REG -= TRACY_SYSCALL_OPSIZE;
+
+#ifdef __arm__
+    /* ARM: 7475/1: update args 4-6 now because we can't do that in pre */
+    if (a && (child->tracy->opt & TRACY_WORKAROUND_ARM_7475_1)) {
+#pragma message "Verify that this abi is ok; do we want to pass it instead?"
+        set_reg(&newargs, 4, child->event.abi, a->a4);
+        set_reg(&newargs, 5, child->event.abi, a->a5);
+        set_reg(&newargs, 6, child->event.abi, a->a5);
+    }
+#endif
 
     PTRACE_CHECK(PTRACE_SETREGS, child->pid, 0, &newargs, -1);
 
