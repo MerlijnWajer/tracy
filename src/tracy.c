@@ -67,7 +67,7 @@
 #endif
 
 /* Foreground PID, used by tracy main's interrupt handler */
-static pid_t global_fpid;
+static pid_t global_fpid = 0;
 
 struct tracy *tracy_init(long opt) {
     struct tracy *t;
@@ -724,21 +724,28 @@ void tracy_backtrace(void) {
 static int main_loop_go_on = 0;
 
 /* Handle SIGINT in tracy_main and shutdown smoothly */
-static void _main_interrupt_handler(int sig)
-{
-    if (kill(global_fpid, SIGINT) < 0) {
-        if (errno == ESRCH)
-            fprintf(stderr, _y("\ntracy: Received %s, foreground PID "
-                "does not exists, killing all."), get_signal_name(sig));
-        else
-            fprintf(stderr, _y("\ntracy: Received %s, kill(%i, SIGINT) failed: %s"),
-                get_signal_name(sig), global_fpid, strerror(errno));
-
+static void _main_interrupt_handler(int sig) {
+    if (global_fpid <= 0) {
         /* Reset to default so tracy can be killed */
         signal(sig, SIG_DFL);
 
         /* Cancel main loop */
         main_loop_go_on = 0;
+    } else {
+        if (kill(global_fpid, SIGINT) < 0) {
+            if (errno == ESRCH)
+                fprintf(stderr, _y("\ntracy: Received %s, foreground PID "
+                    "does not exists, killing all."), get_signal_name(sig));
+            else
+                fprintf(stderr, _y("\ntracy: Received %s, kill(%i, SIGINT) failed: %s"),
+                    get_signal_name(sig), global_fpid, strerror(errno));
+
+            /* Reset to default so tracy can be killed */
+            signal(sig, SIG_DFL);
+
+            /* Cancel main loop */
+            main_loop_go_on = 0;
+        }
     }
 
     return;
