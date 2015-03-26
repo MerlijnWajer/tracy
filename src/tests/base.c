@@ -26,23 +26,37 @@
 
 int main(int argc, char** argv) {
     struct tracy *tracy;
+    pid_t pid;
+    char *endptr;
 
     /* Tracy options */
     tracy = tracy_init(TRACY_TRACE_CHILDREN | TRACY_VERBOSE |
             TRACY_VERBOSE_SIGNAL | TRACY_VERBOSE_SYSCALL);
 
-    if (argc < 2) {
-        printf("Usage: ./example <program-name>\n");
+    if (argc != 2) {
+        printf("Usage: ./example <program-name|pid>\n");
         return EXIT_FAILURE;
     }
 
-    argv++; argc--;
+    /* Parse PID */
+    pid = (int)strtol(argv[1], &endptr, 10);
+    if (endptr[0]) {
+        argv++; argc--;
 
-    /* Start child */
-    if (!tracy_exec(tracy, argv)) {
-        perror("tracy_exec");
-        return EXIT_FAILURE;
+        /* Start child */
+        if (!tracy_exec(tracy, argv)) {
+            perror("tracy_exec");
+            return EXIT_FAILURE;
+        }
+    } else {
+        /* Start child */
+        if (!tracy_attach(tracy, pid)) {
+            perror("tracy_attach");
+            tracy_free(tracy);
+            return EXIT_FAILURE;
+        }
     }
+
 
     /* Main event-loop */
     tracy_main(tracy);
