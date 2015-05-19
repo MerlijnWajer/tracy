@@ -58,6 +58,7 @@ endif
 
 default: libtracy.a libtracy.so $(TRACY_OS) $(ARCH_OS)
 
+
 # default is no longer tests
 
 libtracy.a: $(TRACY_OS) $(ARCH_OS)
@@ -72,7 +73,7 @@ test_binaries=tests/hello tests/base tests/inject-simple \
 	tests/raw-clone tests/deny tests/attach tests/metronome \
 	tests/sig_suppress tests/async-inject tests/redirect tests/wxorx \
 	tests/abi tests/attach-detach tests/fuzz-write tests/attach-execve \
-	tests/faketime
+	tests/faketime tests/llseek
 	#tests/rwmem
 
 
@@ -95,6 +96,7 @@ tests/attach: tests/attach.o $(TRACY_OS) $(ARCH_OS)
 tests/attach-detach: tests/attach-detach.o $(TRACY_OS) $(ARCH_OS)
 tests/attach-execve: tests/attach-execve.o $(TRACY_OS) $(ARCH_OS)
 tests/fuzz-write: tests/fuzz-write.o $(TRACY_OS) $(ARCH_OS)
+tests/llseek: tests/llseek.o $(TRACY_OS) $(ARCH_OS)
 tests/metronome: tests/metronome.o
 tests/faketime: tests/faketime.o $(TRACY_OS) $(ARCH_OS)
 
@@ -127,6 +129,7 @@ tests/attach-execve.o: $(TRACY_HS)
 tests/attach-detach.o: $(TRACY_HS)
 tests/fuzz-write.o: $(TRACY_HS)
 tests/faketime.o: $(TRACY_HS)
+tests/llseek.o: $(TRACY_HS)
 
 def_syscalls.h:
 	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -dM \
