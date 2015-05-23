@@ -23,6 +23,7 @@
 #include <time.h>
 
 #include <sys/time.h>
+#include <asm/stat.h>
 
 /* TODO
  * We need to think/implement the timezone value for gettimeofday
@@ -122,6 +123,68 @@ int hook_gettimeofday(struct tracy_event *e) {
     return TRACY_HOOK_CONTINUE; 
 }
 
+
+/*
+ * {"statfs", (0 + 99)},
+ * {"fstatat64", (0 +327)},
+ * {"lstat64", (0 +196)},
+ * {"fstat64", (0 +197)},
+ * {"fstatfs", (0 +100)},
+ * {"statfs64", (0 +266)},
+ * {"lstat", (0 +107)},
+ * {"fstatfs64", (0 +267)},
+ * {"stat", (0 +106)},
+ * {"stat64", (0 +195)},
+ * {"ustat", (0 + 62)},
+ * {"fstat", (0 +108)},
+ */
+#define stat_str stat64
+
+int hook_fstat64(struct tracy_event *e) {
+    struct stat_str st;
+    int ret;
+    struct timespec ts = {0, 0};
+
+    /*fprintf(stderr, "hook_fstat64\n");*/
+    if (e->child->pre_syscall) {
+        e->child->custom = (void*)e->args.a1;
+        /*fprintf(stderr, "fd/ptr: %lx\n", e->args.a0);*/
+    } else {
+        if (e->child->custom && !e->args.return_code) {
+            ret = tracy_read_mem(e->child, (tracy_parent_addr_t)&st,
+                                (tracy_child_addr_t)e->child->custom,
+                                sizeof(struct stat_str));
+            if (ret != sizeof(struct stat_str)) {
+                fprintf(stderr, "tracy_read_mem failed: %d\n", ret);
+                return TRACY_HOOK_CONTINUE;
+            } else {
+                /*st.st_mode = 0;*/
+                st.st_mtime = ts.tv_sec;
+                st.st_atime = ts.tv_sec;
+                st.st_ctime = ts.tv_sec;
+                ret = tracy_write_mem(e->child, (tracy_child_addr_t)e->child->custom,
+                        (tracy_parent_addr_t)&st, sizeof(struct stat_str));
+                if (ret != sizeof(struct stat_str)) {
+                    fprintf(stderr, "tracy_read_mem failed: %d\n", ret);
+                }
+            }
+
+        }
+    }
+    return TRACY_HOOK_CONTINUE; 
+}
+
+int hook_stat64(struct tracy_event *e) {
+    /*fprintf(stderr, "hook_stat64 -> hook_fstat64\n");*/
+    return hook_fstat64(e);
+}
+
+int hook_lstat64(struct tracy_event *e) {
+    /*fprintf(stderr, "hook_lstat64 -> hook_fstat64\n");*/
+    return hook_fstat64(e);
+}
+
+
 int main(int argc, char** argv) {
     struct tracy *tracy;
 
@@ -132,8 +195,8 @@ int main(int argc, char** argv) {
             TRACY_VERBOSE_SIGNAL | TRACY_VERBOSE_SYSCALL);
 #endif
 
-    if (argc != 2) {
-        printf("Usage: ./example <program-name|pid>\n");
+    if (argc < 2) {
+        printf("Usage: ./example <program-name|pid> [arguments]\n");
         return EXIT_FAILURE;
     }
 
@@ -144,6 +207,9 @@ int main(int argc, char** argv) {
     set_hook(time);
     set_hook(clock_gettime);
     set_hook(gettimeofday);
+    set_hook(stat64);
+    set_hook(lstat64);
+    set_hook(fstat64);
 
     argv++; argc--;
 
@@ -152,7 +218,6 @@ int main(int argc, char** argv) {
         perror("tracy_exec");
         return EXIT_FAILURE;
     }
-
 
     /* Main event-loop */
     tracy_main(tracy);
