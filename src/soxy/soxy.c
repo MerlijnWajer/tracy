@@ -28,8 +28,15 @@
     errno = tmp; \
 }
 
-/* TODO: Store this somewhere in a safe manner */
-long boe, ba;
+#define cproxy(c) \
+    ((struct proxy_info*)c)
+
+/* TODO: Free proxy_info and tracy_ll info... */
+
+struct proxy_info {
+    struct tracy_ll *ll;
+    int boe, ba;
+};
 
 static void get_proxy_server(struct sockaddr *addr, socklen_t *proxy_addr_len) {
     static int first = 0; static struct sockaddr _addr;
@@ -39,7 +46,7 @@ static void get_proxy_server(struct sockaddr *addr, socklen_t *proxy_addr_len) {
         struct sockaddr_in *addr4 = (struct sockaddr_in *) &_addr;
         addr4->sin_family = AF_INET;
         addr4->sin_addr.s_addr = 0x0100007f;
-        addr4->sin_port = htons(8888);
+        addr4->sin_port = htons(10000);
         first = 1;
     }
 
@@ -48,16 +55,16 @@ static void get_proxy_server(struct sockaddr *addr, socklen_t *proxy_addr_len) {
 }
 
 static proxy_t *proxy_find(struct tracy_event *e, int fd) {
-    struct tracy_ll_item *p = ll_find((struct tracy_ll *) e->child->custom, fd);
+    struct tracy_ll_item *p = ll_find(cproxy(e->child->custom)->ll, fd);
     return (p != NULL) ? (proxy_t *) p->data : NULL;
 }
 
 static int proxy_set(struct tracy_event *e, int fd, proxy_t *proxy) {
     if(proxy == NULL) {
-        return ll_del((struct tracy_ll *) e->child->custom, fd);
+        return ll_del(cproxy(e->child->custom)->ll, fd);
     }
     else {
-        return ll_add((struct tracy_ll *) e->child->custom, fd, proxy);
+        return ll_add(cproxy(e->child->custom)->ll, fd, proxy);
     }
 }
 
@@ -149,12 +156,11 @@ static int soxy_connect(struct tracy_event *e,
 static int soxy_hook_socket(struct tracy_event *e) {
     proxy_t * proxy;
     if (e->child->pre_syscall) {
-        /* FIXME */
-        boe = e->args.a0;
-        ba = e->args.a1;
-
+        cproxy(e->child->custom)->boe = e->args.a0;
+        cproxy(e->child->custom)->ba = e->args.a1;
     } else {
-        if(boe == AF_INET && ba == SOCK_STREAM) {
+        if (cproxy(e->child->custom)->boe == AF_INET &&
+            cproxy(e->child->custom)->ba == SOCK_STREAM) {
             fprintf(stderr, "We found a relevant fd\n");
             proxy = (proxy_t *) calloc(1, sizeof(proxy_t));
             if(proxy == NULL) {
@@ -313,7 +319,10 @@ static int soxy_hook_close(struct tracy_event *e) {
 }
 
 static void soxy_child_create(struct tracy_child *child) {
-    child->custom = ll_init();
+    child->custom = malloc(sizeof(struct proxy_info *));
+    memset(child->custom, 0, sizeof(struct proxy_info *));
+
+    cproxy(child->custom)->ll = ll_init();
 }
 
 static int soxy_connect_proxy_server(struct tracy_event *e, int fd)
