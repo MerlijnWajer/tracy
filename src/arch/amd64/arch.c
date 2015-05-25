@@ -7,19 +7,18 @@
 #define T_SYSENTER 0x340f
 
 int get_abi(struct tracy_event *s) {
-    char *buf;
     unsigned long sysinstr;
-
     struct TRACY_REGS_NAME a;
 
-    /* TODO XXX Get rid of malloc and just use the stack? */
-    buf = malloc(sizeof(char) * sizeof(unsigned long));
-    tracy_read_mem(s->child, buf, (char*)s->args.ip - TRACY_SYSCALL_OPSIZE,
-            sizeof(char) * TRACY_SYSCALL_OPSIZE);
+    /* TRACY_SYSCALL_OPSIZE should not be larger than sizeof(unsigned long) */
+    TRACY_BUILD_BUG(sizeof(unsigned long) < TRACY_SYSCALL_OPSIZE)
 
-    sysinstr = *(unsigned long*)buf;
-    free(buf);
 
+    if (tracy_read_mem(s->child, &sysinstr, (char*)s->args.ip - TRACY_SYSCALL_OPSIZE,
+            sizeof(char) * TRACY_SYSCALL_OPSIZE) < TRACY_SYSCALL_OPSIZE)
+        return -1;
+
+    sysinstr &= (1 << ((TRACY_SYSCALL_OPSIZE * 8) - 1));
     PTRACE_CHECK(PTRACE_GETREGS, s->child->pid, 0, &a, -1);
 
 #if 0

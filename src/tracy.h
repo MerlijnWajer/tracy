@@ -516,4 +516,7 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child);
 #define TRACY_HAVE_EXECINFO
 #endif
 
+/* From the Linux kernel */
+#define TRACY_BUILD_BUG(condition) ((void)sizeof(char[1 - 2*!!(condition)]));
+
 #endif
