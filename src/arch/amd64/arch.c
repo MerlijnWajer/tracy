@@ -18,7 +18,7 @@ int get_abi(struct tracy_event *s) {
             sizeof(char) * TRACY_SYSCALL_OPSIZE) < TRACY_SYSCALL_OPSIZE)
         return -1;
 
-    sysinstr &= (1 << ((TRACY_SYSCALL_OPSIZE * 8) - 1));
+    sysinstr &= ((1 << (TRACY_SYSCALL_OPSIZE * 8)) - 1);
     PTRACE_CHECK(PTRACE_GETREGS, s->child->pid, 0, &a, -1);
 
 #if 0
