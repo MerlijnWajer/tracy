@@ -369,6 +369,15 @@ char* get_signal_name(int signal);
 int tracy_set_hook(struct tracy *t, char *syscall, long abi, tracy_hook_func func);
 
 /*
+ * tracy_unset_hook
+ *
+ * Unset the specified syscall hook
+ *
+ * Returns 0 on success, -1 on failure
+ */
+int tracy_unset_hook(struct tracy *t, char *syscall, long abi);
+
+/*
  * tracy_set_signal_hook
  *
  * Set the signal hook. Called on each signal[1].

@@ -617,6 +617,31 @@ int tracy_set_hook(struct tracy *t, char *syscall, long abi,
     return 0;
 }
 
+/*
+ * High level function for unsetting hooks
+ */
+int tracy_unset_hook(struct tracy *t, char *syscall, long abi) {
+
+    struct tracy_ll_item *item;
+    int hash;
+
+    hash = hash_syscall(syscall, abi);
+
+    item = ll_find(t->hooks, hash);
+
+    if (item) {
+        if (ll_del(t->hooks, hash)) {
+            /* XXX: Add debug/print here */
+            return -1;
+        }
+    } else {
+        /* XXX: Add debug/print here */
+        return -1;
+    }
+
+    return 0;
+}
+
 int tracy_set_signal_hook(struct tracy *t, tracy_hook_func f) {
     t->signal_hook = f;
 
