@@ -19,7 +19,6 @@ tracy_init
 
     struct tracy *tracy_init(long opt);
 
-.. **
 
 tracy_init creates the tracy structure and returns a pointer to this structure
 on success. Current possible options for *opt*:
@@ -49,7 +48,6 @@ tracy_free
 
     void tracy_free(struct tracy *t);
 
-.. **
 
 tracy_free frees all the data associated with tracy:
 
@@ -77,7 +75,7 @@ tracy_main
 
     int tracy_main(struct tracy *tracy);
 
-.. **
+
 
 tracy_main is a simple tracy-event loop.
 Helper for RAD Tracy deployment
@@ -89,9 +87,8 @@ tracy_exec
 
 .. code-block:: c
 
-    struct tracy_child *tracy_exec(struct tracy *t, char **argv);
+    struct tracy_child *tracy_exec(struct tracy *t, chargv);
 
-.. **
 
 tracy_exec is the function tracy offers to actually start tracing a
 process. tracy_exec safely forks, asks to be traced in the child and
@@ -107,7 +104,6 @@ tracy_attach
 
     struct tracy_child *tracy_attach(struct tracy *t, pid_t pid);
 
-.. **
 
 tracy_attach attaches to a running process specified by pid.
 
@@ -123,7 +119,6 @@ tracy_wait_event
 
     struct tracy_event *tracy_wait_event(struct tracy *t, pid_t pid);
 
-.. **
 
 tracy_wait_event waits for an event to occur on any child when pid is -1;
 else on a specific child.
@@ -147,7 +142,7 @@ tracy_continue
 
     int tracy_continue(struct tracy_event *s, int sigoverride);
 
-.. **
+
 
 tracy_continue continues the execution of the child that owns event *s*.
 If the event was caused by a signal to the child, the signal
@@ -168,6 +163,7 @@ tracy_detach_child
 
     int tracy_detach_child(struct tracy_child *c);
 
+
 tracy_detach_child attempts to detach from child *c*.
 Returns 0 upon success; -1 upon failure.
 
@@ -179,6 +175,7 @@ get_syscall_name_abi
 
     char* get_syscall_name_abi(int syscall, int abi);
 
+
 get_syscall_number_abi
 ----------------------
 
@@ -186,12 +183,14 @@ get_syscall_number_abi
 
     char* get_syscall_number_abi(char * syscall, int abi);
 
+
 get_signal_name
 ---------------
 
 .. code-block:: c
 
     char* get_signal_name(int signal);
+
 
 Hooks
 ~~~~~
@@ -203,11 +202,9 @@ tracy_set_hook
 
     int tracy_set_hook(struct tracy *t, char *syscall, long abi, tracy_hook_func func);
 
-.. **
-
 Set the hook for a system call with the given ABI. If you want to hook a system
 call on multiple ABIs, you need to call tracy_set_hook for each ABI.
-Valid values for *abi* depend on the platform, but **TRACY_ABI_NATIVE** is
+Valid values for *abi* depend on the platform, bTRACY_ABI_NATIVE** is
 always available and is the sane choice unless you are trying to mix several
 ABIs.
 
@@ -220,14 +217,23 @@ Hook functions should return:
 
 Returns 0 on success, -1 on failure.
 
+tracy_unset_hook
+----------------
+
+.. code-block:: c
+
+    int tracy_unset_hook(struct tracy *t, char *syscall, long abi);
+
+Unset the specified syscall hook.
+
+Returns 0 on success, -1 on failure.
+
 tracy_set_signal_hook
 ---------------------
 
 .. code-block:: c
 
     int tracy_set_signal_hook(struct tracy *t, tracy_hook_func f);
-
-.. **
 
 Set the signal hook. Called on each signal[1].
 
@@ -251,7 +257,7 @@ tracy_set_default_hook
 
     int tracy_set_default_hook(struct tracy *t, tracy_hook_func f);
 
-.. **
+
 
 tracy_set_default_hook
 
@@ -268,7 +274,7 @@ tracy_execute_hook
 
     int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e);
 
-.. **
+
 
 Returns the return value of the hook. Hooks should return:
 
@@ -289,7 +295,7 @@ tracy_read_mem
 
     ssize_t tracy_read_mem(struct tracy_child *c, tracy_parent_addr_t dest, tracy_child_addr_t src, size_t n);
 
-.. **
+
 
 tracy_write_mem
 ----------------
@@ -298,7 +304,7 @@ tracy_write_mem
 
     ssize_t tracy_write_mem(struct tracy_child *c, tracy_child_addr_t dest, tracy_parent_addr_t src, size_t n);
 
-.. **
+
 
 System call injection
 ~~~~~~~~~~~~~~~~~~~~~
@@ -310,7 +316,7 @@ tracy_inject_syscall
 
     int tracy_inject_syscall(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a, long *return_code);
 
-.. **
+
 
 Inject a system call in process defined by tracy_child *child*.
 The syscall_number is the number of the system call; use
@@ -328,7 +334,7 @@ tracy_inject_syscall_async
 
     int tracy_inject_syscall_async(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a, tracy_hook_func callback);
 
-.. **
+
 
 Inject a system call in process defined by tracy_child *child*.
 The syscall_number is the number of the system call; use
@@ -349,7 +355,7 @@ tracy_modify_syscall_args
 
     int tracy_modify_syscall_args(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a);
 
-.. **
+
 
 This function allows you to change the system call number and arguments of a
 paused child. You can use it to change a0..a5
@@ -366,7 +372,7 @@ tracy_modify_syscall_regs
 
     int tracy_modify_syscall_regs(struct tracy_child *child, long syscall_number, struct tracy_sc_args *a);
 
-.. **
+
 
 This function allows you to change the system call number and arguments of a
 paused child.
@@ -395,7 +401,6 @@ tracy_mmap
 
     int tracy_mmap(struct tracy_child *child, tracy_child_addr_t *ret, tracy_child_addr_t addr, size_t length, int prot, int flags, int fd, off_t pgoffset);
 
-.. **
 
 tracy_munmap
 ------------
@@ -404,4 +409,4 @@ tracy_munmap
 
     int tracy_munmap(struct tracy_child *child, long *ret, tracy_child_addr_t addr, size_t length);
 
-.. **
+
