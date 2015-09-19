@@ -493,7 +493,7 @@ int tracy_safe_fork(struct tracy_child *c, pid_t *new_child);
             printf("\n-------------------------------" \
                     "-------------------------------------------------\n"); \
             perror("Whoops"); \
-            printf("Function: %s, File: %s, Line: %d\n", __FUNCTION__, __FILE__, __LINE__); \
+            printf("Function: %s, File: %s, Line: %d\n", __func__, __FILE__, __LINE__); \
             printf("Arguments: %s, %s (%d), %s, %s\n", S1, #A2, A2, #A3, #A4); \
             printf("-------------------------------" \
                     "-------------------------------------------------\n"); \
