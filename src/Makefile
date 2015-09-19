@@ -131,7 +131,7 @@ tests/faketime.o: $(TRACY_HS)
 tests/llseek.o: $(TRACY_HS)
 
 def_syscalls.h:
-	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -dM \
+	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -P -dM \
 		| grep "define SYS" | cut -f2 -d" " | \
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' > def_syscalls.h
 
@@ -149,28 +149,28 @@ arch/amd64/syscalls.h: $(TRACY_HS) arch/amd64/syscall_amd64.h \
 	arch/amd64/syscall_x86.h arch/amd64/syscall_x32.h
 
 arch/amd64/syscall_amd64.h:
-	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -dM  | \
+	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -P -dM  | \
 		grep "define SYS" | cut -f2 -d" " | \
 		( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; \
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
-		| $(CC) $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) \
-		| grep -v '# ' | $(CC) $(CFLAGS) -E - | grep '{.*' \
+		| $(CC) $(CFLAGS)  - -E -P  | ( echo "#include <sys/syscall.h>" ; cat ) \
+		| grep -v '# ' | $(CC) $(CFLAGS) -E -P - | grep '{.*' \
 		> arch/amd64/syscall_amd64.h
 arch/amd64/syscall_x86.h:
-	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E  -m32 -dM | \
+	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -P  -m32 -dM | \
 		grep "define SYS" | cut -f2 -d" " | \
 		( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; \
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
-		| $(CC) $(CFLAGS) - -E -m32   | ( echo "#include <sys/syscall.h>" ; cat ) \
-		| grep -v '# ' | $(CC) $(CFLAGS) - -E -m32 | grep '{.*' \
+		| $(CC) $(CFLAGS) - -E -P -m32   | ( echo "#include <sys/syscall.h>" ; cat ) \
+		| grep -v '# ' | $(CC) $(CFLAGS) - -E -P -m32 | grep '{.*' \
 		> arch/amd64/syscall_x86.h
 arch/amd64/syscall_x32.h:
-	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E  -mx32 -dM | \
+	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -P  -mx32 -dM | \
 		grep "define SYS" | cut -f2 -d" " | \
 		( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; \
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
-		| $(CC) $(CFLAGS) - -E -mx32   | ( echo "#include <sys/syscall.h>" ; cat ) \
-		| grep -v '# ' | $(CC) $(CFLAGS) - -E -mx32 | grep '{.*' \
+		| $(CC) $(CFLAGS) - -E -P -mx32   | ( echo "#include <sys/syscall.h>" ; cat ) \
+		| grep -v '# ' | $(CC) $(CFLAGS) - -E -P -mx32 | grep '{.*' \
 		> arch/amd64/syscall_x32.h
 else ifeq ($(arch),"arm")
 #
@@ -180,12 +180,12 @@ arch/arm/arch.o: $(TRACY_HS) arch/arm/syscalls.h
 arch/arm/syscalls.h: $(TRACY_HS) arch/arm/syscall_eabi.h
 
 arch/arm/syscall_eabi.h:
-	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -dM | \
+	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -P -dM | \
 		grep "define SYS" | cut -f2 -d" " \
 		| ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; \
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
-		| $(CC) $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) \
-		| grep -v '# '| $(CC) $(CFLAGS) -E - | grep '{.*' \
+		| $(CC) $(CFLAGS)  - -E -P  | ( echo "#include <sys/syscall.h>" ; cat ) \
+		| grep -v '# '| $(CC) $(CFLAGS) -E -P - | grep '{.*' \
 		> arch/arm/syscall_eabi.h
 else ifeq ($(arch),"i686")
 #
@@ -195,12 +195,12 @@ arch/x86/arch.o: $(TRACY_HS) arch/x86/syscalls.h
 arch/x86/syscalls.h: $(TRACY_HS) arch/x86/syscall_x86.h
 
 arch/x86/syscall_x86.h:
-	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -dM | \
+	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -P -dM | \
 		grep "define SYS" | cut -f2 -d" " \
 		| ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; \
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
-		| $(CC) $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) \
-		| grep -v '# '| $(CC) $(CFLAGS) -E - | grep '{.*' \
+		| $(CC) $(CFLAGS)  - -E -P  | ( echo "#include <sys/syscall.h>" ; cat ) \
+		| grep -v '# '| $(CC) $(CFLAGS) -E -P - | grep '{.*' \
 		> arch/x86/syscall_x86.h
 else ifeq ($(arch),"ppc")
 #
@@ -210,12 +210,12 @@ arch/ppc/arch.o: $(TRACY_HS) arch/ppc/syscalls.h
 arch/ppc/syscalls.h: $(TRACY_HS) arch/ppc/syscall_ppc.h
 
 arch/ppc/syscall_ppc.h:
-	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -dM | \
+	echo "#include <sys/syscall.h>" | $(CC) $(CFLAGS) - -E -P -dM | \
 		grep "define SYS" | cut -f2 -d" " \
 		| ( echo "#define DEF_SYSCALL(NAME) {#NAME, SYS_ ## NAME}," ; \
 		sed 's/SYS_//;s/\(.*\)/DEF_SYSCALL(&)/' ; echo "{NULL, -1}") \
-		| $(CC) $(CFLAGS)  - -E  | ( echo "#include <sys/syscall.h>" ; cat ) \
-		| grep -v '# '| $(CC) $(CFLAGS) -E - | grep '{.*' \
+		| $(CC) $(CFLAGS)  - -E -P  | ( echo "#include <sys/syscall.h>" ; cat ) \
+		| grep -v '# '| $(CC) $(CFLAGS) -E -P - | grep '{.*' \
 		> arch/ppc/syscall_ppc.h
 
 endif
