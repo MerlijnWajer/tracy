@@ -119,7 +119,8 @@ static ssize_t tracy_peek_mem(struct tracy_child *c, tracy_parent_addr_t dest,
 /* Open child's memory space */
 static int open_child_mem(struct tracy_child *c)
 {
-    char proc_mem_path[18];
+    #define PPM_PATH_MAX 64
+    char proc_mem_path[PPM_PATH_MAX];
 
     /* XXX: This method might cause unexpected behaviour
      * or introduce bugs.
@@ -128,7 +129,12 @@ static int open_child_mem(struct tracy_child *c)
      */
 
     /* Setup memory access via /proc/<pid>/mem */
-    sprintf(proc_mem_path, "/proc/%d/mem", c->pid);
+    if (snprintf(proc_mem_path, PPM_PATH_MAX, "/proc/%d/mem", c->pid) >
+            PPM_PATH_MAX) {
+        /* Whoops: snprintf returned more than it should have... */
+        tracy_quit(c->tracy, 1);
+    }
+
     c->mem_fd = open(proc_mem_path, O_RDWR);
 
     /* If opening failed, we allow us to continue without
@@ -147,9 +153,9 @@ static int open_child_mem(struct tracy_child *c)
 /* Returns bytes read */
 static ssize_t tracy_ppm_read_mem(struct tracy_child *c,
         tracy_parent_addr_t dest, tracy_child_addr_t src, size_t n) {
-    /* Open memory if it's not open yet */
     int res;
 
+    /* Open memory if it's not open yet */
     if (c->mem_fd < 0) {
         if (open_child_mem(c) < 0)
             return -2;
