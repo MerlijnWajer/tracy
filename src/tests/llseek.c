@@ -99,7 +99,7 @@ int hook_open(struct tracy_event *e) {
 
         printf("fd=%d\n", fd);
         rc = child_lseek64(e->child, fd, 0x100, SEEK_CUR);
-        printf("rc=%lld\n", rc);
+        printf("rc=%lld\n", (long long int) rc);
 
         return TRACY_HOOK_CONTINUE;
         /*return TRACY_HOOK_ABORT;*/

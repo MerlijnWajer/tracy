@@ -23,7 +23,7 @@
 #include <time.h>
 
 #include <sys/time.h>
-#include <asm/stat.h>
+#include <sys/stat.h>
 
 /* TODO
  * We need to think/implement the timezone value for gettimeofday
