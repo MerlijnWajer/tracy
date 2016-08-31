@@ -559,7 +559,7 @@ char* get_signal_name(int signal)
 }
 
 /* Python hashing algorithm for strings */
-static int hash_syscall(char * syscall, int abi) {
+static int hash_syscall(const char *syscall, int abi) {
     int l, v, i;
 
     l = strlen(syscall);
@@ -586,7 +586,7 @@ static int hash_syscall(char * syscall, int abi) {
  * not exist on say, BSD)
  *
  */
-int tracy_set_hook(struct tracy *t, char *syscall, long abi,
+int tracy_set_hook(struct tracy *t, const char *syscall, long abi,
         tracy_hook_func func) {
 
     struct tracy_ll_item *item;
@@ -658,11 +658,7 @@ int tracy_set_default_hook(struct tracy *t, tracy_hook_func f) {
 int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
     struct tracy_ll_item *item;
     int hash;
-    union {
-            void *pvoid;
-            tracy_hook_func pfunc;
-        } _hax;
-
+    tracy_hook_func func;
 
     if (TRACY_PRINT_SYSCALLS(t))
         printf(_y("%04d System call: %s (%ld) Pre: %d")"\n",
@@ -676,9 +672,8 @@ int tracy_execute_hook(struct tracy *t, char *syscall, struct tracy_event *e) {
     if (item) {
         /* printf("Executing hook for: %s\n", syscall); */
 
-        /* ANSI C has some disadvantages too ... */
-        _hax.pvoid = item->data;
-        return _hax.pfunc(e);
+        *(void **) &func = item->data;
+        return func(e);
     }
 
     if (t->defhook)
