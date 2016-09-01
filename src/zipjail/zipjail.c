@@ -37,7 +37,7 @@ static int g_dirpath_length;
 static const char *g_syscall_allowed[] = {
     "ioctl", "read", "write", "lseek", "stat", "fstat", "close", "umask",
     "lstat", "exit_group", "fchmod", "utime", "getdents", "chmod", "munmap",
-    "rt_sigaction",
+    "rt_sigaction", "brk",
     NULL,
 };
 

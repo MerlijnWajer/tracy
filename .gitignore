@@ -5,3 +5,5 @@ src/arch/amd64/syscall_x32.h
 src/arch/amd64/syscall_x86.h
 src/libtracy.a
 src/libtracy.so
+src/zipjail/zipjail
+src/zipjail/tests/*.out
