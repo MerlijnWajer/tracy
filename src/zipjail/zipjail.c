@@ -336,9 +336,19 @@ static int _trigger_open(struct tracy_event *e)
 int main(int argc, char *argv[])
 {
     if(argc < 3) {
-        fprintf(stderr, "Usage: %s <input> <output> <command...>\n", argv[0]);
-        fprintf(stderr, "  input:  input archive file\n");
-        fprintf(stderr, "  output: directory to extract files to\n");
+        fprintf(stderr,
+            "zipjail 0.1 - safe unpacking of potentially unsafe archives.\n"
+            "Copyright (C) 2016, Jurriaan Bremer <jbr@cuckoo.sh>.\n"
+            "Based on Tracy by Merlijn Wajer and Bas Weelinck.\n"
+            "    (https://github.com/MerlijnWajer/tracy)\n"
+            "\n"
+            "Usage: %s <input> <output> <command...>\n"
+            "  input:  input archive file\n"
+            "  output: directory to extract files to\n"
+            "\n"
+            "Please refer to the README for the exact usage.\n",
+            argv[0]
+        );
         return 1;
     }
 
