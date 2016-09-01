@@ -1,17 +1,11 @@
 .PHONY: clean default
 
-CFLAGS+=-std=c99 -pedantic -Wall -Wextra -pipe #-Werror
-#CFLAGS+=-ansi -pedantic -Wall -Wextra -pipe #-Werror
-CFLAGS+=-I ../
-CFLAGS+=-D_POSIX_SOURCE
-CFLAGS+=-D_GNU_SOURCE
-CFLAGS+=-ggdb -pthread
-#CFLAGS+=-O2
-#CFLAGS+=-m32
+CFLAGS += -std=c99 -pedantic -Wall -Wextra -pipe
+CFLAGS += -D_POSIX_SOURCE -D_GNU_SOURCE -pthread -static -s
 
-LDFLAGS+=-rdynamic
+LDFLAGS += -rdynamic
 
-BINARY=zipjail
+BINARY = zipjail
 
 default: zipjail
 
