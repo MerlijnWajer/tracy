@@ -46,18 +46,6 @@ static const char *g_openat_allowed[] = {
     NULL,
 };
 
-static const char *dirname(const char *filepath)
-{
-    static char buf[MAXPATH+1]; char *ptr;
-    strcpy(buf, filepath);
-
-    ptr = strrchr(buf, '/');
-    if(ptr != NULL) {
-        *ptr = 0;
-    }
-    return buf;
-}
-
 static int _sandbox_open(struct tracy_event *e)
 {
     char filepath[MAXPATH+1], linkpath[MAXPATH+1]; int length; struct stat st;
@@ -143,6 +131,11 @@ static int _sandbox_openat(struct tracy_event *e)
         return TRACY_HOOK_CONTINUE;
     }
 
+    if(strncmp(filepath, g_dirpath, g_dirpath_length) == 0 &&
+            filepath[g_dirpath_length] == '/') {
+        return TRACY_HOOK_CONTINUE;
+    }
+
     for (const char **ptr = g_openat_allowed; *ptr != NULL; ptr++) {
         if(strcmp(filepath, *ptr) == 0) {
             return TRACY_HOOK_CONTINUE;
@@ -191,6 +184,11 @@ static int _sandbox_mkdir(struct tracy_event *e)
         return TRACY_HOOK_CONTINUE;
     }
 
+    if(strncmp(dirpath, g_dirpath, g_dirpath_length) == 0 &&
+            dirpath[g_dirpath_length] == '/') {
+        return TRACY_HOOK_CONTINUE;
+    }
+
     return TRACY_HOOK_ABORT;
 }
 
@@ -208,7 +206,12 @@ static int _sandbox_readlink(struct tracy_event *e)
         return TRACY_HOOK_ABORT;
     }
 
-    if(strcmp(dirname(filepath), g_dirpath) == 0) {
+    if(strcmp(filepath, g_dirpath) == 0) {
+        return TRACY_HOOK_CONTINUE;
+    }
+
+    if(strncmp(filepath, g_dirpath, g_dirpath_length) == 0 &&
+            filepath[g_dirpath_length] == '/') {
         return TRACY_HOOK_CONTINUE;
     }
 
