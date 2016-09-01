@@ -1,2 +1,7 @@
 *.swp
 *.o
+src/arch/amd64/syscall_amd64.h
+src/arch/amd64/syscall_x32.h
+src/arch/amd64/syscall_x86.h
+src/libtracy.a
+src/libtracy.so
