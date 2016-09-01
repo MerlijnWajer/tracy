@@ -1,10 +1,10 @@
 ZipJail
 =======
 
-ZipJail is a usermode sandbox for unpacking archives using the ``unzip`` and
-``7z`` utilities. Through the use of the ``tracy`` library it limits the
-attack surfaces to an absolute minimum in case a malicious archive tries to
-exploit known or unknown vulnerabilities in said archive tools.
+ZipJail is a usermode sandbox for unpacking archives using the ``unzip``,
+``rar``, and ``7z`` utilities. Through the use of the ``tracy`` library it
+limits the attack surfaces to an absolute minimum in case a malicious archive
+tries to exploit known or unknown vulnerabilities in said archive tools.
 
 Usage
 =====
@@ -33,9 +33,24 @@ Unzip
 ^^^^^
 
 In order to run ``zipjail`` with ``unzip`` the command-line should be
-constructed as follows::
+constructed as follows.
 
-    zipjail file.zip /tmp/unpacked unzip -o -d /tmp/unpacked file.zip
+.. code-block:: bash
+
+    $ zipjail file.zip /tmp/unpacked unzip -o -d /tmp/unpacked file.zip
+
+Rar
+^^^
+
+Just like for the ``7z`` command we require setting the multithreaded count
+for the ``rar`` command. It should be noted that ``unrar`` version
+``5.00 beta 8`` does not support the multithreaded option and thus ``zipjail``
+is not capable of running with that version. So far we have only tested that
+``zipjail`` works with ``rar`` version ``4.20``. Its usage is as follows.
+
+.. code-block:: bash
+
+    $ zipjail file.zip /tmp/unpacked rar x -mt1 file.zip /tmp/unpacked
 
 7z
 ^^
@@ -48,9 +63,9 @@ fairly trivial). In fact, as per our unittests, trying to instantiate
 multithreading (e.g., through ``pthread``, which internally invokes the
 ``clone(2)`` system call) is blocked completely.
 
-.. code-block::
+.. code-block:: bash
 
-    zipjail file.zip /tmp/unpacked 7z x -mmt=off -o /tmp/unpacked file.zip
+    $ zipjail file.zip /tmp/unpacked 7z x -mmt=off -o /tmp/unpacked file.zip
 
 Security
 ========

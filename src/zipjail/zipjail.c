@@ -37,7 +37,7 @@ static int g_dirpath_length;
 static const char *g_syscall_allowed[] = {
     "ioctl", "read", "write", "lseek", "stat", "fstat", "close", "umask",
     "lstat", "exit_group", "fchmod", "utime", "getdents", "chmod", "munmap",
-    "rt_sigaction", "brk",
+    "rt_sigaction", "brk", "fcntl", "access",
     NULL,
 };
 
@@ -174,12 +174,18 @@ static int _sandbox_mkdir(struct tracy_event *e)
         return TRACY_HOOK_ABORT;
     }
 
-    if(strcmp(dirpath, g_dirpath) == 0) {
+    if(*dirpath == 0 || strcmp(dirpath, g_dirpath) == 0) {
         return TRACY_HOOK_CONTINUE;
     }
 
     if(strncmp(dirpath, g_dirpath, g_dirpath_length) == 0 &&
             dirpath[g_dirpath_length] == '/') {
+        return TRACY_HOOK_CONTINUE;
+    }
+
+    // If the directory already exists we can just ignore this call anyway.
+    struct stat st;
+    if(lstat(dirpath, &st) == 0) {
         return TRACY_HOOK_CONTINUE;
     }
 
@@ -355,6 +361,12 @@ int main(int argc, char *argv[])
     g_filepath = *++argv;
     g_dirpath = *++argv;
     g_dirpath_length = strlen(g_dirpath);
+
+    // We create the target directory just in case it does not already exist.
+    // Without a dirpath that actually exists, unrar would otherwise unpack to
+    // the current directory rather than our expected dirpath. TODO Uncomment
+    // this syscall when we have unrar support (currently we do not).
+    mkdir(g_dirpath, 0644);
 
     struct tracy *tracy = tracy_init(0);
 
