@@ -78,11 +78,13 @@ static int _sandbox_open(struct tracy_event *e)
         return TRACY_HOOK_CONTINUE;
     }
 
-    if(lstat(filepath, &st) < 0 && errno == ENOENT) {
-        return TRACY_HOOK_CONTINUE;
+    if(lstat(filepath, &st) < 0) {
+        if(errno != ENOENT) {
+            fprintf(stderr, "Unknown lstat() errno: %d\n", errno);
+            return TRACY_HOOK_ABORT;
+        }
     }
-
-    if(S_ISLNK(st.st_mode) != 0) {
+    else if(S_ISLNK(st.st_mode) != 0) {
         length = readlink(filepath, linkpath, sizeof(linkpath)-1);
         linkpath[length >= 0 ? length : 0] = 0;
 
