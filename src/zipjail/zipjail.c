@@ -30,9 +30,13 @@
 #define PROT_RWX (PROT_READ|PROT_WRITE|PROT_EXEC)
 #define MAXPATH 1023
 
+#define dprintf(...) \
+    if(g_verbose != 0) printf(__VA_ARGS__)
+
 static const char *g_filepath;
 static const char *g_dirpath;
 static int g_dirpath_length;
+static int g_verbose;
 
 static const char *g_syscall_allowed[] = {
     "ioctl", "read", "write", "lseek", "stat", "fstat", "close", "umask",
@@ -77,6 +81,8 @@ static int _sandbox_open(struct tracy_event *e)
     if((e->args.a1 & O_ACCMODE) == O_RDONLY) {
         return TRACY_HOOK_CONTINUE;
     }
+
+    dprintf("open(%s, %lx, %ld)\n", filepath, e->args.a1, e->args.a2);
 
     if(lstat(filepath, &st) < 0) {
         if(errno != ENOENT) {
@@ -135,6 +141,8 @@ static int _sandbox_openat(struct tracy_event *e)
         return TRACY_HOOK_ABORT;
     }
 
+    dprintf("openat(%ld, %s)\n", e->args.a0, filepath);
+
     if(strcmp(filepath, g_dirpath) == 0) {
         return TRACY_HOOK_CONTINUE;
     }
@@ -164,6 +172,7 @@ static int _sandbox_unlink(struct tracy_event *e)
         return TRACY_HOOK_ABORT;
     }
 
+    dprintf("unlink(%s)\n", filepath);
     return TRACY_HOOK_CONTINUE;
 }
 
@@ -173,6 +182,8 @@ static int _sandbox_mkdir(struct tracy_event *e)
     if(dirpath == NULL) {
         return TRACY_HOOK_ABORT;
     }
+
+    dprintf("mkdir(%s)\n", dirpath);
 
     if(*dirpath == 0 || strcmp(dirpath, g_dirpath) == 0) {
         return TRACY_HOOK_CONTINUE;
@@ -198,6 +209,8 @@ static int _sandbox_readlink(struct tracy_event *e)
     if(filepath == NULL) {
         return TRACY_HOOK_ABORT;
     }
+
+    dprintf("readlink(%s)\n", filepath);
 
     if(strcmp(filepath, g_dirpath) == 0) {
         return TRACY_HOOK_CONTINUE;
@@ -331,6 +344,8 @@ static int _trigger_open(struct tracy_event *e)
 
     filepath[length] = 0;
 
+    dprintf("open(%s)\n", filepath);
+
     // Enter sandboxing mode.
     if(strcmp(filepath, g_filepath) == 0) {
         return _zipjail_enter_sandbox(e);
@@ -341,16 +356,17 @@ static int _trigger_open(struct tracy_event *e)
 
 int main(int argc, char *argv[])
 {
-    if(argc < 3) {
+    if(argc < 4) {
         fprintf(stderr,
             "zipjail 0.1 - safe unpacking of potentially unsafe archives.\n"
             "Copyright (C) 2016, Jurriaan Bremer <jbr@cuckoo.sh>.\n"
             "Based on Tracy by Merlijn Wajer and Bas Weelinck.\n"
             "    (https://github.com/MerlijnWajer/tracy)\n"
             "\n"
-            "Usage: %s <input> <output> <command...>\n"
-            "  input:  input archive file\n"
-            "  output: directory to extract files to\n"
+            "Usage: %s <input> <output> [-v] <command...>\n"
+            "  input:   input archive file\n"
+            "  output:  directory to extract files to\n"
+            "  verbose: some verbosity\n"
             "\n"
             "Please refer to the README for the exact usage.\n",
             argv[0]
@@ -361,6 +377,11 @@ int main(int argc, char *argv[])
     g_filepath = *++argv;
     g_dirpath = *++argv;
     g_dirpath_length = strlen(g_dirpath);
+
+    if(strcmp(argv[1], "-v") == 0) {
+        g_verbose = 1;
+        argv++;
+    }
 
     // We create the target directory just in case it does not already exist.
     // Without a dirpath that actually exists, unrar would otherwise unpack to
