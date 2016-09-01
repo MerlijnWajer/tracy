@@ -46,17 +46,30 @@ static const char *g_openat_allowed[] = {
     NULL,
 };
 
+static const char *_read_path(
+    struct tracy_event *e, const char *function, uintptr_t addr)
+{
+    static char path[MAXPATH+1];
+
+    if(tracy_read_mem(e->child, path, (void *) addr, MAXPATH+1) < 0 ||
+            strlen(path) >= MAXPATH+1) {
+        fprintf(stderr,
+            "Invalid path for %s(2) while in sandbox mode!\n"
+            "ip=%p sp=%p abi=%ld\n",
+            function, (void *) e->args.ip, (void *) e->args.sp, e->abi
+        );
+        return NULL;
+    }
+
+    return path;
+}
+
 static int _sandbox_open(struct tracy_event *e)
 {
-    char filepath[MAXPATH+1], linkpath[MAXPATH+1]; int length; struct stat st;
+    char linkpath[MAXPATH+1]; int length; struct stat st;
 
-    if(tracy_read_mem(e->child, filepath, (void *)(uintptr_t) e->args.a0,
-            sizeof(filepath)) < 0 || strlen(filepath) >= sizeof(filepath)) {
-        fprintf(stderr,
-            "Invalid filepath for open(2) while in sandbox mode!\n"
-            "ip=%p sp=%p abi=%ld\n",
-            (void *) e->args.ip, (void *) e->args.sp, e->abi
-        );
+    const char *filepath = _read_path(e, "open", e->args.a0);
+    if(filepath == NULL) {
         return TRACY_HOOK_ABORT;
     }
 
@@ -106,8 +119,6 @@ static int _sandbox_open(struct tracy_event *e)
 
 static int _sandbox_openat(struct tracy_event *e)
 {
-    char filepath[MAXPATH+1];
-
     if(e->args.a0 != AT_FDCWD) {
         fprintf(stderr,
             "Invalid dirfd provided for openat(2) while in sandbox mode!\n"
@@ -117,13 +128,8 @@ static int _sandbox_openat(struct tracy_event *e)
         return TRACY_HOOK_ABORT;
     }
 
-    if(tracy_read_mem(e->child, filepath, (void *)(uintptr_t) e->args.a1,
-            sizeof(filepath)) < 0 || strlen(filepath) >= sizeof(filepath)) {
-        fprintf(stderr,
-            "Invalid filepath for openat(2) while in sandbox mode!\n"
-            "ip=%p sp=%p abi=%ld\n",
-            (void *) e->args.ip, (void *) e->args.sp, e->abi
-        );
+    const char *filepath = _read_path(e, "openat", e->args.a1);
+    if(filepath == NULL) {
         return TRACY_HOOK_ABORT;
     }
 
@@ -151,15 +157,8 @@ static int _sandbox_openat(struct tracy_event *e)
 
 static int _sandbox_unlink(struct tracy_event *e)
 {
-    char filepath[MAXPATH+1];
-
-    if(tracy_read_mem(e->child, filepath, (void *)(uintptr_t) e->args.a0,
-            sizeof(filepath)) < 0 || strlen(filepath) >= sizeof(filepath)) {
-        fprintf(stderr,
-            "Invalid filepath for unlink(2) while in sandbox mode!\n"
-            "ip=%p sp=%p abi=%ld\n",
-            (void *) e->args.ip, (void *) e->args.sp, e->abi
-        );
+    const char *filepath = _read_path(e, "unlink", e->args.a0);
+    if(filepath == NULL) {
         return TRACY_HOOK_ABORT;
     }
 
@@ -168,15 +167,8 @@ static int _sandbox_unlink(struct tracy_event *e)
 
 static int _sandbox_mkdir(struct tracy_event *e)
 {
-    char dirpath[MAXPATH+1];
-
-    if(tracy_read_mem(e->child, dirpath, (void *)(uintptr_t) e->args.a0,
-            sizeof(dirpath)) < 0 || strlen(dirpath) >= sizeof(dirpath)) {
-        fprintf(stderr,
-            "Invalid dirpath for mkdir(2) while in sandbox mode!\n"
-            "ip=%p sp=%p abi=%ld\n",
-            (void *) e->args.ip, (void *) e->args.sp, e->abi
-        );
+    const char *dirpath = _read_path(e, "mkdir", e->args.a0);
+    if(dirpath == NULL) {
         return TRACY_HOOK_ABORT;
     }
 
@@ -194,15 +186,8 @@ static int _sandbox_mkdir(struct tracy_event *e)
 
 static int _sandbox_readlink(struct tracy_event *e)
 {
-    char filepath[MAXPATH+1];
-
-    if(tracy_read_mem(e->child, filepath, (void *)(uintptr_t) e->args.a0,
-            sizeof(filepath)) < 0 || strlen(filepath) >= sizeof(filepath)) {
-        fprintf(stderr,
-            "Invalid filepath for readlink(2) while in sandbox mode!\n"
-            "ip=%p sp=%p abi=%ld\n",
-            (void *) e->args.ip, (void *) e->args.sp, e->abi
-        );
+    const char *filepath = _read_path(e, "readlink", e->args.a0);
+    if(filepath == NULL) {
         return TRACY_HOOK_ABORT;
     }
 
