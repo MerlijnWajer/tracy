@@ -205,10 +205,6 @@ static int _sandbox_readlink(struct tracy_event *e)
 
 static int _sandbox_mmap(struct tracy_event *e)
 {
-    fprintf(stderr, "mmap(%lx, %lx, %lx, %lx, %lx, %lx)\n",
-        e->args.a0, e->args.a1, e->args.a2, e->args.a3, e->args.a4, e->args.a5
-    );
-
     if((e->args.a2 & PROT_RWX) == PROT_RWX) {
         fprintf(stderr,
             "Blocked mmap(2) syscall with RWX flags set!\n"
@@ -220,10 +216,6 @@ static int _sandbox_mmap(struct tracy_event *e)
 
 static int _sandbox_mprotect(struct tracy_event *e)
 {
-    fprintf(stderr, "mprotect(%lx, %lx, %lx)\n",
-        e->args.a0, e->args.a1, e->args.a2
-    );
-
     if((e->args.a2 & PROT_RWX) == PROT_RWX) {
         fprintf(stderr,
             "Blocked mprotect(2) syscall with RWX flags set!\n"
