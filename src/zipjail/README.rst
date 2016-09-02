@@ -16,15 +16,18 @@ directory to which file writes should be restricted.
 
 .. code-block:: bash
 
-    $ ./zipjail/zipjail
+    $ zipjail
     zipjail 0.1 - safe unpacking of potentially unsafe archives.
     Copyright (C) 2016, Jurriaan Bremer.
     Based on Tracy by Merlijn Wajer and Bas Weelinck.
         (https://github.com/MerlijnWajer/tracy)
 
-    Usage: ./zipjail/zipjail <input> <output> <command...>
+    Usage: zipjail <input> <output> [-v] <command...>
       input:  input archive file
       output: directory to extract files to
+      verbose: some verbosity
+
+    Please refer to the README for the exact usage.
 
 Following we will demonstrate ``zipjail``'s usage based on an input file
 called ``archive.zip`` and the output directory ``/tmp/unpacked/``.
