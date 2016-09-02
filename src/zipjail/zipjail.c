@@ -173,7 +173,21 @@ static int _sandbox_unlink(struct tracy_event *e)
     }
 
     dprintf("unlink(%s)\n", filepath);
-    return TRACY_HOOK_CONTINUE;
+
+    if(strcmp(filepath, g_dirpath) == 0) {
+        return TRACY_HOOK_CONTINUE;
+    }
+
+    if(strncmp(filepath, g_dirpath, g_dirpath_length) == 0 &&
+            filepath[g_dirpath_length] == '/') {
+        return TRACY_HOOK_CONTINUE;
+    }
+
+    fprintf(stderr,
+        "Trying to unlink(2) a path that's not whitelisted: %s!\n",
+        filepath
+    );
+    return TRACY_HOOK_ABORT;
 }
 
 static int _sandbox_mkdir(struct tracy_event *e)
