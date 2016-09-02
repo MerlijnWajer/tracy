@@ -333,16 +333,10 @@ static int _zipjail_enter_sandbox(struct tracy_event *e)
 
 static int _trigger_open(struct tracy_event *e)
 {
-    char filepath[MAXPATH+1]; int length;
-
-    length = tracy_read_mem(
-        e->child, filepath, (void *)(uintptr_t) e->args.a0, sizeof(filepath)-1
-    );
-    if(length < 0) {
+    const char *filepath = _read_path(e, "open", e->args.a0);
+    if(filepath == NULL) {
         return TRACY_HOOK_ABORT;
     }
-
-    filepath[length] = 0;
 
     dprintf("open(%s)\n", filepath);
 
