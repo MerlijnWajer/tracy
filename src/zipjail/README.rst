@@ -21,13 +21,13 @@ directory to which file writes should be restricted.
 
     $ zipjail
     zipjail 0.1 - safe unpacking of potentially unsafe archives.
-    Copyright (C) 2016, Jurriaan Bremer.
+    Copyright (C) 2016, Jurriaan Bremer <jbr@cuckoo.sh>.
     Based on Tracy by Merlijn Wajer and Bas Weelinck.
         (https://github.com/MerlijnWajer/tracy)
 
     Usage: zipjail <input> <output> [-v] <command...>
-      input:  input archive file
-      output: directory to extract files to
+      input:   input archive file
+      output:  directory to extract files to
       verbose: some verbosity
 
     Please refer to the README for the exact usage.
