@@ -56,7 +56,7 @@ static const char *_read_path(
     static char path[MAXPATH+1];
 
     if(tracy_read_mem(e->child, path, (void *) addr, MAXPATH+1) < 0 ||
-            strlen(path) >= MAXPATH+1) {
+            memchr(path, 0, MAXPATH+1) == NULL) {
         fprintf(stderr,
             "Invalid path for %s(2) while in sandbox mode!\n"
             "ip=%p sp=%p abi=%ld\n",
