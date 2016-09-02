@@ -385,7 +385,14 @@ int main(int argc, char *argv[])
 
     struct tracy *tracy = tracy_init(0);
 
-    if(tracy_set_hook(tracy, "open", TRACY_ABI_NATIVE, &_trigger_open) < 0) {
+#if __x86_64__
+    if(tracy_set_hook(tracy, "open", TRACY_ABI_AMD64, &_trigger_open) < 0) {
+        fprintf(stderr, "Error hooking open(2)\n");
+        return -1;
+    }
+#endif
+
+    if(tracy_set_hook(tracy, "open", TRACY_ABI_X86, &_trigger_open) < 0) {
         fprintf(stderr, "Error hooking open(2)\n");
         return -1;
     }
