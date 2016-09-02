@@ -395,7 +395,7 @@ int main(int argc, char *argv[])
     // Without a dirpath that actually exists, unrar would otherwise unpack to
     // the current directory rather than our expected dirpath. TODO Uncomment
     // this syscall when we have unrar support (currently we do not).
-    mkdir(g_dirpath, 0644);
+    mkdir(g_dirpath, 0775);
 
     struct tracy *tracy = tracy_init(0);
 

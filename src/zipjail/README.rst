@@ -64,11 +64,13 @@ along the ``-mmt=off`` option which disables multithreaded decompression for
 its logic easy and secure (using multithreading race conditions would be
 fairly trivial). In fact, as per our unittests, trying to instantiate
 multithreading (e.g., through ``pthread``, which internally invokes the
-``clone(2)`` system call) is blocked completely.
+``clone(2)`` system call) is blocked completely. (Also note that the directory
+provided to ``7z``'s ``-o`` parameter should be added right away without
+additional whitespaces).
 
 .. code-block:: bash
 
-    $ zipjail file.zip /tmp/unpacked 7z x -mmt=off -o /tmp/unpacked file.zip
+    $ zipjail file.zip /tmp/unpacked 7z x -mmt=off -o/tmp/unpacked file.zip
 
 Security
 ========
