@@ -27,7 +27,6 @@
 #include "tracy.h"
 #include "tracyarch.h"
 
-#define PROT_RWX (PROT_READ|PROT_WRITE|PROT_EXEC)
 #define MAXPATH 1023
 
 #define dprintf(...) \
@@ -240,9 +239,9 @@ static int _sandbox_readlink(struct tracy_event *e)
 
 static int _sandbox_mmap(struct tracy_event *e)
 {
-    if((e->args.a2 & PROT_RWX) == PROT_RWX) {
+    if((e->args.a2 & PROT_EXEC) == PROT_EXEC) {
         fprintf(stderr,
-            "Blocked mmap(2) syscall with RWX flags set!\n"
+            "Blocked mmap(2) syscall with X flag set!\n"
         );
         return TRACY_HOOK_ABORT;
     }
@@ -251,9 +250,9 @@ static int _sandbox_mmap(struct tracy_event *e)
 
 static int _sandbox_mprotect(struct tracy_event *e)
 {
-    if((e->args.a2 & PROT_RWX) == PROT_RWX) {
+    if((e->args.a2 & PROT_EXEC) == PROT_EXEC) {
         fprintf(stderr,
-            "Blocked mprotect(2) syscall with RWX flags set!\n"
+            "Blocked mprotect(2) syscall with X flag set!\n"
         );
         return TRACY_HOOK_ABORT;
     }
