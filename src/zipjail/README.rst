@@ -6,6 +6,9 @@ ZipJail is a usermode sandbox for unpacking archives using the ``unzip``,
 limits the attack surfaces to an absolute minimum in case a malicious archive
 tries to exploit known or unknown vulnerabilities in said archive tools.
 
+**Motivation behind this small wrapper utility** may be found in the
+`Security`_ chapter, below in this document.
+
 Usage
 =====
 
@@ -79,5 +82,17 @@ Given its security implications (and use in, e.g., `Cuckoo Sandbox`_) it is of
 utmost importance that ``zipjail`` is completely secure. Therefore, may you
 locate a potential security issue, please reach out to us at
 ``jbr@cuckoo.sh``.
+
+There has been some public research into vulnerabilities and exploits aiming
+at archive implementations in particular. Following is a non-complete list of
+such papers (feel free to reach out to add your research):
+
+* `PlayingWithFire by Felix Wilhelm, directory traversal through symlinks bug
+  leading to RCE in FireEye MPS appliance
+  <https://www.ernw.de/download/ERNW_44CON_PlayingWithFire_signed.pdf>`_.
+* `Various 7-Zip vulnerabilities, by Cisco Talos
+  <http://blog.talosintel.com/2016/06/the-poisoned-archives.html>`_.
+* `Various libarchive vulnerabilities, by Cisco Talos
+  <http://blog.talosintel.com/2016/06/the-poisoned-archives.html>`_.
 
 .. _`Cuckoo Sandbox`: https://github.com/cuckoosandbox/cuckoo
