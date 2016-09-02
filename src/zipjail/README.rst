@@ -91,7 +91,7 @@ such papers (feel free to reach out to add your research):
   leading to RCE in FireEye MPS appliance
   <https://www.ernw.de/download/ERNW_44CON_PlayingWithFire_signed.pdf>`_.
 * `Various 7-Zip vulnerabilities, by Cisco Talos
-  <http://blog.talosintel.com/2016/06/the-poisoned-archives.html>`_.
+  <http://blog.talosintel.com/2016/05/multiple-7-zip-vulnerabilities.html>`_.
 * `Various libarchive vulnerabilities, by Cisco Talos
   <http://blog.talosintel.com/2016/06/the-poisoned-archives.html>`_.
 
