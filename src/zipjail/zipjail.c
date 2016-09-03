@@ -40,7 +40,7 @@ static int g_verbose;
 static const char *g_syscall_allowed[] = {
     "ioctl", "read", "write", "lseek", "stat", "fstat", "close", "umask",
     "lstat", "exit_group", "fchmod", "utime", "getdents", "chmod", "munmap",
-    "rt_sigaction", "brk", "fcntl", "access",
+    "rt_sigaction", "brk", "fcntl", "access", "getcwd", "chdir", "select",
     NULL,
 };
 
@@ -365,7 +365,7 @@ int main(int argc, char *argv[])
 {
     if(argc < 4) {
         fprintf(stderr,
-            "zipjail 0.1 - safe unpacking of potentially unsafe archives.\n"
+            "zipjail 0.2 - safe unpacking of potentially unsafe archives.\n"
             "Copyright (C) 2016, Jurriaan Bremer <jbr@cuckoo.sh>.\n"
             "Based on Tracy by Merlijn Wajer and Bas Weelinck.\n"
             "    (https://github.com/MerlijnWajer/tracy)\n"
@@ -392,8 +392,7 @@ int main(int argc, char *argv[])
 
     // We create the target directory just in case it does not already exist.
     // Without a dirpath that actually exists, unrar would otherwise unpack to
-    // the current directory rather than our expected dirpath. TODO Uncomment
-    // this syscall when we have unrar support (currently we do not).
+    // the current directory rather than our expected dirpath.
     mkdir(g_dirpath, 0775);
 
     struct tracy *tracy = tracy_init(0);

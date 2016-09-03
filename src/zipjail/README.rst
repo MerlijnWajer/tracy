@@ -2,9 +2,10 @@ ZipJail
 =======
 
 ZipJail is a usermode sandbox for unpacking archives using the ``unzip``,
-``rar``, and ``7z`` utilities. Through the use of the ``tracy`` library it
-limits the attack surfaces to an absolute minimum in case a malicious archive
-tries to exploit known or unknown vulnerabilities in said archive tools.
+``rar``, ``7z``, and ``unace`` utilities. Through the use of the ``tracy``
+library it limits the attack surfaces to an absolute minimum in case a
+malicious archive tries to exploit known or unknown vulnerabilities in said
+archive tools.
 
 **Motivation behind this small wrapper utility** may be found in the
 `Security`_ chapter, below in this document.
@@ -56,7 +57,7 @@ is not capable of running with that version. So far we have only tested that
 
 .. code-block:: bash
 
-    $ zipjail file.zip /tmp/unpacked rar x -mt1 file.zip /tmp/unpacked
+    $ zipjail file.rar /tmp/unpacked rar x -mt1 file.rar /tmp/unpacked
 
 7z
 ^^
@@ -73,7 +74,25 @@ additional whitespaces).
 
 .. code-block:: bash
 
-    $ zipjail file.zip /tmp/unpacked 7z x -mmt=off -o/tmp/unpacked file.zip
+    $ zipjail file.7z /tmp/unpacked 7z x -mmt=off -o/tmp/unpacked file.7z
+
+unace
+^^^^^
+
+Another utility, another command-line. This time, for ``unace``, which handles
+``.ace`` files, the command-line is fairly straightforward except for the
+input file path and the directory path that are passed along. The file path
+must be an absolute path and the directory path needs to be slash-terminated,
+i.e., the path should finish off with a forward slash.
+
+.. code-block:: bash
+
+    $ zipjail file.ace /tmp/unpacked unace x file.ace /tmp/unpacked/
+
+It should be noted that only ``unace`` version ``2.5`` is supported as the
+older versions don't support either the command-line arguments or the ``.ace``
+samples that are actually being used in-the-wild. Installing this particular
+version may be done through ``sudo apt install unace-nonfree``.
 
 Security
 ========
