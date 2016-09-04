@@ -87,7 +87,7 @@ i.e., the path should finish off with a forward slash.
 
 .. code-block:: bash
 
-    $ zipjail file.ace /tmp/unpacked unace x file.ace /tmp/unpacked/
+    $ zipjail /tmp/file.ace /tmp/unpacked unace x /tmp/file.ace /tmp/unpacked/
 
 It should be noted that only ``unace`` version ``2.5`` is supported as the
 older versions don't support either the command-line arguments or the ``.ace``
