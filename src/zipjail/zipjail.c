@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <asm/ioctls.h>
 #include "tracy.h"
 #include "tracyarch.h"
 
@@ -38,8 +39,8 @@ static int g_dirpath_length;
 static int g_verbose;
 
 static const char *g_syscall_allowed[] = {
-    "ioctl", "read", "write", "lseek", "stat", "fstat", "close", "umask",
-    "lstat", "exit_group", "fchmod", "utime", "getdents", "chmod", "munmap",
+    "read", "write", "lseek", "stat", "fstat", "close", "umask", "lstat",
+    "exit_group", "fchmod", "utime", "getdents", "chmod", "munmap",
     "rt_sigaction", "brk", "fcntl", "access", "getcwd", "chdir", "select",
     NULL,
 };
@@ -49,7 +50,7 @@ static const char *g_openat_allowed[] = {
     NULL,
 };
 
-static const char *_read_path(
+static const char *read_path(
     struct tracy_event *e, const char *function, uintptr_t addr)
 {
     static char path[MAXPATH+1];
@@ -67,11 +68,59 @@ static const char *_read_path(
     return path;
 }
 
+static int check_path(const char *filepath)
+{
+    if(strstr(filepath, "..") != NULL) {
+        fprintf(stderr,
+            "Detected potential directory traversal arbitrary overwrite!\n"
+            "filepath=%s\n", filepath
+        );
+        return -1;
+    }
+
+    if(strcmp(filepath, g_filepath) == 0) {
+        return 0;
+    }
+
+    if(strncmp(filepath, g_dirpath, strlen(g_dirpath)) != 0 ||
+            filepath[g_dirpath_length] != '/') {
+        fprintf(stderr,
+            "Detected potential out-of-path arbitrary overwrite!\n"
+            "filepath=%s dirpath=%s\n", filepath, g_dirpath
+        );
+        return -1;
+    }
+
+    return 0;
+}
+
+static int check_path2(const char *filepath)
+{
+    char linkpath[MAXPATH+1]; struct stat st; int length;
+
+    if(lstat(filepath, &st) < 0) {
+        if(errno != ENOENT) {
+            fprintf(stderr, "Unknown lstat() errno: %d\n", errno);
+            return -1;
+        }
+    }
+    else if(S_ISLNK(st.st_mode) != 0) {
+        length = readlink(filepath, linkpath, sizeof(linkpath)-1);
+        linkpath[length >= 0 ? length : 0] = 0;
+
+        fprintf(stderr,
+            "Detected potential symlink-based arbitrary overwrite!\n"
+            "filepath=%s realpath=%s\n", filepath, linkpath
+        );
+        return -1;
+    }
+
+    return check_path(filepath);
+}
+
 static int _sandbox_open(struct tracy_event *e)
 {
-    char linkpath[MAXPATH+1]; int length; struct stat st;
-
-    const char *filepath = _read_path(e, "open", e->args.a0);
+    const char *filepath = read_path(e, "open", e->args.a0);
     if(filepath == NULL) {
         return TRACY_HOOK_ABORT;
     }
@@ -83,41 +132,7 @@ static int _sandbox_open(struct tracy_event *e)
 
     dprintf("open(%s, %lx, %ld)\n", filepath, e->args.a1, e->args.a2);
 
-    if(lstat(filepath, &st) < 0) {
-        if(errno != ENOENT) {
-            fprintf(stderr, "Unknown lstat() errno: %d\n", errno);
-            return TRACY_HOOK_ABORT;
-        }
-    }
-    else if(S_ISLNK(st.st_mode) != 0) {
-        length = readlink(filepath, linkpath, sizeof(linkpath)-1);
-        linkpath[length >= 0 ? length : 0] = 0;
-
-        fprintf(stderr,
-            "Detected potential symlink-based arbitrary overwrite!\n"
-            "filepath=%s realpath=%s\n", filepath, linkpath
-        );
-        return TRACY_HOOK_ABORT;
-    }
-
-    if(strstr(filepath, "..") != NULL) {
-        fprintf(stderr,
-            "Detected potential directory traversal arbitrary overwrite!\n"
-            "filepath=%s\n", filepath
-        );
-        return TRACY_HOOK_ABORT;
-    }
-
-    if(strcmp(filepath, g_filepath) == 0) {
-        return TRACY_HOOK_CONTINUE;
-    }
-
-    if(strncmp(filepath, g_dirpath, strlen(g_dirpath)) != 0 ||
-            filepath[g_dirpath_length] != '/') {
-        fprintf(stderr,
-            "Detected potential out-of-path arbitrary overwrite!\n"
-            "filepath=%s dirpath=%s\n", filepath, g_dirpath
-        );
+    if(check_path2(filepath) < 0) {
         return TRACY_HOOK_ABORT;
     }
 
@@ -135,21 +150,16 @@ static int _sandbox_openat(struct tracy_event *e)
         return TRACY_HOOK_ABORT;
     }
 
-    const char *filepath = _read_path(e, "openat", e->args.a1);
+    if((e->args.a2 & O_ACCMODE) == O_RDONLY) {
+        return TRACY_HOOK_CONTINUE;
+    }
+
+    const char *filepath = read_path(e, "openat", e->args.a1);
     if(filepath == NULL) {
         return TRACY_HOOK_ABORT;
     }
 
     dprintf("openat(%ld, %s)\n", e->args.a0, filepath);
-
-    if(strcmp(filepath, g_dirpath) == 0) {
-        return TRACY_HOOK_CONTINUE;
-    }
-
-    if(strncmp(filepath, g_dirpath, g_dirpath_length) == 0 &&
-            filepath[g_dirpath_length] == '/') {
-        return TRACY_HOOK_CONTINUE;
-    }
 
     for (const char **ptr = g_openat_allowed; *ptr != NULL; ptr++) {
         if(strcmp(filepath, *ptr) == 0) {
@@ -157,53 +167,39 @@ static int _sandbox_openat(struct tracy_event *e)
         }
     }
 
-    fprintf(stderr,
-        "Trying to openat(2) a path that's not whitelisted: %s!\n",
-        filepath
-    );
-    return TRACY_HOOK_ABORT;
+    if(check_path2(filepath) < 0) {
+        return TRACY_HOOK_ABORT;
+    }
+
+    return TRACY_HOOK_CONTINUE;
 }
 
 static int _sandbox_unlink(struct tracy_event *e)
 {
-    const char *filepath = _read_path(e, "unlink", e->args.a0);
+    const char *filepath = read_path(e, "unlink", e->args.a0);
     if(filepath == NULL) {
         return TRACY_HOOK_ABORT;
     }
 
     dprintf("unlink(%s)\n", filepath);
 
-    if(strcmp(filepath, g_dirpath) == 0) {
-        return TRACY_HOOK_CONTINUE;
+    if(check_path2(filepath) < 0) {
+        return TRACY_HOOK_ABORT;
     }
 
-    if(strncmp(filepath, g_dirpath, g_dirpath_length) == 0 &&
-            filepath[g_dirpath_length] == '/') {
-        return TRACY_HOOK_CONTINUE;
-    }
-
-    fprintf(stderr,
-        "Trying to unlink(2) a path that's not whitelisted: %s!\n",
-        filepath
-    );
-    return TRACY_HOOK_ABORT;
+    return TRACY_HOOK_CONTINUE;
 }
 
 static int _sandbox_mkdir(struct tracy_event *e)
 {
-    const char *dirpath = _read_path(e, "mkdir", e->args.a0);
+    const char *dirpath = read_path(e, "mkdir", e->args.a0);
     if(dirpath == NULL) {
         return TRACY_HOOK_ABORT;
     }
 
     dprintf("mkdir(%s)\n", dirpath);
 
-    if(*dirpath == 0 || strcmp(dirpath, g_dirpath) == 0) {
-        return TRACY_HOOK_CONTINUE;
-    }
-
-    if(strncmp(dirpath, g_dirpath, g_dirpath_length) == 0 &&
-            dirpath[g_dirpath_length] == '/') {
+    if(*dirpath == 0 || check_path(dirpath) == 0) {
         return TRACY_HOOK_CONTINUE;
     }
 
@@ -218,19 +214,14 @@ static int _sandbox_mkdir(struct tracy_event *e)
 
 static int _sandbox_readlink(struct tracy_event *e)
 {
-    const char *filepath = _read_path(e, "readlink", e->args.a0);
+    const char *filepath = read_path(e, "readlink", e->args.a0);
     if(filepath == NULL) {
         return TRACY_HOOK_ABORT;
     }
 
     dprintf("readlink(%s)\n", filepath);
 
-    if(strcmp(filepath, g_dirpath) == 0) {
-        return TRACY_HOOK_CONTINUE;
-    }
-
-    if(strncmp(filepath, g_dirpath, g_dirpath_length) == 0 &&
-            filepath[g_dirpath_length] == '/') {
+    if(check_path(filepath) == 0) {
         return TRACY_HOOK_CONTINUE;
     }
 
@@ -242,6 +233,12 @@ static int _sandbox_mmap(struct tracy_event *e)
     if((e->args.a2 & PROT_EXEC) == PROT_EXEC) {
         fprintf(stderr,
             "Blocked mmap(2) syscall with X flag set!\n"
+        );
+        return TRACY_HOOK_ABORT;
+    }
+    if((e->args.a3 & MAP_SHARED) == MAP_SHARED) {
+        fprintf(stderr,
+            "Blocked mmap(2) syscall with MAP_SHARED flag set!\n"
         );
         return TRACY_HOOK_ABORT;
     }
@@ -257,6 +254,21 @@ static int _sandbox_mprotect(struct tracy_event *e)
         return TRACY_HOOK_ABORT;
     }
     return TRACY_HOOK_CONTINUE;
+}
+
+static int _sandbox_ioctl(struct tracy_event *e)
+{
+    dprintf("ioctl(%ld, %ld, 0x%lx)\n", e->args.a0, e->args.a1, e->args.a2);
+
+    if(e->args.a0 == 1 && e->args.a1 == TIOCGWINSZ) {
+        return TRACY_HOOK_CONTINUE;
+    }
+
+    if(e->args.a1 == TCGETS) {
+        return TRACY_HOOK_CONTINUE;
+    }
+
+    return TRACY_HOOK_ABORT;
 }
 
 static int _sandbox_allow(struct tracy_event *e)
@@ -326,6 +338,12 @@ static int _zipjail_enter_sandbox(struct tracy_event *e)
         return TRACY_HOOK_ABORT;
     }
 
+    if(tracy_set_hook(e->child->tracy, "ioctl", e->abi,
+            &_sandbox_ioctl) < 0) {
+        fprintf(stderr, "Error setting ioctl(2) sandbox hook!\n");
+        return TRACY_HOOK_ABORT;
+    }
+
     for (const char **sc = g_syscall_allowed; *sc != NULL; sc++) {
         if(tracy_set_hook(e->child->tracy, *sc, e->abi,
                 &_sandbox_allow) < 0) {
@@ -346,7 +364,7 @@ static int _zipjail_enter_sandbox(struct tracy_event *e)
 
 static int _trigger_open(struct tracy_event *e)
 {
-    const char *filepath = _read_path(e, "open", e->args.a0);
+    const char *filepath = read_path(e, "open", e->args.a0);
     if(filepath == NULL) {
         return TRACY_HOOK_ABORT;
     }
@@ -365,7 +383,7 @@ int main(int argc, char *argv[])
 {
     if(argc < 4) {
         fprintf(stderr,
-            "zipjail 0.2 - safe unpacking of potentially unsafe archives.\n"
+            "zipjail 0.3 - safe unpacking of potentially unsafe archives.\n"
             "Copyright (C) 2016, Jurriaan Bremer <jbr@cuckoo.sh>.\n"
             "Based on Tracy by Merlijn Wajer and Bas Weelinck.\n"
             "    (https://github.com/MerlijnWajer/tracy)\n"
