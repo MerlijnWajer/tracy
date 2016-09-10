@@ -25,6 +25,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <asm/ioctls.h>
+#include <linux/futex.h>
 #include "tracy.h"
 #include "tracyarch.h"
 
@@ -79,6 +80,10 @@ static int check_path(const char *filepath)
     }
 
     if(strcmp(filepath, g_filepath) == 0) {
+        return 0;
+    }
+
+    if(strcmp(filepath, g_dirpath) == 0) {
         return 0;
     }
 
@@ -271,6 +276,17 @@ static int _sandbox_ioctl(struct tracy_event *e)
     return TRACY_HOOK_ABORT;
 }
 
+static int _sandbox_futex(struct tracy_event *e)
+{
+    dprintf("futex(%ld, %ld, 0x%lx)\n", e->args.a0, e->args.a1, e->args.a2);
+
+    if(e->args.a1 == FUTEX_WAKE_PRIVATE) {
+        return TRACY_HOOK_CONTINUE;
+    }
+
+    return TRACY_HOOK_ABORT;
+}
+
 static int _sandbox_allow(struct tracy_event *e)
 {
     (void) e;
@@ -344,6 +360,12 @@ static int _zipjail_enter_sandbox(struct tracy_event *e)
         return TRACY_HOOK_ABORT;
     }
 
+    if(tracy_set_hook(e->child->tracy, "futex", e->abi,
+            &_sandbox_futex) < 0) {
+        fprintf(stderr, "Error setting futex(2) sandbox hook!\n");
+        return TRACY_HOOK_ABORT;
+    }
+
     for (const char **sc = g_syscall_allowed; *sc != NULL; sc++) {
         if(tracy_set_hook(e->child->tracy, *sc, e->abi,
                 &_sandbox_allow) < 0) {
@@ -383,7 +405,7 @@ int main(int argc, char *argv[])
 {
     if(argc < 4) {
         fprintf(stderr,
-            "zipjail 0.3 - safe unpacking of potentially unsafe archives.\n"
+            "zipjail 0.3.1 - safe unpacking of potentially unsafe archives.\n"
             "Copyright (C) 2016, Jurriaan Bremer <jbr@cuckoo.sh>.\n"
             "Based on Tracy by Merlijn Wajer and Bas Weelinck.\n"
             "    (https://github.com/MerlijnWajer/tracy)\n"
