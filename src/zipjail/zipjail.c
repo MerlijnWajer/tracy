@@ -264,7 +264,7 @@ static int _sandbox_ioctl(struct tracy_event *e)
         return TRACY_HOOK_CONTINUE;
     }
 
-    if(e->args.a1 == TCGETS) {
+    if(e->args.a1 == TCGETS || e->args.a1 == TCSETS) {
         return TRACY_HOOK_CONTINUE;
     }
 

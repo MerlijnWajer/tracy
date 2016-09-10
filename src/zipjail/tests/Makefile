@@ -35,6 +35,8 @@ unpack:
 	../zipjail simple.rar /tmp/zipjail-simple rar x -mt1 simple.rar /tmp/zipjail-simple
 	rm -rf /tmp/zipjail-simple
 	../zipjail simple.7z /tmp/zipjail-simple 7z x -mmt=off -o/tmp/zipjail-simple simple.7z
+	rm -rf /tmp/zipjail-simple
+	../zipjail $(abspath simple.ace) /tmp/zipjail-simple unace x simple.ace /tmp/zipjail-simple/
 
 clean:
 	rm -f $(BINARY32) $(BINARY64)
