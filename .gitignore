@@ -1,2 +1,7 @@
 *.swp
 *.o
+src/arch/*/syscall*.h
+src/libtracy.a
+src/libtracy.so
+src/zipjail/zipjail
+src/zipjail/tests/*.out

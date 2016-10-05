@@ -23,7 +23,7 @@
 #include <time.h>
 
 #include <sys/time.h>
-#include <asm/stat.h>
+#include <sys/stat.h>
 
 /* TODO
  * We need to think/implement the timezone value for gettimeofday
@@ -75,7 +75,7 @@ int hook_time(struct tracy_event *e) {
 
         e->args.return_code = t;
     }
-    return TRACY_HOOK_CONTINUE; 
+    return TRACY_HOOK_CONTINUE;
 }
 
 int hook_clock_gettime(struct tracy_event *e) {
@@ -100,7 +100,7 @@ int hook_clock_gettime(struct tracy_event *e) {
         }
     }
 
-    return TRACY_HOOK_CONTINUE; 
+    return TRACY_HOOK_CONTINUE;
 }
 
 int hook_gettimeofday(struct tracy_event *e) {
@@ -120,7 +120,7 @@ int hook_gettimeofday(struct tracy_event *e) {
         }
     }
 
-    return TRACY_HOOK_CONTINUE; 
+    return TRACY_HOOK_CONTINUE;
 }
 
 
@@ -171,7 +171,7 @@ int hook_fstat64(struct tracy_event *e) {
 
         }
     }
-    return TRACY_HOOK_CONTINUE; 
+    return TRACY_HOOK_CONTINUE;
 }
 
 int hook_stat64(struct tracy_event *e) {

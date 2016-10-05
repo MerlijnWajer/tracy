@@ -21,7 +21,7 @@ TESTS:=tst/fork tst/mmap
 
 tests: $(TESTS)
 
-soxy: soxy.c
+soxy: soxy.c $(OBJECTS)
 	$(CC) soxy.c $(CFLAGS) $(OBJECTS) $(LDFLAGS) -o soxy -I..
 
 clean:
