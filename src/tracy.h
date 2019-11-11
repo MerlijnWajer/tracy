@@ -52,6 +52,11 @@
 /* Enable automatic usage of ptrace's memory API when PPM (/proc based) fails */
 #define TRACY_MEMORY_FALLBACK (1 << 4)
 
+#ifdef __arm__
+/* See: https://github.com/MerlijnWajer/tracy/issues/44 */
+#define TRACY_WORKAROUND_ARM_7475_1 (1 << 5)
+#endif
+
 #define TRACY_USE_SAFE_TRACE (1 << 31)
 
 #define TRACY_PRINT_SIGNALS(t) \
